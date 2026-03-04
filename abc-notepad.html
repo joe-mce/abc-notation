@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ABC Notepad</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.4.4/abcjs-basic-min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
@@ -52,6 +53,38 @@
   }
   .logo span { color: var(--text-dim); font-weight: 400; }
 
+  /* Preview */
+  #preview-wrap {
+    overflow: hidden;
+    min-height: 40px;
+  }
+
+  #preview {
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  /* Force abcjs SVG to be white/light on dark bg */
+  #preview svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  #preview svg path,
+  #preview svg rect,
+  #preview svg ellipse,
+  #preview svg polygon,
+  #preview svg line,
+  #preview svg polyline {
+    fill: var(--text);
+    stroke: var(--text);
+  }
+  /* Don't recolour transparent fills */
+  #preview svg [fill="none"] { fill: none; }
+  #preview svg [stroke="none"] { stroke: none; }
+
+  /* Editor */
   .editor-wrap {
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -61,8 +94,8 @@
 
   #notation {
     width: 100%;
-    min-height: 110px;
-    max-height: 180px;
+    min-height: 90px;
+    max-height: 160px;
     background: transparent;
     border: none;
     outline: none;
@@ -149,7 +182,6 @@
   }
   .key:active { background: #333; transform: scale(0.93); }
 
-  /* Row 1: primary symbols */
   .row-primary .key {
     height: 48px;
     font-size: clamp(0.85rem, 3.2vw, 1.2rem);
@@ -165,7 +197,6 @@
     font-size: clamp(0.85rem, 3vw, 1rem) !important;
   }
 
-  /* Rows 2 & 3: notes */
   .row-notes .key {
     height: 42px;
     font-size: clamp(0.8rem, 2.8vw, 1rem);
@@ -183,7 +214,6 @@
     color: var(--text-dim) !important;
   }
 
-  /* Rows 4 & 5: small */
   .row-small .key {
     height: 36px;
     font-size: clamp(0.7rem, 2.6vw, 0.9rem);
@@ -203,6 +233,12 @@
   <div class="logo">ABC <span>Notepad</span></div>
 </header>
 
+<!-- Preview -->
+<div id="preview-wrap">
+  <div id="preview"></div>
+</div>
+
+<!-- Editor -->
 <div class="editor-wrap">
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
@@ -216,38 +252,38 @@
 <div class="key-row row-primary">
   <button class="key" onclick="ins('[')">&#91;</button>
   <button class="key" onclick="ins(']')">&#93;</button>
-  <button class="key" onclick="ins('|')">|</button>
   <button class="key" onclick="ins('_')">_</button>
   <button class="key" onclick="ins('^')">^</button>
   <button class="key" onclick="ins(',')"><span style="font-size:1.4em;line-height:1">,</span></button>
   <button class="key" onclick="ins(&quot;'&quot;)">'</button>
   <button class="key" onclick='ins(&apos;"&apos;)'>&quot;</button>
+  <button class="key" onclick="ins('|')">|</button>
   <button class="key key-bksp" onclick="bksp()">⌫</button>
 </div>
 
 <!-- Row 2: Upper notes + space -->
 <div class="key-row row-notes">
-  <button class="key" onclick="ins('A')">A</button>
-  <button class="key" onclick="ins('B')">B</button>
   <button class="key" onclick="ins('C')">C</button>
   <button class="key" onclick="ins('D')">D</button>
   <button class="key" onclick="ins('E')">E</button>
   <button class="key" onclick="ins('F')">F</button>
   <button class="key" onclick="ins('G')">G</button>
+  <button class="key" onclick="ins('A')">A</button>
+  <button class="key" onclick="ins('B')">B</button>
   <button class="key key-z" onclick="ins('z')">z</button>
   <button class="key key-space" onclick="ins(' ')">SPACE</button>
 </div>
 
-<!-- Row 3: Lower notes + ( + newline -->
+<!-- Row 3: Lower notes + = + newline -->
 <div class="key-row row-notes">
-  <button class="key" onclick="ins('a')">a</button>
-  <button class="key" onclick="ins('b')">b</button>
   <button class="key" onclick="ins('c')">c</button>
   <button class="key" onclick="ins('d')">d</button>
   <button class="key" onclick="ins('e')">e</button>
   <button class="key" onclick="ins('f')">f</button>
   <button class="key" onclick="ins('g')">g</button>
-  <button class="key" onclick="ins('(')">&#40;</button>
+  <button class="key" onclick="ins('a')">a</button>
+  <button class="key" onclick="ins('b')">b</button>
+  <button class="key" onclick="ins('=')">=</button>
   <button class="key key-nl" onclick="ins('\n')">↵ NL</button>
 </div>
 
@@ -269,13 +305,13 @@
 
 <!-- Row 5: Misc symbols -->
 <div class="key-row row-small">
+  <button class="key" onclick="ins('(')">&#40;</button>
   <button class="key" onclick="ins(')')">&#41;</button>
   <button class="key" onclick="ins('{')">&#123;</button>
   <button class="key" onclick="ins('}')">&#125;</button>
   <button class="key" onclick="ins(':')">:</button>
   <button class="key" onclick="ins('-')">-</button>
   <button class="key" onclick="ins('%')">%</button>
-  <button class="key" onclick="ins('=')">=</button>
   <button class="key" onclick="ins('/')">/</button>
   <button class="key" onclick="ins('!')">!</button>
   <button class="key" onclick="ins('.')">.</button>
@@ -286,9 +322,11 @@
 <script>
   const ta = document.getElementById('notation');
   const toast = document.getElementById('toast');
+  const previewDiv = document.getElementById('preview');
 
   let taFocused = false;
   let savedStart = 0, savedEnd = 0;
+  let debounceTimer = null;
 
   ta.addEventListener('focus', () => { taFocused = true; });
   ta.addEventListener('blur', () => {
@@ -297,23 +335,51 @@
     savedEnd = ta.selectionEnd;
   });
 
+  // Also trigger preview on manual typing
+  ta.addEventListener('input', schedulePreview);
+
+  function schedulePreview() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(renderPreview, 900);
+  }
+
+  function renderPreview() {
+    const raw = ta.value.trim();
+    if (!raw) {
+      previewDiv.innerHTML = '';
+      return;
+    }
+    try {
+      ABCJS.renderAbc('preview', raw, {
+        responsive: 'resize',
+        staffwidth: previewDiv.offsetWidth - 20 || 320,
+        paddingtop: 6,
+        paddingbottom: 6,
+        paddingleft: 8,
+        paddingright: 8,
+        jazzchords: false,
+        format: { gchordfont: 'Helvetica 12' }
+      });
+    } catch(e) {
+      // Silently ignore parse errors mid-typing
+    }
+  }
+
   function ins(char) {
     if (taFocused) {
-      // Keyboard already open: insert at cursor, stay focused (keyboard stays up)
       const start = ta.selectionStart;
       const end = ta.selectionEnd;
       ta.value = ta.value.slice(0, start) + char + ta.value.slice(end);
       const pos = start + char.length;
       ta.setSelectionRange(pos, pos);
-      // No ta.focus() call needed — already focused
     } else {
-      // Keyboard closed: insert at last saved position, do NOT focus (no keyboard popup)
       const s = savedStart;
       const e = savedEnd;
       ta.value = ta.value.slice(0, s) + char + ta.value.slice(e);
       savedStart = s + char.length;
       savedEnd = savedStart;
     }
+    schedulePreview();
   }
 
   function bksp() {
@@ -337,6 +403,7 @@
         savedEnd = savedStart;
       }
     }
+    schedulePreview();
   }
 
   function copyText() {
@@ -357,6 +424,8 @@
     if (ta.value && confirm('Clear all text?')) {
       ta.value = '';
       savedStart = 0; savedEnd = 0;
+      previewDiv.innerHTML = '';
+      clearTimeout(debounceTimer);
     }
   }
 </script>
