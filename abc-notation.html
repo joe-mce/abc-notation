@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ABC Notation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #333;
+    --accent: #e8c84a;
+    --accent2: #4ae8b4;
+    --text: #f0ede6;
+    --text-dim: #888;
+    --btn-bg: #222;
+    --btn-bg-lg: #2a2a1a;
+    --btn-border: #3a3a3a;
+    --btn-border-lg: #5a5020;
+    --radius: 8px;
+    --radius-sm: 5px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'IBM Plex Sans', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 10px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .logo span { color: var(--text-dim); font-weight: 400; }
+
+  /* Text area */
+  .editor-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  #notation {
+    width: 100%;
+    min-height: 120px;
+    max-height: 200px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    line-height: 1.6;
+    padding: 12px;
+    resize: vertical;
+    caret-color: var(--accent);
+  }
+
+  #notation::placeholder { color: var(--text-dim); }
+
+  .editor-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .char-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .action-btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: all 0.12s;
+    letter-spacing: 0.04em;
+  }
+
+  .btn-copy {
+    background: var(--accent);
+    color: #111;
+  }
+  .btn-copy:active { background: #c9a830; transform: scale(0.96); }
+
+  .btn-clear {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .btn-clear:active { background: var(--surface2); transform: scale(0.96); }
+
+  .copy-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-60px);
+    background: var(--accent2);
+    color: #0a2a1f;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 8px 20px;
+    border-radius: 20px;
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .copy-toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Keyboard sections */
+  .kbd-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .section-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 0 2px;
+  }
+
+  /* Button grids */
+  .key-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  /* Base key styles */
+  .key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    border: 1.5px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.08s, transform 0.08s, border-color 0.08s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .key:active {
+    background: #333;
+    transform: scale(0.93);
+    border-color: #555;
+  }
+
+  /* Large keys (primary symbols) */
+  .key-lg {
+    font-size: 1.25rem;
+    height: 52px;
+    min-width: 52px;
+    padding: 0 10px;
+    border-color: var(--btn-border-lg);
+    background: var(--btn-bg-lg);
+    color: var(--accent);
+    flex: 1 1 52px;
+    max-width: 80px;
+  }
+
+  /* Medium keys (notes) */
+  .key-md {
+    font-size: 1.05rem;
+    height: 44px;
+    min-width: 40px;
+    flex: 1 1 40px;
+    max-width: 60px;
+  }
+
+  /* Small keys (numbers, misc) */
+  .key-sm {
+    font-size: 0.85rem;
+    height: 38px;
+    min-width: 34px;
+    flex: 1 1 34px;
+    max-width: 52px;
+    color: var(--text-dim);
+  }
+
+  /* Backspace key */
+  .key-bksp {
+    font-size: 1rem;
+    height: 52px;
+    min-width: 64px;
+    flex: 0 0 auto;
+    background: #1e1010;
+    border-color: #4a2020;
+    color: #e06060;
+  }
+
+  /* Space key */
+  .key-space {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    height: 44px;
+    flex: 1 1 100px;
+    color: var(--text-dim);
+  }
+
+  /* Newline key */
+  .key-nl {
+    font-size: 0.75rem;
+    height: 44px;
+    min-width: 64px;
+    flex: 0 0 auto;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 2px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ABC <span>Notation</span></div>
+  <div class="char-count" id="charCount">0 chars</div>
+</header>
+
+<!-- Editor -->
+<div class="editor-wrap">
+  <textarea id="notation" placeholder="Type or tap to enter ABC notation…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+  <div class="editor-footer">
+    <div></div>
+    <div class="btn-row">
+      <button class="action-btn btn-clear" onclick="clearAll()">Clear</button>
+      <button class="action-btn btn-copy" onclick="copyText()">Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Primary Symbols (large) -->
+<div class="kbd-section">
+  <div class="section-label">Primary Symbols</div>
+  <div class="key-grid">
+    <button class="key key-lg" onclick="ins('[')">&#91;</button>
+    <button class="key key-lg" onclick="ins(']')">&#93;</button>
+    <button class="key key-lg" onclick="ins('|')">|</button>
+    <button class="key key-lg" onclick="ins('_')">_</button>
+    <button class="key key-lg" onclick="ins('^')">^</button>
+    <button class="key key-lg" onclick="ins(',')"><span style="font-size:1.5rem">,</span></button>
+    <button class="key key-lg" onclick="ins(&quot;'&quot;)">'</button>
+    <button class="key key-lg" onclick='ins(&apos;"&apos;)'>&quot;</button>
+    <button class="key key-bksp" onclick="bksp()">⌫</button>
+  </div>
+</div>
+
+<!-- Notes uppercase -->
+<div class="kbd-section">
+  <div class="section-label">Notes (Upper)</div>
+  <div class="key-grid">
+    <button class="key key-md" onclick="ins('A')">A</button>
+    <button class="key key-md" onclick="ins('B')">B</button>
+    <button class="key key-md" onclick="ins('C')">C</button>
+    <button class="key key-md" onclick="ins('D')">D</button>
+    <button class="key key-md" onclick="ins('E')">E</button>
+    <button class="key key-md" onclick="ins('F')">F</button>
+    <button class="key key-md" onclick="ins('G')">G</button>
+    <button class="key key-md" onclick="ins('z')" style="color:#4ae8b4">z</button>
+    <button class="key key-space" onclick="ins(' ')">SPACE</button>
+  </div>
+</div>
+
+<!-- Notes lowercase -->
+<div class="kbd-section">
+  <div class="section-label">Notes (Lower)</div>
+  <div class="key-grid">
+    <button class="key key-md" onclick="ins('a')">a</button>
+    <button class="key key-md" onclick="ins('b')">b</button>
+    <button class="key key-md" onclick="ins('c')">c</button>
+    <button class="key key-md" onclick="ins('d')">d</button>
+    <button class="key key-md" onclick="ins('e')">e</button>
+    <button class="key key-md" onclick="ins('f')">f</button>
+    <button class="key key-md" onclick="ins('g')">g</button>
+    <button class="key key-nl" onclick="ins('\n')">↵ NEW LINE</button>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Numbers -->
+<div class="kbd-section">
+  <div class="section-label">Numbers</div>
+  <div class="key-grid">
+    <button class="key key-sm" onclick="ins('0')">0</button>
+    <button class="key key-sm" onclick="ins('1')">1</button>
+    <button class="key key-sm" onclick="ins('2')">2</button>
+    <button class="key key-sm" onclick="ins('3')">3</button>
+    <button class="key key-sm" onclick="ins('4')">4</button>
+    <button class="key key-sm" onclick="ins('5')">5</button>
+    <button class="key key-sm" onclick="ins('6')">6</button>
+    <button class="key key-sm" onclick="ins('7')">7</button>
+    <button class="key key-sm" onclick="ins('8')">8</button>
+    <button class="key key-sm" onclick="ins('9')">9</button>
+  </div>
+</div>
+
+<!-- Misc symbols -->
+<div class="kbd-section">
+  <div class="section-label">Other Symbols</div>
+  <div class="key-grid">
+    <button class="key key-sm" onclick="ins('(')">&#40;</button>
+    <button class="key key-sm" onclick="ins(')')">&#41;</button>
+    <button class="key key-sm" onclick="ins('{')">&#123;</button>
+    <button class="key key-sm" onclick="ins('}')">&#125;</button>
+    <button class="key key-sm" onclick="ins(':')">:</button>
+    <button class="key key-sm" onclick="ins('-')">-</button>
+    <button class="key key-sm" onclick="ins('%')">%</button>
+    <button class="key key-sm" onclick="ins('=')">=</button>
+    <button class="key key-sm" onclick="ins('/')">/</button>
+    <button class="key key-sm" onclick="ins('!')">!</button>
+    <button class="key key-sm" onclick="ins('.')">.</button>
+  </div>
+</div>
+
+<div class="copy-toast" id="toast">Copied to clipboard ✓</div>
+
+<script>
+  const ta = document.getElementById('notation');
+  const toast = document.getElementById('toast');
+  const charCount = document.getElementById('charCount');
+
+  ta.addEventListener('input', updateCount);
+
+  function updateCount() {
+    const n = ta.value.length;
+    charCount.textContent = n + ' char' + (n !== 1 ? 's' : '');
+  }
+
+  function ins(char) {
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const val = ta.value;
+    ta.value = val.slice(0, start) + char + val.slice(end);
+    const pos = start + char.length;
+    ta.setSelectionRange(pos, pos);
+    ta.focus();
+    updateCount();
+  }
+
+  function bksp() {
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    if (start === end && start > 0) {
+      ta.value = ta.value.slice(0, start - 1) + ta.value.slice(end);
+      ta.setSelectionRange(start - 1, start - 1);
+    } else if (start !== end) {
+      ta.value = ta.value.slice(0, start) + ta.value.slice(end);
+      ta.setSelectionRange(start, start);
+    }
+    ta.focus();
+    updateCount();
+  }
+
+  function copyText() {
+    if (!ta.value) return;
+    navigator.clipboard.writeText(ta.value).then(() => {
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1800);
+    }).catch(() => {
+      ta.select();
+      document.execCommand('copy');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+  }
+
+  function clearAll() {
+    if (ta.value && confirm('Clear all text?')) {
+      ta.value = '';
+      updateCount();
+      ta.focus();
+    }
+  }
+</script>
+</body>
+</html>
