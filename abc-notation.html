@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ABC Notation</title>
+<title>ABC Notepad</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
@@ -200,7 +200,7 @@
 <body>
 
 <header>
-  <div class="logo">ABC <span>Notation</span></div>
+  <div class="logo">ABC <span>Notepad</span></div>
 </header>
 
 <div class="editor-wrap">
@@ -238,7 +238,7 @@
   <button class="key key-space" onclick="ins(' ')">SPACE</button>
 </div>
 
-<!-- Row 3: Lower notes + newline -->
+<!-- Row 3: Lower notes + ( + newline -->
 <div class="key-row row-notes">
   <button class="key" onclick="ins('a')">a</button>
   <button class="key" onclick="ins('b')">b</button>
@@ -247,6 +247,7 @@
   <button class="key" onclick="ins('e')">e</button>
   <button class="key" onclick="ins('f')">f</button>
   <button class="key" onclick="ins('g')">g</button>
+  <button class="key" onclick="ins('(')">&#40;</button>
   <button class="key key-nl" onclick="ins('\n')">↵ NL</button>
 </div>
 
@@ -268,7 +269,6 @@
 
 <!-- Row 5: Misc symbols -->
 <div class="key-row row-small">
-  <button class="key" onclick="ins('(')">&#40;</button>
   <button class="key" onclick="ins(')')">&#41;</button>
   <button class="key" onclick="ins('{')">&#123;</button>
   <button class="key" onclick="ins('}')">&#125;</button>
