@@ -294,7 +294,12 @@
       <button class="action-btn btn-templates" id="tmplToggle" onmousedown="event.preventDefault()" onclick="toggleTemplates()">Templates</button>
     </div>
     <div class="footer-right">
-      <button class="action-btn btn-clear" onclick="clearAll()">Clear</button>
+      <button class="action-btn btn-clear" id="clearBtn" onclick="clearStep1()">Clear</button>
+      <span id="clearConfirm" style="display:none; align-items:center; gap:5px;">
+        <span style="font-size:0.72rem; color:var(--text-dim);">Clear all text?</span>
+        <button class="action-btn btn-clear" style="color:#e06060;" onclick="clearStep2()">Clear</button>
+        <button class="action-btn btn-clear" onclick="clearCancel()">Cancel</button>
+      </span>
       <button class="action-btn btn-copy" onclick="copyText()">Copy</button>
     </div>
   </div>
@@ -500,13 +505,24 @@
     setTimeout(() => toast.classList.remove('show'), 1800);
   }
 
-  function clearAll() {
-    if (ta.value && confirm('Clear all text?')) {
-      ta.value = '';
-      savedStart = 0; savedEnd = 0;
-      previewDiv.innerHTML = '';
-      clearTimeout(debounceTimer);
-    }
+  function clearStep1() {
+    if (!ta.value) return;
+    document.getElementById('clearBtn').style.display = 'none';
+    const confirm = document.getElementById('clearConfirm');
+    confirm.style.display = 'flex';
+  }
+
+  function clearStep2() {
+    ta.value = '';
+    savedStart = 0; savedEnd = 0;
+    previewDiv.innerHTML = '';
+    clearTimeout(debounceTimer);
+    clearCancel();
+  }
+
+  function clearCancel() {
+    document.getElementById('clearBtn').style.display = '';
+    document.getElementById('clearConfirm').style.display = 'none';
   }
 </script>
 </body>
