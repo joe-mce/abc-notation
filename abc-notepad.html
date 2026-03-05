@@ -56,7 +56,7 @@
   /* Preview */
   #preview-wrap {
     overflow: hidden;
-    min-height: 40px;
+    min-height: 150px;
   }
 
   #preview {
@@ -110,12 +110,61 @@
   .editor-footer {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     padding: 5px 8px;
     border-top: 1px solid var(--border);
     background: var(--surface2);
     gap: 6px;
   }
+
+  .footer-left { display: flex; gap: 6px; }
+  .footer-right { display: flex; gap: 6px; }
+
+  .btn-templates {
+    background: transparent;
+    color: var(--accent2);
+    border: 1px solid #2a5a4a;
+  }
+  .btn-templates:active { background: #0a2a1f; transform: scale(0.96); }
+  .btn-templates.active { background: #0a2a1f; border-color: var(--accent2); }
+
+  /* Template panel */
+  #tmpl-panel {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
+    padding: 0 8px;
+    border-width: 0;
+  }
+  #tmpl-panel.open {
+    max-height: 300px;
+    padding: 8px;
+    border-width: 1.5px;
+  }
+
+  .tmpl-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .tmpl-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(0.65rem, 2.4vw, 0.8rem);
+    font-weight: 600;
+    background: var(--btn-bg);
+    color: var(--accent2);
+    border: 1.5px solid #2a5a4a;
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: background 0.08s, transform 0.08s;
+    white-space: nowrap;
+  }
+  .tmpl-btn:active { background: #0a2a1f; transform: scale(0.95); }
 
   .action-btn {
     font-family: 'IBM Plex Sans', sans-serif;
@@ -241,8 +290,35 @@
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="editor-footer">
-    <button class="action-btn btn-clear" onclick="clearAll()">Clear</button>
-    <button class="action-btn btn-copy" onclick="copyText()">Copy</button>
+    <div class="footer-left">
+      <button class="action-btn btn-templates" id="tmplToggle" onmousedown="event.preventDefault()" onclick="toggleTemplates()">Templates</button>
+    </div>
+    <div class="footer-right">
+      <button class="action-btn btn-clear" onclick="clearAll()">Clear</button>
+      <button class="action-btn btn-copy" onclick="copyText()">Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template panel (slides in above keyboard) -->
+<div id="tmpl-panel">
+  <div class="tmpl-grid">
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score ')">%%score</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score {1 | 2}')">%%score {1|2}</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score {(1 2) | (3 4)}')">%%score {(1 2)|(3 4)}</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('T:')">T:</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('V:')">V:</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('L:')">L:</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('W:')">W:</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('clef=treble ')">clef=treble</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('clef=bass ')">clef=bass</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('style=')">style=</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('[V:1]')">[V:1]</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('[V:2]')">[V:2]</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('(3 ')">(3</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('!mark!')">!mark!</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score {RH | LH}\nV:RH clef=treble\nV:LH clef=bass\n[V:RH]\n[V:LH]\n')">Grand Staff</button>
+    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%staffsep 25\nK:perc stafflines=0\nL:3/2\nz z | z z | z z | z z |\n')">Chord Chart</button>
   </div>
 </div>
 
@@ -256,6 +332,7 @@
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('(')">&#40;</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins(')')">&#41;</button>
   <button class="key" onmousedown="event.preventDefault()" onclick='ins(&apos;"&apos;)'>&quot;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('.')">.</button>
   <button class="key key-bksp" onmousedown="event.preventDefault()" onclick="bksp()">⌫</button>
 </div>
 
@@ -359,6 +436,23 @@
     } catch(e) {
       // Silently ignore parse errors mid-typing
     }
+  }
+
+  function toggleTemplates() {
+    const panel = document.getElementById('tmpl-panel');
+    const btn = document.getElementById('tmplToggle');
+    const isOpen = panel.classList.toggle('open');
+    btn.classList.toggle('active', isOpen);
+  }
+
+  function insTemplate(text) {
+    const s = savedStart;
+    const e = savedEnd;
+    ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+    savedStart = s + text.length;
+    savedEnd = savedStart;
+    // Do not focus — keep keyboard closed
+    schedulePreview();
   }
 
   function ins(char) {
