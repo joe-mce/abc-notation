@@ -40,9 +40,7 @@
     margin: 0 auto;
   }
 
-  header {
-    padding: 2px 0 2px;
-  }
+  header { padding: 2px 0 2px; }
 
   .logo {
     font-family: 'IBM Plex Mono', monospace;
@@ -54,31 +52,13 @@
   .logo span { color: var(--text-dim); font-weight: 400; }
 
   /* Preview */
-  #preview-wrap {
-    overflow: hidden;
-    min-height: 150px;
+  #preview-wrap { overflow: hidden; min-height: 150px; }
+  #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
+  #preview svg { display: block; }
+  #preview svg path, #preview svg rect, #preview svg ellipse,
+  #preview svg polygon, #preview svg line, #preview svg polyline {
+    fill: var(--text); stroke: var(--text);
   }
-
-  #preview {
-    padding: 8px 10px;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
-  /* Force abcjs SVG to be white/light on dark bg */
-  #preview svg {
-    display: block;
-  }
-  #preview svg path,
-  #preview svg rect,
-  #preview svg ellipse,
-  #preview svg polygon,
-  #preview svg line,
-  #preview svg polyline {
-    fill: var(--text);
-    stroke: var(--text);
-  }
-  /* Don't recolour transparent fills */
   #preview svg [fill="none"] { fill: none; }
   #preview svg [stroke="none"] { stroke: none; }
 
@@ -89,7 +69,6 @@
     border-radius: var(--radius);
     overflow: hidden;
   }
-
   #notation {
     width: 100%;
     min-height: 90px;
@@ -116,16 +95,27 @@
     background: var(--surface2);
     gap: 6px;
   }
-
   .footer-left { display: flex; gap: 6px; }
   .footer-right { display: flex; gap: 6px; }
 
-  .btn-templates {
-    background: transparent;
-    color: var(--accent2);
-    border: 1px solid #2a5a4a;
+  .action-btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: background 0.08s, transform 0.08s;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
   }
-  .btn-templates:active { background: #0a2a1f; transform: scale(0.96); }
+  .btn-copy { background: var(--accent); color: #111; }
+  .btn-copy.pressed { background: #c9a830; transform: scale(0.96); }
+  .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-clear.pressed { background: var(--surface2); transform: scale(0.96); }
+  .btn-templates { background: transparent; color: var(--accent2); border: 1px solid #2a5a4a; }
+  .btn-templates.pressed { background: #0a2a1f; transform: scale(0.96); }
   .btn-templates.active { background: #0a2a1f; border-color: var(--accent2); }
 
   /* Template panel */
@@ -139,18 +129,8 @@
     padding: 0 8px;
     border-width: 0;
   }
-  #tmpl-panel.open {
-    max-height: 300px;
-    padding: 8px;
-    border-width: 1.5px;
-  }
-
-  .tmpl-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-  }
-
+  #tmpl-panel.open { max-height: 300px; padding: 8px; border-width: 1.5px; }
+  .tmpl-grid { display: flex; flex-wrap: wrap; gap: 5px; }
   .tmpl-btn {
     font-family: 'IBM Plex Mono', monospace;
     font-size: clamp(0.65rem, 2.4vw, 0.8rem);
@@ -163,24 +143,9 @@
     cursor: pointer;
     transition: background 0.08s, transform 0.08s;
     white-space: nowrap;
+    touch-action: manipulation;
   }
-  .tmpl-btn:active { background: #0a2a1f; transform: scale(0.95); }
-
-  .action-btn {
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 5px 14px;
-    border-radius: var(--radius-sm);
-    border: none;
-    cursor: pointer;
-    transition: all 0.12s;
-    letter-spacing: 0.04em;
-  }
-  .btn-copy { background: var(--accent); color: #111; }
-  .btn-copy:active { background: #c9a830; transform: scale(0.96); }
-  .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-  .btn-clear:active { background: var(--surface2); transform: scale(0.96); }
+  .tmpl-btn.pressed { background: #0a2a1f; transform: scale(0.95); }
 
   .copy-toast {
     position: fixed;
@@ -199,14 +164,13 @@
   }
   .copy-toast.show { transform: translateX(-50%) translateY(0); }
 
-  /* Single non-wrapping row */
+  /* Key rows */
   .key-row {
     display: flex;
     flex-wrap: nowrap;
     gap: 4px;
     width: 100%;
   }
-
   .key {
     font-family: 'IBM Plex Mono', monospace;
     font-weight: 600;
@@ -226,8 +190,10 @@
     padding: 0;
     white-space: nowrap;
     overflow: hidden;
+    touch-action: manipulation;
   }
-  .key:active { background: #333; transform: scale(0.93); }
+  .key.pressed { background: #333; transform: scale(0.93); }
+  .key-bksp.pressed { background: #2a1010 !important; }
 
   .row-primary .key {
     height: 48px;
@@ -243,11 +209,7 @@
     color: #e06060 !important;
     font-size: clamp(0.85rem, 3vw, 1rem) !important;
   }
-
-  .row-notes .key {
-    height: 42px;
-    font-size: clamp(0.8rem, 2.8vw, 1rem);
-  }
+  .row-notes .key { height: 42px; font-size: clamp(0.8rem, 2.8vw, 1rem); }
   .key-z { color: var(--accent2) !important; }
   .key-space {
     flex: 4 1 0 !important;
@@ -260,18 +222,7 @@
     font-size: clamp(0.6rem, 2.2vw, 0.75rem) !important;
     color: var(--text-dim) !important;
   }
-
-  .row-small .key {
-    height: 36px;
-    font-size: clamp(0.7rem, 2.6vw, 0.9rem);
-    color: var(--text-dim);
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 1px 0;
-  }
+  .row-small .key { height: 36px; font-size: clamp(0.7rem, 2.6vw, 0.9rem); color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -280,113 +231,110 @@
   <div class="logo">ABC <span>Notepad</span></div>
 </header>
 
-<!-- Preview -->
 <div id="preview-wrap">
   <div id="preview"></div>
 </div>
 
-<!-- Editor -->
 <div class="editor-wrap">
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="editor-footer">
     <div class="footer-left">
-      <button class="action-btn btn-templates" id="tmplToggle" onmousedown="event.preventDefault()" onclick="toggleTemplates()">Templates</button>
+      <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates">Templates</button>
     </div>
     <div class="footer-right">
-      <button class="action-btn btn-clear" id="clearBtn" onclick="clearStep1()">Clear</button>
+      <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
       <span id="clearConfirm" style="display:none; align-items:center; gap:5px;">
         <span style="font-size:0.72rem; color:var(--text-dim);">Clear all text?</span>
-        <button class="action-btn btn-clear" style="color:#e06060;" onclick="clearStep2()">Clear</button>
-        <button class="action-btn btn-clear" onclick="clearCancel()">Cancel</button>
+        <button class="action-btn btn-clear" style="color:#e06060;" data-action="clearStep2">Clear</button>
+        <button class="action-btn btn-clear" data-action="clearCancel">Cancel</button>
       </span>
-      <button class="action-btn btn-copy" onclick="copyText()">Copy</button>
+      <button class="action-btn btn-copy" data-action="copyText">Copy</button>
     </div>
   </div>
 </div>
 
-<!-- Template panel (slides in above keyboard) -->
 <div id="tmpl-panel">
   <div class="tmpl-grid">
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score ')">%%score</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score {1 | 2}')">%%score {1|2}</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score {(1 2) | (3 4)}')">%%score {(1 2)|(3 4)}</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('T:')">T:</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('V:')">V:</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('L:')">L:</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('W:')">W:</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('clef=treble ')">clef=treble</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('clef=bass ')">clef=bass</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('style=')">style=</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('[V:1]')">[V:1]</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('[V:2]')">[V:2]</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('(3 ')">(3</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('!mark!')">!mark!</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%score {RH | LH}\nV:RH clef=treble\nV:LH clef=bass\n[V:RH]\n[V:LH]\n')">Grand Staff</button>
-    <button class="tmpl-btn" onmousedown="event.preventDefault()" onclick="insTemplate('%%staffsep 25\nK:perc stafflines=0\nL:3/2\nz z | z z | z z | z z |\n')">Chord Chart</button>
+    <button class="tmpl-btn" data-insert="%%score ">%%score</button>
+    <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
+    <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
+    <button class="tmpl-btn" data-insert="T:">T:</button>
+    <button class="tmpl-btn" data-insert="V:">V:</button>
+    <button class="tmpl-btn" data-insert="L:">L:</button>
+    <button class="tmpl-btn" data-insert="W:">W:</button>
+    <button class="tmpl-btn" data-insert="clef=treble ">clef=treble</button>
+    <button class="tmpl-btn" data-insert="clef=bass ">clef=bass</button>
+    <button class="tmpl-btn" data-insert="style=">style=</button>
+    <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
+    <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
+    <button class="tmpl-btn" data-insert="(3 ">(3</button>
+    <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
+    <button class="tmpl-btn" data-insert="%%score {RH | LH}&#10;V:RH clef=treble&#10;V:LH clef=bass&#10;[V:RH]&#10;[V:LH]&#10;">Grand Staff</button>
+    <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |&#10;">Chord Chart</button>
   </div>
 </div>
 
-<!-- Row 1: _ ^ = [ ] ( ) " Backspace -->
+<!-- Row 1: _ ^ = [ ] ( ) " . ⌫ -->
 <div class="key-row row-primary">
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('_')">_</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('^')">^</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('=')">=</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('[')">&#91;</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins(']')">&#93;</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('(')">&#40;</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins(')')">&#41;</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick='ins(&apos;"&apos;)'>&quot;</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('.')">.</button>
-  <button class="key key-bksp" onmousedown="event.preventDefault()" onclick="bksp()">⌫</button>
+  <button class="key" data-insert="_">_</button>
+  <button class="key" data-insert="^">^</button>
+  <button class="key" data-insert="=">=</button>
+  <button class="key" data-insert="[">&#91;</button>
+  <button class="key" data-insert="]">&#93;</button>
+  <button class="key" data-insert="(">&#40;</button>
+  <button class="key" data-insert=")">&#41;</button>
+  <button class="key" data-insert="&quot;">&quot;</button>
+  <button class="key" data-insert=".">.</button>
+  <button class="key key-bksp" data-action="bksp">⌫</button>
 </div>
 
-<!-- Row 2: c d e f g a b , z -->
+<!-- Row 2: c d e f g a b ' z -->
 <div class="key-row row-notes">
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('c')">c</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('d')">d</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('e')">e</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('f')">f</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('g')">g</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('a')">a</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('b')">b</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins(&quot;'&quot;)">'</button>
-  <button class="key key-z" onmousedown="event.preventDefault()" onclick="ins('z')">z</button>
+  <button class="key" data-insert="c">c</button>
+  <button class="key" data-insert="d">d</button>
+  <button class="key" data-insert="e">e</button>
+  <button class="key" data-insert="f">f</button>
+  <button class="key" data-insert="g">g</button>
+  <button class="key" data-insert="a">a</button>
+  <button class="key" data-insert="b">b</button>
+  <button class="key" data-insert="'">'</button>
+  <button class="key key-z" data-insert="z">z</button>
 </div>
 
-<!-- Row 3: C D E F G A B ' / -->
+<!-- Row 3: C D E F G A B , / -->
 <div class="key-row row-notes">
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('C')">C</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('D')">D</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('E')">E</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('F')">F</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('G')">G</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('A')">A</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('B')">B</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins(',')"><span style="font-size:1.4em;line-height:1">,</span></button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('/')">/</button>
+  <button class="key" data-insert="C">C</button>
+  <button class="key" data-insert="D">D</button>
+  <button class="key" data-insert="E">E</button>
+  <button class="key" data-insert="F">F</button>
+  <button class="key" data-insert="G">G</button>
+  <button class="key" data-insert="A">A</button>
+  <button class="key" data-insert="B">B</button>
+  <button class="key" data-insert=","><span style="font-size:1.4em;line-height:1">,</span></button>
+  <button class="key" data-insert="/">/</button>
 </div>
 
 <!-- Row 4: 0-9 -->
 <div class="key-row row-small">
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('0')">0</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('1')">1</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('2')">2</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('3')">3</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('4')">4</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('5')">5</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('6')">6</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('7')">7</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('8')">8</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('9')">9</button>
+  <button class="key" data-insert="0">0</button>
+  <button class="key" data-insert="1">1</button>
+  <button class="key" data-insert="2">2</button>
+  <button class="key" data-insert="3">3</button>
+  <button class="key" data-insert="4">4</button>
+  <button class="key" data-insert="5">5</button>
+  <button class="key" data-insert="6">6</button>
+  <button class="key" data-insert="7">7</button>
+  <button class="key" data-insert="8">8</button>
+  <button class="key" data-insert="9">9</button>
 </div>
 
-<!-- Row 5: - Space(wide) | ↲ -->
+<!-- Row 5: - SPACE | ↵ -->
 <div class="key-row row-notes">
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('-')">-</button>
-  <button class="key key-space" onmousedown="event.preventDefault()" onclick="ins(' ')">SPACE</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('|')">|</button>
-  <button class="key key-nl" onmousedown="event.preventDefault()" onclick="ins('\n')">↵</button>
+  <button class="key" data-insert="-">-</button>
+  <button class="key key-space" data-insert=" ">SPACE</button>
+  <button class="key" data-insert="|">|</button>
+  <button class="key key-nl" data-insert="&#10;">↵</button>
 </div>
 
 <div class="copy-toast" id="toast">Copied ✓</div>
@@ -412,8 +360,6 @@
   ta.addEventListener('click', () => {
     if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
   });
-
-  // Also trigger preview on manual typing
   ta.addEventListener('input', schedulePreview);
 
   function schedulePreview() {
@@ -423,51 +369,26 @@
 
   function renderPreview() {
     const raw = ta.value.trim();
-    if (!raw) {
-      previewDiv.innerHTML = '';
-      return;
-    }
+    if (!raw) { previewDiv.innerHTML = ''; return; }
     try {
       ABCJS.renderAbc('preview', raw, {
         responsive: 'resize',
         staffwidth: previewDiv.offsetWidth - 20 || 320,
-        paddingtop: 6,
-        paddingbottom: 6,
-        paddingleft: 8,
-        paddingright: 8,
+        paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8,
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' }
       });
-    } catch(e) {
-      // Silently ignore parse errors mid-typing
-    }
+    } catch(e) {}
   }
 
-  function toggleTemplates() {
-    const panel = document.getElementById('tmpl-panel');
-    const btn = document.getElementById('tmplToggle');
-    const isOpen = panel.classList.toggle('open');
-    btn.classList.toggle('active', isOpen);
-  }
-
-  function insTemplate(text) {
+  // Core insert — used by both key buttons and template buttons
+  function doInsert(text, refocus) {
     const s = savedStart;
     const e = savedEnd;
     ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
     savedStart = s + text.length;
     savedEnd = savedStart;
-    // Do not focus — keep keyboard closed
-    schedulePreview();
-  }
-
-  function ins(char) {
-    const wasActive = taFocused;
-    const s = savedStart;
-    const e = savedEnd;
-    ta.value = ta.value.slice(0, s) + char + ta.value.slice(e);
-    savedStart = s + char.length;
-    savedEnd = savedStart;
-    if (wasActive) {
+    if (refocus) {
       ta.focus();
       ta.setSelectionRange(savedStart, savedEnd);
     }
@@ -478,25 +399,26 @@
     const wasActive = taFocused;
     if (savedStart === savedEnd && savedStart > 0) {
       ta.value = ta.value.slice(0, savedStart - 1) + ta.value.slice(savedEnd);
-      savedStart -= 1;
-      savedEnd = savedStart;
+      savedStart -= 1; savedEnd = savedStart;
     } else if (savedStart !== savedEnd) {
       ta.value = ta.value.slice(0, savedStart) + ta.value.slice(savedEnd);
       savedEnd = savedStart;
     }
-    if (wasActive) {
-      ta.focus();
-      ta.setSelectionRange(savedStart, savedEnd);
-    }
+    if (wasActive) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
     schedulePreview();
+  }
+
+  function toggleTemplates() {
+    const panel = document.getElementById('tmpl-panel');
+    const btn = document.getElementById('tmplToggle');
+    const isOpen = panel.classList.toggle('open');
+    btn.classList.toggle('active', isOpen);
   }
 
   function copyText() {
     if (!ta.value) return;
     navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
-      ta.select();
-      document.execCommand('copy');
-      showToast();
+      ta.select(); document.execCommand('copy'); showToast();
     });
   }
 
@@ -508,15 +430,12 @@
   function clearStep1() {
     if (!ta.value) return;
     document.getElementById('clearBtn').style.display = 'none';
-    const confirm = document.getElementById('clearConfirm');
-    confirm.style.display = 'flex';
+    document.getElementById('clearConfirm').style.display = 'flex';
   }
 
   function clearStep2() {
-    ta.value = '';
-    savedStart = 0; savedEnd = 0;
-    previewDiv.innerHTML = '';
-    clearTimeout(debounceTimer);
+    ta.value = ''; savedStart = 0; savedEnd = 0;
+    previewDiv.innerHTML = ''; clearTimeout(debounceTimer);
     clearCancel();
   }
 
@@ -524,6 +443,69 @@
     document.getElementById('clearBtn').style.display = '';
     document.getElementById('clearConfirm').style.display = 'none';
   }
+
+  // Unified button interaction — works for both touch and mouse
+  const actions = { toggleTemplates, copyText, clearStep1, clearStep2, clearCancel, bksp };
+
+  function handleButtonPress(btn) {
+    btn.classList.add('pressed');
+  }
+
+  function handleButtonRelease(btn) {
+    setTimeout(() => btn.classList.remove('pressed'), 120);
+
+    if (btn.dataset.action) {
+      const fn = actions[btn.dataset.action];
+      if (fn) fn();
+    } else if (btn.dataset.insert !== undefined) {
+      const isKey = btn.classList.contains('key');
+      const text = btn.dataset.insert;
+      doInsert(text, isKey && taFocused);
+    }
+  }
+
+  // Touch handling — press on touchstart, fire on touchend
+  let activeBtn = null;
+  document.addEventListener('touchstart', e => {
+    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    if (!btn) return;
+    // Prevent textarea blur for key/tmpl buttons
+    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
+      e.preventDefault();
+    }
+    activeBtn = btn;
+    handleButtonPress(btn);
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    if (!activeBtn) return;
+    handleButtonRelease(activeBtn);
+    activeBtn = null;
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchcancel', e => {
+    if (activeBtn) { activeBtn.classList.remove('pressed'); activeBtn = null; }
+  }, { passive: true });
+
+  // Mouse handling for desktop — single document-level listener so mouseup always fires
+  let activeMouseBtn = null;
+
+  document.addEventListener('mousedown', e => {
+    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    if (!btn) return;
+    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
+      e.preventDefault(); // prevent textarea blur for keyboard/template buttons
+    }
+    activeMouseBtn = btn;
+    handleButtonPress(btn);
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!activeMouseBtn) return;
+    handleButtonRelease(activeMouseBtn);
+    activeMouseBtn = null;
+  });
 </script>
 </body>
 </html>
