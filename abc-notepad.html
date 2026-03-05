@@ -259,20 +259,7 @@
   <button class="key key-bksp" onmousedown="event.preventDefault()" onclick="bksp()">⌫</button>
 </div>
 
-<!-- Row 2: C D E F G A B , z -->
-<div class="key-row row-notes">
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('C')">C</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('D')">D</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('E')">E</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('F')">F</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('G')">G</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('A')">A</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('B')">B</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins(',')"><span style="font-size:1.4em;line-height:1">,</span></button>
-  <button class="key key-z" onmousedown="event.preventDefault()" onclick="ins('z')">z</button>
-</div>
-
-<!-- Row 3: c d e f g a b ' - -->
+<!-- Row 2: c d e f g a b , z -->
 <div class="key-row row-notes">
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('c')">c</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('d')">d</button>
@@ -281,11 +268,24 @@
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('g')">g</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('a')">a</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('b')">b</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins(&quot;'&quot;)">'</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('-')">-</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins(',')"><span style="font-size:1.4em;line-height:1">,</span></button>
+  <button class="key key-z" onmousedown="event.preventDefault()" onclick="ins('z')">z</button>
 </div>
 
-<!-- Row 4: 0-9 / -->
+<!-- Row 3: C D E F G A B ' / -->
+<div class="key-row row-notes">
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('C')">C</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('D')">D</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('E')">E</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('F')">F</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('G')">G</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('A')">A</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('B')">B</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins(&quot;'&quot;)">'</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('/')">/</button>
+</div>
+
+<!-- Row 4: 0-9 -->
 <div class="key-row row-small">
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('0')">0</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('1')">1</button>
@@ -297,11 +297,11 @@
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('7')">7</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('8')">8</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('9')">9</button>
-  <button class="key" onmousedown="event.preventDefault()" onclick="ins('/')">/</button>
 </div>
 
-<!-- Row 5: Space(wide) | ↲ -->
+<!-- Row 5: - Space(wide) | ↲ -->
 <div class="key-row row-notes">
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('-')">-</button>
   <button class="key key-space" onmousedown="event.preventDefault()" onclick="ins(' ')">SPACE</button>
   <button class="key" onmousedown="event.preventDefault()" onclick="ins('|')">|</button>
   <button class="key key-nl" onmousedown="event.preventDefault()" onclick="ins('\n')">↵</button>
