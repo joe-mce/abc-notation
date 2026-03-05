@@ -245,7 +245,6 @@
     <div class="footer-right">
       <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
       <span id="clearConfirm" style="display:none; align-items:center; gap:5px;">
-        <span style="font-size:0.72rem; color:var(--text-dim);">Clear all text?</span>
         <button class="action-btn btn-clear" style="color:#e06060;" data-action="clearStep2">Clear</button>
         <button class="action-btn btn-clear" data-action="clearCancel">Cancel</button>
       </span>
@@ -268,10 +267,10 @@
     <button class="tmpl-btn" data-insert="style=">style=</button>
     <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
     <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
-    <button class="tmpl-btn" data-insert="(3 ">(3</button>
+    <button class="tmpl-btn" data-insert="(3">(3</button>
     <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
-    <button class="tmpl-btn" data-insert="%%score {RH | LH}&#10;V:RH clef=treble&#10;V:LH clef=bass&#10;[V:RH]&#10;[V:LH]&#10;">Grand Staff</button>
-    <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |&#10;">Chord Chart</button>
+    <button class="tmpl-btn" data-insert="%%score {RH | LH}&#10;V:RH clef=treble&#10;V:LH clef=bass&#10;[V:RH]&#10;[V:LH]">Grand Staff</button>
+    <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
   </div>
 </div>
 
@@ -392,6 +391,7 @@
       ta.focus();
       ta.setSelectionRange(savedStart, savedEnd);
     }
+    ta.scrollTop = ta.scrollHeight;
     schedulePreview();
   }
 
@@ -405,6 +405,7 @@
       savedEnd = savedStart;
     }
     if (wasActive) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    ta.scrollTop = ta.scrollHeight;
     schedulePreview();
   }
 
@@ -435,7 +436,9 @@
 
   function clearStep2() {
     ta.value = ''; savedStart = 0; savedEnd = 0;
-    previewDiv.innerHTML = ''; clearTimeout(debounceTimer);
+    previewDiv.innerHTML = '';
+    previewDiv.removeAttribute('style');
+    clearTimeout(debounceTimer);
     clearCancel();
   }
 
