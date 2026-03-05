@@ -111,11 +111,8 @@
     touch-action: manipulation;
   }
   .btn-copy { background: var(--accent); color: #111; }
-  .btn-copy.pressed { background: #c9a830; transform: scale(0.96); }
   .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-  .btn-clear.pressed { background: var(--surface2); transform: scale(0.96); }
   .btn-templates { background: transparent; color: var(--accent2); border: 1px solid #2a5a4a; }
-  .btn-templates.pressed { background: #0a2a1f; transform: scale(0.96); }
   .btn-templates.active { background: #0a2a1f; border-color: var(--accent2); }
 
   /* Template panel */
@@ -145,7 +142,6 @@
     white-space: nowrap;
     touch-action: manipulation;
   }
-  .tmpl-btn.pressed { background: #0a2a1f; transform: scale(0.95); }
 
   .copy-toast {
     position: fixed;
@@ -192,8 +188,33 @@
     overflow: hidden;
     touch-action: manipulation;
   }
-  .key.pressed { background: #333; transform: scale(0.93); }
-  .key-bksp.pressed { background: #2a1010 !important; }
+  @keyframes keyflash {
+    0%   { background: #556; transform: scale(0.88); }
+    40%  { background: #445; }
+    100% { background: var(--btn-bg); transform: scale(1); }
+  }
+  @keyframes keyflash-primary {
+    0%   { background: #4a4520; transform: scale(0.88); }
+    40%  { background: #3a3518; }
+    100% { background: var(--btn-bg-lg); transform: scale(1); }
+  }
+  @keyframes keyflash-bksp {
+    0%   { background: #3a1515; transform: scale(0.88); }
+    100% { background: #1e1010; transform: scale(1); }
+  }
+  @keyframes btnflash {
+    0%   { opacity: 0.6; transform: scale(0.94); }
+    100% { opacity: 1;   transform: scale(1); }
+  }
+  @keyframes tmplflash {
+    0%   { background: #0d3d2a; transform: scale(0.92); }
+    100% { background: var(--btn-bg); transform: scale(1); }
+  }
+  .key.flash               { animation: keyflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
+  .row-primary .key.flash  { animation: keyflash-primary 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
+  .key-bksp.flash          { animation: keyflash-bksp 0.25s cubic-bezier(0.2, 0, 0.4, 1) !important; }
+  .tmpl-btn.flash          { animation: tmplflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
+  .action-btn.flash        { animation: btnflash 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
   .row-primary .key {
     height: 48px;
@@ -451,20 +472,22 @@
   const actions = { toggleTemplates, copyText, clearStep1, clearStep2, clearCancel, bksp };
 
   function handleButtonPress(btn) {
-    btn.classList.add('pressed');
-  }
-
-  function handleButtonRelease(btn) {
-    setTimeout(() => btn.classList.remove('pressed'), 120);
-
+    // Restart flash animation
+    btn.classList.remove('flash');
+    void btn.offsetWidth;
+    btn.classList.add('flash');
+    // Fire action immediately on press
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
       if (fn) fn();
     } else if (btn.dataset.insert !== undefined) {
       const isKey = btn.classList.contains('key');
-      const text = btn.dataset.insert;
-      doInsert(text, isKey && taFocused);
+      doInsert(btn.dataset.insert, isKey && taFocused);
     }
+  }
+
+  function handleButtonRelease(btn) {
+    // Action already fired on press — nothing to do
   }
 
   // Touch handling — press on touchstart, fire on touchend
