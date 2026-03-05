@@ -68,8 +68,6 @@
   /* Force abcjs SVG to be white/light on dark bg */
   #preview svg {
     display: block;
-    max-width: 100%;
-    height: auto;
   }
   #preview svg path,
   #preview svg rect,
@@ -250,71 +248,71 @@
 
 <!-- Row 1: Primary symbols + backspace -->
 <div class="key-row row-primary">
-  <button class="key" onclick="ins('[')">&#91;</button>
-  <button class="key" onclick="ins(']')">&#93;</button>
-  <button class="key" onclick="ins('_')">_</button>
-  <button class="key" onclick="ins('^')">^</button>
-  <button class="key" onclick="ins(',')"><span style="font-size:1.4em;line-height:1">,</span></button>
-  <button class="key" onclick="ins(&quot;'&quot;)">'</button>
-  <button class="key" onclick='ins(&apos;"&apos;)'>&quot;</button>
-  <button class="key" onclick="ins('|')">|</button>
-  <button class="key key-bksp" onclick="bksp()">⌫</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('[')">&#91;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins(']')">&#93;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('_')">_</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('^')">^</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins(',')"><span style="font-size:1.4em;line-height:1">,</span></button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins(&quot;'&quot;)">'</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick='ins(&apos;"&apos;)'>&quot;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('|')">|</button>
+  <button class="key key-bksp" onmousedown="event.preventDefault()" onclick="bksp()">⌫</button>
 </div>
 
 <!-- Row 2: Upper notes + space -->
 <div class="key-row row-notes">
-  <button class="key" onclick="ins('C')">C</button>
-  <button class="key" onclick="ins('D')">D</button>
-  <button class="key" onclick="ins('E')">E</button>
-  <button class="key" onclick="ins('F')">F</button>
-  <button class="key" onclick="ins('G')">G</button>
-  <button class="key" onclick="ins('A')">A</button>
-  <button class="key" onclick="ins('B')">B</button>
-  <button class="key key-z" onclick="ins('z')">z</button>
-  <button class="key key-space" onclick="ins(' ')">SPACE</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('C')">C</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('D')">D</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('E')">E</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('F')">F</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('G')">G</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('A')">A</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('B')">B</button>
+  <button class="key key-z" onmousedown="event.preventDefault()" onclick="ins('z')">z</button>
+  <button class="key key-space" onmousedown="event.preventDefault()" onclick="ins(' ')">SPACE</button>
 </div>
 
 <!-- Row 3: Lower notes + = + newline -->
 <div class="key-row row-notes">
-  <button class="key" onclick="ins('c')">c</button>
-  <button class="key" onclick="ins('d')">d</button>
-  <button class="key" onclick="ins('e')">e</button>
-  <button class="key" onclick="ins('f')">f</button>
-  <button class="key" onclick="ins('g')">g</button>
-  <button class="key" onclick="ins('a')">a</button>
-  <button class="key" onclick="ins('b')">b</button>
-  <button class="key" onclick="ins('=')">=</button>
-  <button class="key key-nl" onclick="ins('\n')">↵ NL</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('c')">c</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('d')">d</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('e')">e</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('f')">f</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('g')">g</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('a')">a</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('b')">b</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('=')">=</button>
+  <button class="key key-nl" onmousedown="event.preventDefault()" onclick="ins('\n')">↵ NL</button>
 </div>
 
 <div class="divider"></div>
 
 <!-- Row 4: Numbers -->
 <div class="key-row row-small">
-  <button class="key" onclick="ins('0')">0</button>
-  <button class="key" onclick="ins('1')">1</button>
-  <button class="key" onclick="ins('2')">2</button>
-  <button class="key" onclick="ins('3')">3</button>
-  <button class="key" onclick="ins('4')">4</button>
-  <button class="key" onclick="ins('5')">5</button>
-  <button class="key" onclick="ins('6')">6</button>
-  <button class="key" onclick="ins('7')">7</button>
-  <button class="key" onclick="ins('8')">8</button>
-  <button class="key" onclick="ins('9')">9</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('0')">0</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('1')">1</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('2')">2</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('3')">3</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('4')">4</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('5')">5</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('6')">6</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('7')">7</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('8')">8</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('9')">9</button>
 </div>
 
 <!-- Row 5: Misc symbols -->
 <div class="key-row row-small">
-  <button class="key" onclick="ins('(')">&#40;</button>
-  <button class="key" onclick="ins(')')">&#41;</button>
-  <button class="key" onclick="ins('{')">&#123;</button>
-  <button class="key" onclick="ins('}')">&#125;</button>
-  <button class="key" onclick="ins(':')">:</button>
-  <button class="key" onclick="ins('-')">-</button>
-  <button class="key" onclick="ins('%')">%</button>
-  <button class="key" onclick="ins('/')">/</button>
-  <button class="key" onclick="ins('!')">!</button>
-  <button class="key" onclick="ins('.')">.</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('(')">&#40;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins(')')">&#41;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('{')">&#123;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('}')">&#125;</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins(':')">:</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('-')">-</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('%')">%</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('/')">/</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('!')">!</button>
+  <button class="key" onmousedown="event.preventDefault()" onclick="ins('.')">.</button>
 </div>
 
 <div class="copy-toast" id="toast">Copied ✓</div>
@@ -334,6 +332,12 @@
     savedStart = ta.selectionStart;
     savedEnd = ta.selectionEnd;
   });
+  ta.addEventListener('keyup', () => {
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+  });
+  ta.addEventListener('click', () => {
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+  });
 
   // Also trigger preview on manual typing
   ta.addEventListener('input', schedulePreview);
@@ -351,14 +355,26 @@
     }
     try {
       ABCJS.renderAbc('preview', raw, {
-        responsive: 'resize',
-        staffwidth: previewDiv.offsetWidth - 20 || 320,
-        paddingtop: 6,
-        paddingbottom: 6,
+        staffwidth: previewDiv.offsetWidth - 20 || 340,
+        scale: 0.7,
+        paddingtop: 4,
+        paddingbottom: 4,
         paddingleft: 8,
         paddingright: 8,
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' }
+      });
+      // Fix SVG sizing: set width/height from viewBox so the full notation is visible
+      previewDiv.querySelectorAll('svg').forEach(svg => {
+        const vb = svg.getAttribute('viewBox');
+        if (vb) {
+          const parts = vb.split(' ').map(Number);
+          const vbW = parts[2], vbH = parts[3];
+          const displayW = previewDiv.offsetWidth || 340;
+          const displayH = Math.round((vbH / vbW) * displayW);
+          svg.setAttribute('width', displayW);
+          svg.setAttribute('height', displayH);
+        }
       });
     } catch(e) {
       // Silently ignore parse errors mid-typing
@@ -366,42 +382,32 @@
   }
 
   function ins(char) {
-    if (taFocused) {
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      ta.value = ta.value.slice(0, start) + char + ta.value.slice(end);
-      const pos = start + char.length;
-      ta.setSelectionRange(pos, pos);
-    } else {
-      const s = savedStart;
-      const e = savedEnd;
-      ta.value = ta.value.slice(0, s) + char + ta.value.slice(e);
-      savedStart = s + char.length;
-      savedEnd = savedStart;
+    const wasActive = taFocused;
+    const s = savedStart;
+    const e = savedEnd;
+    ta.value = ta.value.slice(0, s) + char + ta.value.slice(e);
+    savedStart = s + char.length;
+    savedEnd = savedStart;
+    if (wasActive) {
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
     }
     schedulePreview();
   }
 
   function bksp() {
-    if (taFocused) {
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      if (start === end && start > 0) {
-        ta.value = ta.value.slice(0, start - 1) + ta.value.slice(end);
-        ta.setSelectionRange(start - 1, start - 1);
-      } else if (start !== end) {
-        ta.value = ta.value.slice(0, start) + ta.value.slice(end);
-        ta.setSelectionRange(start, start);
-      }
-    } else {
-      if (savedStart === savedEnd && savedStart > 0) {
-        ta.value = ta.value.slice(0, savedStart - 1) + ta.value.slice(savedEnd);
-        savedStart -= 1;
-        savedEnd = savedStart;
-      } else if (savedStart !== savedEnd) {
-        ta.value = ta.value.slice(0, savedStart) + ta.value.slice(savedEnd);
-        savedEnd = savedStart;
-      }
+    const wasActive = taFocused;
+    if (savedStart === savedEnd && savedStart > 0) {
+      ta.value = ta.value.slice(0, savedStart - 1) + ta.value.slice(savedEnd);
+      savedStart -= 1;
+      savedEnd = savedStart;
+    } else if (savedStart !== savedEnd) {
+      ta.value = ta.value.slice(0, savedStart) + ta.value.slice(savedEnd);
+      savedEnd = savedStart;
+    }
+    if (wasActive) {
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
     }
     schedulePreview();
   }
