@@ -355,26 +355,14 @@
     }
     try {
       ABCJS.renderAbc('preview', raw, {
-        staffwidth: previewDiv.offsetWidth - 20 || 340,
-        scale: 0.7,
-        paddingtop: 4,
-        paddingbottom: 4,
+        responsive: 'resize',
+        staffwidth: previewDiv.offsetWidth - 20 || 320,
+        paddingtop: 6,
+        paddingbottom: 6,
         paddingleft: 8,
         paddingright: 8,
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' }
-      });
-      // Fix SVG sizing: set width/height from viewBox so the full notation is visible
-      previewDiv.querySelectorAll('svg').forEach(svg => {
-        const vb = svg.getAttribute('viewBox');
-        if (vb) {
-          const parts = vb.split(' ').map(Number);
-          const vbW = parts[2], vbH = parts[3];
-          const displayW = previewDiv.offsetWidth || 340;
-          const displayH = Math.round((vbH / vbW) * displayW);
-          svg.setAttribute('width', displayW);
-          svg.setAttribute('height', displayH);
-        }
       });
     } catch(e) {
       // Silently ignore parse errors mid-typing
