@@ -52,7 +52,7 @@
   .logo span { color: var(--text-dim); font-weight: 400; }
 
   /* Preview */
-  #preview-wrap { overflow: hidden; min-height: 150px; }
+  #preview-wrap { overflow: hidden; min-height: 120px; }
   #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
   #preview svg { display: block; }
   #preview svg path, #preview svg rect, #preview svg ellipse,
@@ -393,7 +393,7 @@
     try {
       ABCJS.renderAbc('preview', raw, {
         responsive: 'resize',
-        staffwidth: previewDiv.offsetWidth - 20 || 320,
+        staffwidth: 900,
         paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8,
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' }
