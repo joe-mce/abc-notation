@@ -483,7 +483,9 @@
     btn.classList.remove('flash');
     void btn.offsetWidth;
     btn.classList.add('flash');
-    // Fire action immediately on press
+    // copyText deferred to release so iOS treats it as a valid clipboard gesture
+    if (btn.dataset.action === 'copyText') return;
+    // Fire all other actions immediately on press
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
       if (fn) fn();
@@ -494,7 +496,7 @@
   }
 
   function handleButtonRelease(btn) {
-    // Action already fired on press — nothing to do
+    if (btn.dataset.action === 'copyText') copyText();
   }
 
   // Touch handling — press on touchstart, fire on touchend
