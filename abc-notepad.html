@@ -40,7 +40,65 @@
     margin: 0 auto;
   }
 
-  header { padding: 2px 0 2px; }
+  header {
+    padding: 2px 0 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .btn-settings {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+  }
+  .btn-settings.active { border-color: var(--accent); color: var(--accent); }
+
+  /* Settings panel */
+  #settings-panel {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
+    padding: 0 12px;
+    border-width: 0;
+  }
+  #settings-panel.open { max-height: 200px; padding: 12px; border-width: 1.5px; }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .settings-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    font-family: 'IBM Plex Mono', monospace;
+    min-width: 80px;
+  }
+  #zoom-slider {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 4px;
+  }
+  .settings-value {
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--accent);
+    min-width: 32px;
+    text-align: right;
+  }
 
   .logo {
     font-family: 'IBM Plex Mono', monospace;
@@ -250,7 +308,16 @@
 
 <header>
   <div class="logo">ABC <span>Notepad</span></div>
+  <button class="btn-settings action-btn" id="settingsToggle" data-action="toggleSettings">Settings</button>
 </header>
+
+<div id="settings-panel">
+  <div class="settings-row">
+    <span class="settings-label">Preview zoom</span>
+    <input type="range" id="zoom-slider" min="0" max="1" step="0.01" value="0.5">
+    <span class="settings-value" id="zoom-value">50%</span>
+  </div>
+</div>
 
 <div id="preview-wrap">
   <div id="preview"></div>
@@ -382,6 +449,25 @@
   });
   ta.addEventListener('input', schedulePreview);
 
+  const zoomSlider = document.getElementById('zoom-slider');
+  const zoomValueEl = document.getElementById('zoom-value');
+  let zoomLevel = 0.5; // 0 = zoomed in (large music), 1 = zoomed out (small music)
+
+  const BASE_MULTIPLIER = 1.45;
+  const SCALING_FACTOR = 1.4;
+
+  function getStaffwidth() {
+    const containerWidth = previewDiv.offsetWidth || 320;
+    const multiplier = BASE_MULTIPLIER - (zoomLevel - 0.5) * SCALING_FACTOR;
+    return Math.round(containerWidth * multiplier);
+  }
+
+  zoomSlider.addEventListener('input', () => {
+    zoomLevel = parseFloat(zoomSlider.value);
+    zoomValueEl.textContent = Math.round(zoomLevel * 100) + '%';
+    renderPreview();
+  });
+
   function schedulePreview() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(renderPreview, 900);
@@ -393,7 +479,7 @@
     try {
       ABCJS.renderAbc('preview', raw, {
         responsive: 'resize',
-        staffwidth: 900,
+        staffwidth: getStaffwidth(),
         paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8,
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' }
@@ -468,8 +554,15 @@
     document.getElementById('clearConfirm').style.display = 'none';
   }
 
+  function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    const btn = document.getElementById('settingsToggle');
+    const isOpen = panel.classList.toggle('open');
+    btn.classList.toggle('active', isOpen);
+  }
+
   // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, copyText, clearStep1, clearStep2, clearCancel, bksp };
+  const actions = { toggleTemplates, toggleSettings, copyText, clearStep1, clearStep2, clearCancel, bksp };
 
   function handleButtonPress(btn) {
     // Restart flash animation
