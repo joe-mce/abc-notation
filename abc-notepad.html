@@ -34,21 +34,16 @@
     background: var(--bg);
     color: var(--text);
     height: 100dvh;
-    display: grid;
-    grid-template-rows: auto auto 1fr auto;
-    grid-template-columns: 1fr;
-    padding: 10px 0;
-    gap: 7px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    gap: 7px;
+    max-width: 640px;
+    margin: 0 auto;
   }
 
   header, #settings-panel, .bottom-section {
-    padding-left: 10px;
-    padding-right: 10px;
-    max-width: 640px;
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
     box-sizing: border-box;
   }
 
@@ -128,14 +123,7 @@
   .logo span { color: var(--text-dim); font-weight: 400; }
 
   /* Preview */
-  #preview-wrap {
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    max-width: 640px;
-    width: 100%;
-    margin: 0 auto;
-  }
+  #preview-wrap { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
   #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
   #preview svg { display: block; }
   #preview svg path, #preview svg rect, #preview svg ellipse,
