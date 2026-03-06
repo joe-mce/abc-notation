@@ -27,17 +27,29 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
+  html { height: 100dvh; }
+
   body {
     font-family: 'IBM Plex Sans', sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-columns: 1fr;
+    padding: 10px 0;
     gap: 7px;
+    overflow: hidden;
+  }
+
+  header, #settings-panel, .bottom-section {
+    padding-left: 10px;
+    padding-right: 10px;
     max-width: 640px;
-    margin: 0 auto;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
   }
 
   header {
@@ -100,6 +112,12 @@
     text-align: right;
   }
 
+  .bottom-section {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
   .logo {
     font-family: 'IBM Plex Mono', monospace;
     font-weight: 600;
@@ -110,7 +128,14 @@
   .logo span { color: var(--text-dim); font-weight: 400; }
 
   /* Preview */
-  #preview-wrap { overflow: hidden; min-height: 120px; }
+  #preview-wrap {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-width: 640px;
+    width: 100%;
+    margin: 0 auto;
+  }
   #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
   #preview svg { display: block; }
   #preview svg path, #preview svg rect, #preview svg ellipse,
@@ -331,6 +356,7 @@
   <div id="preview"></div>
 </div>
 
+<div class="bottom-section">
 <div class="editor-wrap">
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
@@ -431,6 +457,7 @@
   <button class="key" data-insert="|">|</button>
   <button class="key key-nl" data-insert="&#10;">↵</button>
 </div>
+</div><!-- /bottom-section -->
 
 <div class="copy-toast" id="toast">Copied ✓</div>
 
