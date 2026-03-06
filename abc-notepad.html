@@ -439,16 +439,9 @@
 
   function copyText() {
     if (!ta.value) return;
-    // Focus and select so execCommand fallback works, and clipboard API has a valid gesture context
-    ta.focus();
-    ta.select();
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
-        try { document.execCommand('copy'); showToast(); } catch(e) {}
-      });
-    } else {
+    navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
       try { document.execCommand('copy'); showToast(); } catch(e) {}
-    }
+    });
   }
 
   function showToast() {
