@@ -119,6 +119,14 @@
   }
   #preview svg [fill="none"] { fill: none; }
   #preview svg [stroke="none"] { stroke: none; }
+  #preview svg .mark path,
+  #preview svg .mark rect,
+  #preview svg .mark ellipse,
+  #preview svg .mark polygon,
+  #preview svg .mark line {
+    fill: var(--accent) !important;
+    stroke: var(--accent) !important;
+  }
 
   /* Editor */
   .editor-wrap {
@@ -480,6 +488,7 @@
       ABCJS.renderAbc('preview', raw, {
         responsive: 'resize',
         staffwidth: getStaffwidth(),
+        add_classes: true,
         paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8,
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' }
