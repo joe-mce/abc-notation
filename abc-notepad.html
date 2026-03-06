@@ -455,6 +455,9 @@
   ta.addEventListener('click', () => {
     if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
   });
+  document.addEventListener('selectionchange', () => {
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+  });
   ta.addEventListener('input', schedulePreview);
 
   const zoomSlider = document.getElementById('zoom-slider');
