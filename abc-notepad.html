@@ -508,6 +508,20 @@
   const bottomBar = document.getElementById('bottom-bar');
   const spacer    = document.getElementById('bottom-spacer');
 
+  // ── Visual viewport handling (iOS keyboard) ──
+  function updateBottomBar() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const offsetFromBottom = window.innerHeight - (vv.offsetTop + vv.height);
+    bottomBar.style.bottom = offsetFromBottom + 'px';
+    spacer.style.height = bottomBar.offsetHeight + 'px';
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateBottomBar);
+    window.visualViewport.addEventListener('scroll', updateBottomBar);
+  }
+
   // ── Keep spacer in sync with bottom bar height ──
   const resizeObserver = new ResizeObserver(() => {
     spacer.style.height = bottomBar.offsetHeight + 'px';
