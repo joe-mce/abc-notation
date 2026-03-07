@@ -621,13 +621,15 @@
 
   document.addEventListener('touchend', e => {
     if (!activeBtn) return;
-    handleButtonRelease(activeBtn);
+    const touch = e.changedTouches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (target && activeBtn.contains(target)) handleButtonRelease(activeBtn);
     activeBtn = null;
     e.preventDefault();
   }, { passive: false });
 
   document.addEventListener('touchcancel', e => {
-    if (activeBtn) { activeBtn.classList.remove('pressed'); activeBtn = null; }
+    activeBtn = null;
   }, { passive: true });
 
   // Mouse handling for desktop — single document-level listener so mouseup always fires
@@ -643,10 +645,11 @@
     handleButtonPress(btn);
   });
 
-  document.addEventListener('mouseup', () => {
+  document.addEventListener('mouseup', e => {
     if (!activeMouseBtn) return;
-    handleButtonRelease(activeMouseBtn);
+    const btn = activeMouseBtn;
     activeMouseBtn = null;
+    if (btn.contains(e.target)) handleButtonRelease(btn);
   });
 </script>
 </body>
