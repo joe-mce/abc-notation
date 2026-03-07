@@ -576,13 +576,16 @@
   // Unified button interaction — works for both touch and mouse
   const actions = { toggleTemplates, toggleSettings, copyText, clearStep1, clearStep2, clearCancel, bksp };
 
+  const releaseActions = new Set(['copyText', 'toggleTemplates', 'toggleSettings', 'clearStep1']);
+
   function handleButtonPress(btn) {
-    // Restart flash animation
-    btn.classList.remove('flash');
-    void btn.offsetWidth;
-    btn.classList.add('flash');
-    // copyText deferred to release so iOS treats it as a valid clipboard gesture
-    if (btn.dataset.action === 'copyText') return;
+    // Release-action buttons animate on release, not press
+    if (!releaseActions.has(btn.dataset.action)) {
+      btn.classList.remove('flash');
+      void btn.offsetWidth;
+      btn.classList.add('flash');
+    }
+    if (releaseActions.has(btn.dataset.action)) return;
     // Fire all other actions immediately on press
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
@@ -594,7 +597,13 @@
   }
 
   function handleButtonRelease(btn) {
-    if (btn.dataset.action === 'copyText') copyText();
+    if (btn.dataset.action && releaseActions.has(btn.dataset.action)) {
+      btn.classList.remove('flash');
+      void btn.offsetWidth;
+      btn.classList.add('flash');
+      const fn = actions[btn.dataset.action];
+      if (fn) fn();
+    }
   }
 
   // Touch handling — press on touchstart, fire on touchend
@@ -639,7 +648,6 @@
     handleButtonRelease(activeMouseBtn);
     activeMouseBtn = null;
   });
-  
 </script>
 </body>
 </html>
