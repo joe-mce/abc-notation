@@ -27,103 +27,33 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-  html { height: 100dvh; }
-
   body {
     font-family: 'IBM Plex Sans', sans-serif;
     background: var(--bg);
     color: var(--text);
-    height: 100dvh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    gap: 7px;
+    padding: 10px 10px 0;
     max-width: 640px;
     margin: 0 auto;
   }
 
-  header, #settings-panel, .bottom-section {
-    box-sizing: border-box;
-  }
-
+  /* ── Header (scrolls away) ── */
   header {
-    padding: 2px 0 2px;
+    padding: 4px 0 8px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
   }
-
-  .btn-settings {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: var(--radius-sm);
-    padding: 5px 10px;
-    font-size: 0.75rem;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-weight: 600;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    touch-action: manipulation;
-  }
-  .btn-settings.active { border-color: var(--accent); color: var(--accent); }
-
-  /* Settings panel */
-  #settings-panel {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
-    padding: 0 12px;
-    border-width: 0;
-  }
-  #settings-panel.open { max-height: 200px; padding: 12px; border-width: 1.5px; }
-  .settings-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .settings-label {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    white-space: nowrap;
-    font-family: 'IBM Plex Mono', monospace;
-    min-width: 80px;
-  }
-  #zoom-slider {
-    flex: 1;
-    accent-color: var(--accent);
-    cursor: pointer;
-    height: 4px;
-  }
-  .settings-value {
-    font-size: 0.75rem;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--accent);
-    min-width: 32px;
-    text-align: right;
-  }
-
-  .bottom-section {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-  }
-
   .logo {
     font-family: 'IBM Plex Mono', monospace;
     font-weight: 600;
     font-size: 1rem;
     color: var(--accent);
     letter-spacing: 0.05em;
+    text-decoration: none;
   }
   .logo span { color: var(--text-dim); font-weight: 400; }
 
-  /* Preview */
-  #preview-wrap { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  /* ── Preview ── */
+  #preview-wrap { min-height: 80px; }
   #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
   #preview svg { display: block; }
   #preview svg path, #preview svg rect, #preview svg ellipse,
@@ -141,17 +71,37 @@
     stroke: var(--accent) !important;
   }
 
-  /* Editor */
+  /* ── Spacer matches fixed bottom bar height ── */
+  #bottom-spacer { width: 100%; }
+
+  /* ── Fixed bottom bar ── */
+  #bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 640px;
+    background: var(--bg);
+    padding: 7px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 100;
+  }
+
+  /* ── Editor ── */
   .editor-wrap {
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius);
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
   }
   #notation {
     width: 100%;
-    min-height: 90px;
-    max-height: 160px;
+    min-height: 72px;
+    max-height: 140px;
     background: transparent;
     border: none;
     outline: none;
@@ -159,7 +109,7 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1rem;
     line-height: 1.6;
-    padding: 10px 12px;
+    padding: 8px 12px;
     resize: vertical;
     caret-color: var(--accent);
   }
@@ -169,9 +119,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 8px;
-    border-top: 1px solid var(--border);
+    padding: 4px 8px;
     background: var(--surface2);
+    border-radius: 0 0 var(--radius) var(--radius);
     gap: 6px;
   }
   .footer-left { display: flex; gap: 6px; }
@@ -194,18 +144,29 @@
   .btn-templates { background: transparent; color: var(--accent2); border: 1px solid #2a5a4a; }
   .btn-templates.active { background: #0a2a1f; border-color: var(--accent2); }
 
-  /* Template panel */
+  /* ── Templates panel — floats above keyboard, below editor ── */
   #tmpl-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
     max-height: 0;
-    transition: max-height 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.22s ease, opacity 0.18s ease, padding 0.22s ease;
     padding: 0 8px;
-    border-width: 0;
+    z-index: 200;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.7);
   }
-  #tmpl-panel.open { max-height: 300px; padding: 8px; border-width: 1.5px; }
+  #tmpl-panel.open {
+    max-height: 260px;
+    opacity: 1;
+    pointer-events: auto;
+    padding: 8px;
+  }
   .tmpl-grid { display: flex; flex-wrap: wrap; gap: 5px; }
   .tmpl-btn {
     font-family: 'IBM Plex Mono', monospace;
@@ -222,24 +183,7 @@
     touch-action: manipulation;
   }
 
-  .copy-toast {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-60px);
-    background: var(--accent2);
-    color: #0a2a1f;
-    font-weight: 600;
-    font-size: 0.8rem;
-    padding: 8px 20px;
-    border-radius: 20px;
-    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
-    z-index: 999;
-    white-space: nowrap;
-  }
-  .copy-toast.show { transform: translateX(-50%) translateY(0); }
-
-  /* Key rows */
+  /* ── Key rows ── */
   .key-row {
     display: flex;
     flex-wrap: nowrap;
@@ -255,7 +199,6 @@
     border-radius: var(--radius-sm);
     cursor: pointer;
     user-select: none;
-    transition: background 0.08s, transform 0.08s;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -267,6 +210,39 @@
     overflow: hidden;
     touch-action: manipulation;
   }
+
+  /* Button heights reduced by 8% */
+  .row-primary .key {
+    height: 44px; /* was 48 */
+    font-size: clamp(0.85rem, 3.2vw, 1.2rem);
+    border-color: var(--btn-border-lg);
+    background: var(--btn-bg-lg);
+    color: var(--accent);
+  }
+  .row-notes .key { height: 39px; font-size: clamp(0.8rem, 2.8vw, 1rem); } /* was 42 */
+  .row-small .key { height: 33px; font-size: clamp(0.7rem, 2.6vw, 0.9rem); color: var(--text-dim); } /* was 36 */
+
+  .key-bksp {
+    flex: 1.4 1 0 !important;
+    background: #1e1010 !important;
+    border-color: #4a2020 !important;
+    color: #e06060 !important;
+    font-size: clamp(0.85rem, 3vw, 1rem) !important;
+  }
+  .key-z { color: var(--accent2) !important; }
+  .key-space {
+    flex: 4 1 0 !important;
+    font-size: clamp(0.55rem, 2vw, 0.7rem) !important;
+    letter-spacing: 0.06em;
+    color: var(--text-dim) !important;
+  }
+  .key-nl {
+    flex: 1.5 1 0 !important;
+    font-size: clamp(0.6rem, 2.2vw, 0.75rem) !important;
+    color: var(--text-dim) !important;
+  }
+
+  /* ── Animations ── */
   @keyframes keyflash {
     0%   { background: #556; transform: scale(0.88); }
     40%  { background: #445; }
@@ -283,7 +259,7 @@
   }
   @keyframes btnflash {
     0%   { opacity: 0.6; transform: scale(0.94); }
-    100% { opacity: 1;   transform: scale(1); }
+    100% { opacity: 1; transform: scale(1); }
   }
   @keyframes tmplflash {
     0%   { background: #0d3d2a; transform: scale(0.92); }
@@ -295,43 +271,120 @@
   .tmpl-btn.flash          { animation: tmplflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
   .action-btn.flash        { animation: btnflash 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
-  .row-primary .key {
-    height: 48px;
-    font-size: clamp(0.85rem, 3.2vw, 1.2rem);
-    border-color: var(--btn-border-lg);
-    background: var(--btn-bg-lg);
+  /* ── Settings cog ── */
+  #settings-cog {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    background: rgba(15,15,15,0.5);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    z-index: 300;
+    padding: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+  }
+  #settings-cog:hover, #settings-cog.active { opacity: 1; }
+  #settings-cog svg { width: 18px; height: 18px; }
+
+  /* ── Settings panel ── */
+  #settings-panel {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    width: min(340px, calc(100vw - 20px));
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.22s ease, opacity 0.18s ease, padding 0.22s ease;
+    padding: 0 14px;
+    z-index: 300;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+  }
+  #settings-panel.open {
+    max-height: 200px;
+    opacity: 1;
+    pointer-events: auto;
+    padding: 14px;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .settings-label {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    font-family: 'IBM Plex Mono', monospace;
+    min-width: 70px;
+  }
+  #zoom-slider {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .settings-value {
+    font-size: 0.72rem;
+    font-family: 'IBM Plex Mono', monospace;
     color: var(--accent);
+    min-width: 30px;
+    text-align: right;
   }
-  .key-bksp {
-    flex: 1.4 1 0 !important;
-    background: #1e1010 !important;
-    border-color: #4a2020 !important;
-    color: #e06060 !important;
-    font-size: clamp(0.85rem, 3vw, 1rem) !important;
+
+  /* ── Toast ── */
+  .copy-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-60px);
+    background: var(--accent2);
+    color: #0a2a1f;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 8px 20px;
+    border-radius: 20px;
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+    white-space: nowrap;
+    pointer-events: none;
   }
-  .row-notes .key { height: 42px; font-size: clamp(0.8rem, 2.8vw, 1rem); }
-  .key-z { color: var(--accent2) !important; }
-  .key-space {
-    flex: 4 1 0 !important;
-    font-size: clamp(0.55rem, 2vw, 0.7rem) !important;
-    letter-spacing: 0.06em;
-    color: var(--text-dim) !important;
-  }
-  .key-nl {
-    flex: 1.5 1 0 !important;
-    font-size: clamp(0.6rem, 2.2vw, 0.75rem) !important;
-    color: var(--text-dim) !important;
-  }
-  .row-small .key { height: 36px; font-size: clamp(0.7rem, 2.6vw, 0.9rem); color: var(--text-dim); }
+  .copy-toast.show { transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">ABC <span>Notepad</span></div>
-  <button class="btn-settings action-btn" id="settingsToggle" data-action="toggleSettings">Settings</button>
+  <a href="#" class="logo">ABC <span>Notepad</span></a>
 </header>
 
+<div id="preview-wrap">
+  <div id="preview"></div>
+</div>
+
+<!-- Spacer that reserves space equal to the fixed bottom bar -->
+<div id="bottom-spacer"></div>
+
+<!-- Settings cog — always visible top right -->
+<button id="settings-cog" data-action="toggleSettings" aria-label="Settings">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#f0ede6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+</button>
+
+<!-- Settings panel -->
 <div id="settings-panel">
   <div class="settings-row">
     <span class="settings-label">Preview zoom</span>
@@ -340,129 +393,137 @@
   </div>
 </div>
 
-<div id="preview-wrap">
-  <div id="preview"></div>
-</div>
+<!-- Fixed bottom bar -->
+<div id="bottom-bar">
 
-<div class="bottom-section">
-<div class="editor-wrap">
-  <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
-    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-  <div class="editor-footer">
-    <div class="footer-left">
-      <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates">Templates</button>
+  <div class="editor-wrap">
+    <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="editor-footer">
+      <div class="footer-left">
+        <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates">Templates</button>
+      </div>
+      <div class="footer-right">
+        <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
+        <span id="clearConfirm" style="display:none; align-items:center; gap:5px;">
+          <button class="action-btn btn-clear" style="color:#e06060;" data-action="clearStep2">Clear</button>
+          <button class="action-btn btn-clear" data-action="clearCancel">Cancel</button>
+        </span>
+        <button class="action-btn btn-copy" data-action="copyText">Copy</button>
+      </div>
+    </div><!-- /.editor-footer -->
+
+    <div id="tmpl-panel">
+      <div class="tmpl-grid">
+        <button class="tmpl-btn" data-insert="%%score ">%%score</button>
+        <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
+        <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
+        <button class="tmpl-btn" data-insert="T:">T:</button>
+        <button class="tmpl-btn" data-insert="V:">V:</button>
+        <button class="tmpl-btn" data-insert="L:">L:</button>
+        <button class="tmpl-btn" data-insert="W:">W:</button>
+        <button class="tmpl-btn" data-insert="clef=treble ">clef=treble</button>
+        <button class="tmpl-btn" data-insert="clef=bass ">clef=bass</button>
+        <button class="tmpl-btn" data-insert="style=">style=</button>
+        <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
+        <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
+        <button class="tmpl-btn" data-insert="(3">(3</button>
+        <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
+        <button class="tmpl-btn" data-insert="%%score {RH | LH}&#10;V:RH clef=treble&#10;V:LH clef=bass&#10;[V:RH]&#10;[V:LH]">Grand Staff</button>
+        <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
+      </div>
     </div>
-    <div class="footer-right">
-      <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
-      <span id="clearConfirm" style="display:none; align-items:center; gap:5px;">
-        <button class="action-btn btn-clear" style="color:#e06060;" data-action="clearStep2">Clear</button>
-        <button class="action-btn btn-clear" data-action="clearCancel">Cancel</button>
-      </span>
-      <button class="action-btn btn-copy" data-action="copyText">Copy</button>
-    </div>
+  </div><!-- /.editor-wrap -->
+
+  <!-- Row 1: _ ^ = [ ] ( ) " . ⌫ -->
+  <div class="key-row row-primary">
+    <button class="key" data-insert="_">_</button>
+    <button class="key" data-insert="^">^</button>
+    <button class="key" data-insert="=">=</button>
+    <button class="key" data-insert="[">&#91;</button>
+    <button class="key" data-insert="]">&#93;</button>
+    <button class="key" data-insert="(">&#40;</button>
+    <button class="key" data-insert=")">&#41;</button>
+    <button class="key" data-insert="&quot;">&quot;</button>
+    <button class="key" data-insert=".">.</button>
+    <button class="key key-bksp" data-action="bksp">⌫</button>
   </div>
-</div>
 
-<div id="tmpl-panel">
-  <div class="tmpl-grid">
-    <button class="tmpl-btn" data-insert="%%score ">%%score</button>
-    <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
-    <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
-    <button class="tmpl-btn" data-insert="T:">T:</button>
-    <button class="tmpl-btn" data-insert="V:">V:</button>
-    <button class="tmpl-btn" data-insert="L:">L:</button>
-    <button class="tmpl-btn" data-insert="W:">W:</button>
-    <button class="tmpl-btn" data-insert="clef=treble ">clef=treble</button>
-    <button class="tmpl-btn" data-insert="clef=bass ">clef=bass</button>
-    <button class="tmpl-btn" data-insert="style=">style=</button>
-    <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
-    <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
-    <button class="tmpl-btn" data-insert="(3">(3</button>
-    <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
-    <button class="tmpl-btn" data-insert="%%score {RH | LH}&#10;V:RH clef=treble&#10;V:LH clef=bass&#10;[V:RH]&#10;[V:LH]">Grand Staff</button>
-    <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
+  <!-- Row 2: c d e f g a b ' z -->
+  <div class="key-row row-notes">
+    <button class="key" data-insert="c">c</button>
+    <button class="key" data-insert="d">d</button>
+    <button class="key" data-insert="e">e</button>
+    <button class="key" data-insert="f">f</button>
+    <button class="key" data-insert="g">g</button>
+    <button class="key" data-insert="a">a</button>
+    <button class="key" data-insert="b">b</button>
+    <button class="key" data-insert="'">'</button>
+    <button class="key key-z" data-insert="z">z</button>
   </div>
-</div>
 
-<!-- Row 1: _ ^ = [ ] ( ) " . ⌫ -->
-<div class="key-row row-primary">
-  <button class="key" data-insert="_">_</button>
-  <button class="key" data-insert="^">^</button>
-  <button class="key" data-insert="=">=</button>
-  <button class="key" data-insert="[">&#91;</button>
-  <button class="key" data-insert="]">&#93;</button>
-  <button class="key" data-insert="(">&#40;</button>
-  <button class="key" data-insert=")">&#41;</button>
-  <button class="key" data-insert="&quot;">&quot;</button>
-  <button class="key" data-insert=".">.</button>
-  <button class="key key-bksp" data-action="bksp">⌫</button>
-</div>
+  <!-- Row 3: C D E F G A B , / -->
+  <div class="key-row row-notes">
+    <button class="key" data-insert="C">C</button>
+    <button class="key" data-insert="D">D</button>
+    <button class="key" data-insert="E">E</button>
+    <button class="key" data-insert="F">F</button>
+    <button class="key" data-insert="G">G</button>
+    <button class="key" data-insert="A">A</button>
+    <button class="key" data-insert="B">B</button>
+    <button class="key" data-insert=","><span style="font-size:1.4em;line-height:1">,</span></button>
+    <button class="key" data-insert="/">/</button>
+  </div>
 
-<!-- Row 2: c d e f g a b ' z -->
-<div class="key-row row-notes">
-  <button class="key" data-insert="c">c</button>
-  <button class="key" data-insert="d">d</button>
-  <button class="key" data-insert="e">e</button>
-  <button class="key" data-insert="f">f</button>
-  <button class="key" data-insert="g">g</button>
-  <button class="key" data-insert="a">a</button>
-  <button class="key" data-insert="b">b</button>
-  <button class="key" data-insert="'">'</button>
-  <button class="key key-z" data-insert="z">z</button>
-</div>
+  <!-- Row 4: 0-9 -->
+  <div class="key-row row-small">
+    <button class="key" data-insert="0">0</button>
+    <button class="key" data-insert="1">1</button>
+    <button class="key" data-insert="2">2</button>
+    <button class="key" data-insert="3">3</button>
+    <button class="key" data-insert="4">4</button>
+    <button class="key" data-insert="5">5</button>
+    <button class="key" data-insert="6">6</button>
+    <button class="key" data-insert="7">7</button>
+    <button class="key" data-insert="8">8</button>
+    <button class="key" data-insert="9">9</button>
+  </div>
 
-<!-- Row 3: C D E F G A B , / -->
-<div class="key-row row-notes">
-  <button class="key" data-insert="C">C</button>
-  <button class="key" data-insert="D">D</button>
-  <button class="key" data-insert="E">E</button>
-  <button class="key" data-insert="F">F</button>
-  <button class="key" data-insert="G">G</button>
-  <button class="key" data-insert="A">A</button>
-  <button class="key" data-insert="B">B</button>
-  <button class="key" data-insert=","><span style="font-size:1.4em;line-height:1">,</span></button>
-  <button class="key" data-insert="/">/</button>
-</div>
+  <!-- Row 5: - SPACE | ↵ -->
+  <div class="key-row row-notes">
+    <button class="key" data-insert="-">-</button>
+    <button class="key key-space" data-insert=" ">SPACE</button>
+    <button class="key" data-insert="|">|</button>
+    <button class="key key-nl" data-insert="&#10;">↵</button>
+  </div>
 
-<!-- Row 4: 0-9 -->
-<div class="key-row row-small">
-  <button class="key" data-insert="0">0</button>
-  <button class="key" data-insert="1">1</button>
-  <button class="key" data-insert="2">2</button>
-  <button class="key" data-insert="3">3</button>
-  <button class="key" data-insert="4">4</button>
-  <button class="key" data-insert="5">5</button>
-  <button class="key" data-insert="6">6</button>
-  <button class="key" data-insert="7">7</button>
-  <button class="key" data-insert="8">8</button>
-  <button class="key" data-insert="9">9</button>
-</div>
-
-<!-- Row 5: - SPACE | ↵ -->
-<div class="key-row row-notes">
-  <button class="key" data-insert="-">-</button>
-  <button class="key key-space" data-insert=" ">SPACE</button>
-  <button class="key" data-insert="|">|</button>
-  <button class="key key-nl" data-insert="&#10;">↵</button>
-</div>
-</div><!-- /bottom-section -->
+</div><!-- /#bottom-bar -->
 
 <div class="copy-toast" id="toast">Copied ✓</div>
 
 <script>
-  const ta = document.getElementById('notation');
-  const toast = document.getElementById('toast');
+  const ta        = document.getElementById('notation');
+  const toast     = document.getElementById('toast');
   const previewDiv = document.getElementById('preview');
+  const bottomBar = document.getElementById('bottom-bar');
+  const spacer    = document.getElementById('bottom-spacer');
 
+  // ── Keep spacer in sync with bottom bar height ──
+  const resizeObserver = new ResizeObserver(() => {
+    spacer.style.height = bottomBar.offsetHeight + 'px';
+  });
+  resizeObserver.observe(bottomBar);
+
+  // ── Cursor tracking ──
   let taFocused = false;
   let savedStart = 0, savedEnd = 0;
   let debounceTimer = null;
 
   ta.addEventListener('focus', () => { taFocused = true; });
-  ta.addEventListener('blur', () => {
+  ta.addEventListener('blur',  () => {
     taFocused = false;
     savedStart = ta.selectionStart;
-    savedEnd = ta.selectionEnd;
+    savedEnd   = ta.selectionEnd;
   });
   ta.addEventListener('keyup', () => {
     if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
@@ -475,17 +536,18 @@
   });
   ta.addEventListener('input', schedulePreview);
 
-  const zoomSlider = document.getElementById('zoom-slider');
+  // ── Preview / zoom ──
+  const zoomSlider  = document.getElementById('zoom-slider');
   const zoomValueEl = document.getElementById('zoom-value');
-  let zoomLevel = 0.5; // 0 = zoomed in (large music), 1 = zoomed out (small music)
+  let zoomLevel = 0.5;
 
   const BASE_MULTIPLIER = 1.45;
-  const SCALING_FACTOR = 1.4;
+  const SCALING_FACTOR  = 1.4;
 
   function getStaffwidth() {
-    const containerWidth = previewDiv.offsetWidth || 320;
+    const w = previewDiv.offsetWidth || 320;
     const multiplier = BASE_MULTIPLIER - (zoomLevel - 0.5) * SCALING_FACTOR;
-    return Math.round(containerWidth * multiplier);
+    return Math.round(w * multiplier);
   }
 
   zoomSlider.addEventListener('input', () => {
@@ -511,21 +573,17 @@
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' }
       });
-      previewDiv.parentElement.scrollTop = previewDiv.parentElement.scrollHeight;
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     } catch(e) {}
   }
 
-  // Core insert — used by both key buttons and template buttons
+  // ── Insert / backspace ──
   function doInsert(text, refocus) {
-    const s = savedStart;
-    const e = savedEnd;
+    const s = savedStart, e = savedEnd;
     ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
     savedStart = s + text.length;
-    savedEnd = savedStart;
-    if (refocus) {
-      ta.focus();
-      ta.setSelectionRange(savedStart, savedEnd);
-    }
+    savedEnd   = savedStart;
+    if (refocus) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
     ta.scrollTop = ta.scrollHeight;
     schedulePreview();
   }
@@ -544,13 +602,20 @@
     schedulePreview();
   }
 
+  // ── Templates ──
   function toggleTemplates() {
     const panel = document.getElementById('tmpl-panel');
-    const btn = document.getElementById('tmplToggle');
+    const btn   = document.getElementById('tmplToggle');
     const isOpen = panel.classList.toggle('open');
     btn.classList.toggle('active', isOpen);
   }
 
+  function closeTemplates() {
+    document.getElementById('tmpl-panel').classList.remove('open');
+    document.getElementById('tmplToggle').classList.remove('active');
+  }
+
+  // ── Copy ──
   function copyText() {
     if (!ta.value) return;
     navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
@@ -563,6 +628,7 @@
     setTimeout(() => toast.classList.remove('show'), 1800);
   }
 
+  // ── Clear ──
   function clearStep1() {
     if (!ta.value) return;
     document.getElementById('clearBtn').style.display = 'none';
@@ -582,29 +648,45 @@
     document.getElementById('clearConfirm').style.display = 'none';
   }
 
+  // ── Settings ──
   function toggleSettings() {
     const panel = document.getElementById('settings-panel');
-    const btn = document.getElementById('settingsToggle');
+    const cog   = document.getElementById('settings-cog');
     const isOpen = panel.classList.toggle('open');
-    btn.classList.toggle('active', isOpen);
+    cog.classList.toggle('active', isOpen);
   }
 
-  // Unified button interaction — works for both touch and mouse
+  // Close settings/templates when tapping outside
+  document.addEventListener('mousedown', e => {
+    const settingsPanel = document.getElementById('settings-panel');
+    const cog = document.getElementById('settings-cog');
+    if (settingsPanel.classList.contains('open') &&
+        !settingsPanel.contains(e.target) && !cog.contains(e.target)) {
+      settingsPanel.classList.remove('open');
+      cog.classList.remove('active');
+    }
+    const tmplPanel = document.getElementById('tmpl-panel');
+    const tmplBtn = document.getElementById('tmplToggle');
+    if (tmplPanel.classList.contains('open') &&
+        !tmplPanel.contains(e.target) && !tmplBtn.contains(e.target)) {
+      closeTemplates();
+    }
+  });
+
+  // ── Unified button system ──
   const actions = { toggleTemplates, toggleSettings, copyText, clearStep1, clearStep2, clearCancel, bksp };
 
   function handleButtonPress(btn) {
-    // Restart flash animation
     btn.classList.remove('flash');
     void btn.offsetWidth;
     btn.classList.add('flash');
-    // copyText deferred to release so iOS treats it as a valid clipboard gesture
     if (btn.dataset.action === 'copyText') return;
-    // Fire all other actions immediately on press
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
       if (fn) fn();
     } else if (btn.dataset.insert !== undefined) {
       const isKey = btn.classList.contains('key');
+      if (btn.classList.contains('tmpl-btn')) closeTemplates();
       doInsert(btn.dataset.insert, isKey && taFocused);
     }
   }
@@ -613,12 +695,11 @@
     if (btn.dataset.action === 'copyText') copyText();
   }
 
-  // Touch handling — press on touchstart, fire on touchend
+  // Touch
   let activeBtn = null;
   document.addEventListener('touchstart', e => {
-    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    const btn = e.target.closest('.key, .tmpl-btn, .action-btn, #settings-cog');
     if (!btn) return;
-    // Prevent textarea blur for key/tmpl buttons
     if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
       e.preventDefault();
     }
@@ -633,18 +714,17 @@
     e.preventDefault();
   }, { passive: false });
 
-  document.addEventListener('touchcancel', e => {
-    if (activeBtn) { activeBtn.classList.remove('pressed'); activeBtn = null; }
+  document.addEventListener('touchcancel', () => {
+    activeBtn = null;
   }, { passive: true });
 
-  // Mouse handling for desktop — single document-level listener so mouseup always fires
+  // Mouse
   let activeMouseBtn = null;
-
   document.addEventListener('mousedown', e => {
-    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    const btn = e.target.closest('.key, .tmpl-btn, .action-btn, #settings-cog');
     if (!btn) return;
     if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
-      e.preventDefault(); // prevent textarea blur for keyboard/template buttons
+      e.preventDefault();
     }
     activeMouseBtn = btn;
     handleButtonPress(btn);
