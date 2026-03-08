@@ -536,6 +536,13 @@
     btn.classList.toggle('active', isOpen);
   }
 
+  function closeTemplates() {
+    const panel = document.getElementById('tmpl-panel');
+    const btn = document.getElementById('tmplToggle');
+    panel.classList.remove('open');
+    btn.classList.remove('active');
+  }
+
   function copyText() {
     if (!ta.value) return;
     navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
@@ -593,6 +600,7 @@
       if (fn) fn();
     } else if (btn.dataset.insert !== undefined) {
       const isKey = btn.classList.contains('key');
+      if (btn.classList.contains('tmpl-btn')) closeTemplates();
       doInsert(btn.dataset.insert, isKey && taFocused);
     }
   }
