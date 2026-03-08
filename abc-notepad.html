@@ -236,7 +236,9 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius);
-    overflow: hidden;
+  }
+  #notation {
+    border-radius: var(--radius) var(--radius) 0 0;
   }
   #notation {
     width: 100%;
@@ -283,6 +285,72 @@
   .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
   .btn-templates { background: transparent; color: var(--accent2); border: 1px solid #2a5a4a; }
   .btn-templates.active { background: #0a2a1f; border-color: var(--accent2); }
+
+  /* Split copy button */
+  .copy-split {
+    display: flex;
+    position: relative;
+  }
+  .copy-split .btn-copy-main {
+    background: var(--accent);
+    color: #111;
+    border: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    padding: 5px 12px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .copy-split-divider {
+    width: 1px;
+    background: rgba(0,0,0,0.25);
+    flex-shrink: 0;
+  }
+  .copy-split .btn-copy-arrow {
+    background: var(--accent);
+    color: #111;
+    border: none;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 5px 7px;
+    font-size: 0.6rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+  }
+  .copy-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    z-index: 50;
+    white-space: nowrap;
+    min-width: 100%;
+  }
+  .copy-dropdown.open { display: block; }
+  .copy-dropdown-item {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+  }
+  .copy-dropdown-item:hover { background: var(--surface2); }
 
   /* Template panel */
   #tmpl-panel {
@@ -473,7 +541,14 @@
         <button class="action-btn btn-clear" style="color:#e06060;" data-action="clearStep2">Clear</button>
         <button class="action-btn btn-clear" data-action="clearCancel">Cancel</button>
       </span>
-      <button class="action-btn btn-copy" data-action="copyText">Copy</button>
+      <div class="copy-split">
+        <button class="btn-copy-main action-btn" data-action="copyText">Copy</button>
+        <div class="copy-split-divider"></div>
+        <button class="btn-copy-arrow action-btn" id="copyArrow" data-action="toggleCopyDropdown">▾</button>
+        <div class="copy-dropdown" id="copyDropdown">
+          <button class="copy-dropdown-item action-btn" data-action="copyTextRaw">Copy without wrapping</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -674,7 +749,7 @@
   }
 
   function copyText() {
-    if (!ta.value) return;
+    closeCopyDropdown();
     const before = document.getElementById('wrapBefore').value;
     const after = document.getElementById('wrapAfter').value;
     const text = before + '\n' + ta.value + '\n' + after;
@@ -682,6 +757,28 @@
       try { document.execCommand('copy'); showToast(); } catch(e) {}
     });
   }
+
+  function copyTextRaw() {
+    navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
+      try { document.execCommand('copy'); showToast(); } catch(e) {}
+    });
+    closeCopyDropdown();
+  }
+
+  function toggleCopyDropdown() {
+    document.getElementById('copyDropdown').classList.toggle('open');
+  }
+
+  function closeCopyDropdown() {
+    document.getElementById('copyDropdown').classList.remove('open');
+  }
+
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.copy-split')) closeCopyDropdown();
+  });
+  document.addEventListener('touchstart', e => {
+    if (!e.target.closest('.copy-split')) closeCopyDropdown();
+  }, { passive: true });
 
   function showToast() {
     toast.classList.add('show');
@@ -732,9 +829,9 @@
   document.getElementById('wrapAfter').value = "```";
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, toggleSettings, openSettingsModal, copyText, clearStep1, clearStep2, clearCancel, bksp };
+  const actions = { toggleTemplates, toggleSettings, openSettingsModal, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp };
 
-  const releaseActions = new Set(['copyText', 'toggleTemplates', 'toggleSettings', 'openSettingsModal', 'clearStep1', 'clearStep2', 'clearCancel']);
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleSettings', 'openSettingsModal', 'clearStep1', 'clearStep2', 'clearCancel']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
