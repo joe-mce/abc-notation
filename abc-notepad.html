@@ -45,6 +45,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
   }
 
   .btn-settings {
@@ -64,45 +65,28 @@
   .header-btns { display: flex; gap: 6px; }
 
   /* Zoom panel */
-  #settings-panel {
+  #zoom-panel {
+    display: none;
+    position: absolute;
+    top: 32px;
+    right: 10px;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius);
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
-    padding: 0 12px;
-    border-width: 0;
+    padding: 2px 10px 10px;
+    z-index: 50;
+    width: 160px;
   }
-  #settings-panel.open { max-height: 200px; padding: 12px; border-width: 1.5px; }
-  .settings-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .settings-label {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    white-space: nowrap;
-    font-family: 'IBM Plex Mono', monospace;
-    min-width: 80px;
-  }
+  #zoom-panel.open { display: block; }
   #zoom-slider {
-    flex: 1;
+    width: 100%;
     accent-color: var(--accent);
     cursor: pointer;
     height: 4px;
   }
-  .settings-value {
-    font-size: 0.75rem;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--accent);
-    min-width: 32px;
-    text-align: right;
-  }
 
   /* Settings modal */
-  #modal-overlay {
+  #settings-overlay {
     display: none;
     position: fixed;
     inset: 0;
@@ -112,7 +96,7 @@
     justify-content: center;
     padding: 20px;
   }
-  #modal-overlay.open { display: flex; }
+  #settings-overlay.open { display: flex; }
   #modal-box {
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -488,21 +472,16 @@
 <header>
   <a href="#" class="logo">ABC <span>Notepad</span></a>
   <div class="header-btns">
-    <button class="btn-settings action-btn" id="zoomToggle" data-action="toggleSettings">Zoom</button>
-    <button class="btn-settings action-btn" id="modalSettingsBtn" data-action="openSettingsModal">Settings</button>
+    <button class="btn-settings action-btn" id="zoomToggle" data-action="toggleZoom">Zoom</button>
+    <button class="btn-settings action-btn" id="modalSettingsBtn" data-action="openSettings">Settings</button>
+  </div>
+  <div id="zoom-panel">
+    <input type="range" id="zoom-slider" min="0" max="1" step="0.01" value="0.5">
   </div>
 </header>
 
-<div id="settings-panel">
-  <div class="settings-row">
-    <span class="settings-label">Preview zoom</span>
-    <input type="range" id="zoom-slider" min="0" max="1" step="0.01" value="0.5">
-    <span class="settings-value" id="zoom-value">50%</span>
-  </div>
-</div>
-
 <!-- Settings modal -->
-<div id="modal-overlay">
+<div id="settings-overlay">
   <div id="modal-box">
     <div class="modal-header">
       <span class="modal-title">Settings</span>
@@ -665,8 +644,7 @@
   ta.addEventListener('input', schedulePreview);
 
   const zoomSlider = document.getElementById('zoom-slider');
-  const zoomValueEl = document.getElementById('zoom-value');
-  let zoomLevel = 0.5; // 0 = zoomed in (large music), 1 = zoomed out (small music)
+  let zoomLevel = 0.5;
 
   const BASE_MULTIPLIER = 1.45;
   const SCALING_FACTOR = 1.4;
@@ -679,7 +657,6 @@
 
   zoomSlider.addEventListener('input', () => {
     zoomLevel = parseFloat(zoomSlider.value);
-    zoomValueEl.textContent = Math.round(zoomLevel * 100) + '%';
     renderPreview();
   });
 
@@ -804,34 +781,48 @@
     document.getElementById('clearConfirm').style.display = 'none';
   }
 
-  function toggleSettings() {
-    const panel = document.getElementById('settings-panel');
+  function toggleZoom() {
+    const panel = document.getElementById('zoom-panel');
     const btn = document.getElementById('zoomToggle');
     const isOpen = panel.classList.toggle('open');
     btn.classList.toggle('active', isOpen);
   }
 
-  function openSettingsModal() {
-    document.getElementById('modal-overlay').classList.add('open');
+  function openSettings() {
+    document.getElementById('settings-overlay').classList.add('open');
   }
 
-  function closeSettingsModal() {
-    document.getElementById('modal-overlay').classList.remove('open');
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
   }
 
   // Modal close button and overlay click
-  document.getElementById('modalClose').addEventListener('click', closeSettingsModal);
-  document.getElementById('modal-overlay').addEventListener('click', e => {
-    if (e.target === document.getElementById('modal-overlay')) closeSettingsModal();
+  document.getElementById('modalClose').addEventListener('click', closeSettings);
+  document.getElementById('settings-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('settings-overlay')) closeSettings();
   });
+
+  // Close zoom panel when clicking outside
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('#zoom-panel') && !e.target.closest('#zoomToggle')) {
+      document.getElementById('zoom-panel').classList.remove('open');
+      document.getElementById('zoomToggle').classList.remove('active');
+    }
+  });
+  document.addEventListener('touchstart', e => {
+    if (!e.target.closest('#zoom-panel') && !e.target.closest('#zoomToggle')) {
+      document.getElementById('zoom-panel').classList.remove('open');
+      document.getElementById('zoomToggle').classList.remove('active');
+    }
+  }, { passive: true });
 
   document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 700}\n---";
   document.getElementById('wrapAfter').value = "```";
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, toggleSettings, openSettingsModal, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp };
+  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp };
 
-  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleSettings', 'openSettingsModal', 'clearStep1', 'clearStep2', 'clearCancel']);
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleZoom', 'openSettings', 'clearStep1', 'clearStep2', 'clearCancel']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
