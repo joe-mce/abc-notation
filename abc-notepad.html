@@ -504,6 +504,7 @@
   function doInsert(text, refocus) {
     const s = savedStart;
     const e = savedEnd;
+    const atEnd = e === ta.value.length;
     ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
     savedStart = s + text.length;
     savedEnd = savedStart;
@@ -511,12 +512,13 @@
       ta.focus();
       ta.setSelectionRange(savedStart, savedEnd);
     }
-    ta.scrollTop = ta.scrollHeight;
+    if (atEnd) ta.scrollTop = ta.scrollHeight;
     schedulePreview();
   }
 
   function bksp() {
     const wasActive = taFocused;
+    const atEnd = savedEnd === ta.value.length;
     if (savedStart === savedEnd && savedStart > 0) {
       ta.value = ta.value.slice(0, savedStart - 1) + ta.value.slice(savedEnd);
       savedStart -= 1; savedEnd = savedStart;
@@ -525,7 +527,7 @@
       savedEnd = savedStart;
     }
     if (wasActive) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-    ta.scrollTop = ta.scrollHeight;
+    if (atEnd) ta.scrollTop = ta.scrollHeight;
     schedulePreview();
   }
 
