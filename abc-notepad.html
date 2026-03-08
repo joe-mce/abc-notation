@@ -61,8 +61,9 @@
     touch-action: manipulation;
   }
   .btn-settings.active { border-color: var(--accent); color: var(--accent); }
+  .header-btns { display: flex; gap: 6px; }
 
-  /* Settings panel */
+  /* Zoom panel */
   #settings-panel {
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -99,6 +100,107 @@
     min-width: 32px;
     text-align: right;
   }
+
+  /* Settings modal */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #modal-overlay.open { display: flex; }
+  #modal-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 500px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+    touch-action: manipulation;
+  }
+  .modal-setting {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .modal-setting-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-setting-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .modal-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+  }
+  .modal-toggle input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+  .modal-wrap-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .modal-wrap-fields.disabled { opacity: 0.4; pointer-events: none; }
+  .modal-field-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .modal-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    padding: 7px 9px;
+    resize: vertical;
+    min-height: 56px;
+  }
+  .modal-textarea:focus { outline: none; border-color: var(--accent); }
 
   .logo {
     font-family: 'IBM Plex Mono', monospace;
@@ -317,7 +419,10 @@
 
 <header>
   <a href="#" class="logo">ABC <span>Notepad</span></a>
-  <button class="btn-settings action-btn" id="settingsToggle" data-action="toggleSettings">Settings</button>
+  <div class="header-btns">
+    <button class="btn-settings action-btn" id="zoomToggle" data-action="toggleSettings">Zoom</button>
+    <button class="btn-settings action-btn" id="modalSettingsBtn" data-action="openSettingsModal">Settings</button>
+  </div>
 </header>
 
 <div id="settings-panel">
@@ -325,6 +430,29 @@
     <span class="settings-label">Preview zoom</span>
     <input type="range" id="zoom-slider" min="0" max="1" step="0.01" value="0.5">
     <span class="settings-value" id="zoom-value">50%</span>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Settings</span>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-setting">
+      <div class="modal-setting-header">
+        <span class="modal-setting-label">Wrap output</span>
+      </div>
+      <div class="modal-wrap-fields" id="wrapFields">
+        <span class="modal-field-label">Before</span>
+        <textarea class="modal-textarea" id="wrapBefore" rows="3">```abc
+{"staffwidth": 700}
+---</textarea>
+        <span class="modal-field-label">After</span>
+        <textarea class="modal-textarea" id="wrapAfter" rows="1">```</textarea>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -547,7 +675,10 @@
 
   function copyText() {
     if (!ta.value) return;
-    navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
+    const before = document.getElementById('wrapBefore').value;
+    const after = document.getElementById('wrapAfter').value;
+    const text = before + '\n' + ta.value + '\n' + after;
+    navigator.clipboard.writeText(text).then(showToast).catch(() => {
       try { document.execCommand('copy'); showToast(); } catch(e) {}
     });
   }
@@ -578,15 +709,32 @@
 
   function toggleSettings() {
     const panel = document.getElementById('settings-panel');
-    const btn = document.getElementById('settingsToggle');
+    const btn = document.getElementById('zoomToggle');
     const isOpen = panel.classList.toggle('open');
     btn.classList.toggle('active', isOpen);
   }
 
-  // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, toggleSettings, copyText, clearStep1, clearStep2, clearCancel, bksp };
+  function openSettingsModal() {
+    document.getElementById('modal-overlay').classList.add('open');
+  }
 
-  const releaseActions = new Set(['copyText', 'toggleTemplates', 'toggleSettings', 'clearStep1', 'clearStep2', 'clearCancel']);
+  function closeSettingsModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+
+  // Modal close button and overlay click
+  document.getElementById('modalClose').addEventListener('click', closeSettingsModal);
+  document.getElementById('modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-overlay')) closeSettingsModal();
+  });
+
+  document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 700}\n---";
+  document.getElementById('wrapAfter').value = "```";
+
+  // Unified button interaction — works for both touch and mouse
+  const actions = { toggleTemplates, toggleSettings, openSettingsModal, copyText, clearStep1, clearStep2, clearCancel, bksp };
+
+  const releaseActions = new Set(['copyText', 'toggleTemplates', 'toggleSettings', 'openSettingsModal', 'clearStep1', 'clearStep2', 'clearCancel']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
