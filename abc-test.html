@@ -89,8 +89,8 @@
   #gesture-wheel {
     display: none;
     position: fixed;
-    width: 200px;
-    height: 200px;
+    width: 160px;
+    height: 160px;
     transform: translate(-50%, -50%);
     z-index: 100;
     pointer-events: none;
@@ -144,22 +144,22 @@
 <div id="gesture-wheel">
   <!-- SVG viewBox 200x200, centre at 100,100, chevrons on a circle of radius 78px -->
   <!-- Chevron span ±28px, depth 14px toward centre -->
-  <svg viewBox="0 0 200 200" width="200" height="200" overflow="visible">
-    <!-- Up: apex at (100,22), arms at (72,36) and (128,36) -->
+  <svg viewBox="0 0 200 200" width="160" height="160" overflow="visible">
+    <!-- Up: apex at (100,28), arms at (76,40) and (124,40) -->
     <g id="chev-up-g">
-      <polyline class="chev-path dim" points="72,36 100,22 128,36"/>
+      <polyline class="chev-path dim" points="76,40 100,28 124,40"/>
     </g>
-    <!-- Down: apex at (100,178), arms at (72,164) and (128,164) -->
+    <!-- Down: apex at (100,172), arms at (76,160) and (124,160) -->
     <g id="chev-down-g">
-      <polyline class="chev-path dim" points="72,164 100,178 128,164"/>
+      <polyline class="chev-path dim" points="76,160 100,172 124,160"/>
     </g>
-    <!-- Left: apex at (22,100), arms at (36,72) and (36,128) -->
+    <!-- Left: apex at (28,100), arms at (40,76) and (40,124) -->
     <g id="chev-left-g">
-      <polyline class="chev-path dim" points="36,72 22,100 36,128"/>
+      <polyline class="chev-path dim" points="40,76 28,100 40,124"/>
     </g>
-    <!-- Right: apex at (178,100), arms at (164,72) and (164,128) -->
+    <!-- Right: apex at (172,100), arms at (160,76) and (160,124) -->
     <g id="chev-right-g">
-      <polyline class="chev-path dim" points="164,72 178,100 164,128"/>
+      <polyline class="chev-path dim" points="160,76 172,100 160,124"/>
     </g>
   </svg>
 </div>
