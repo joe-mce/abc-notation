@@ -84,6 +84,46 @@
   .key { transition: transform 0.0s; }
   .key.pressed { transform: scale(1.18); z-index: 10; position: relative; }
   .key.shrink { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+
+  /* Gesture chevrons — single SVG */
+  #gesture-wheel {
+    display: none;
+    position: fixed;
+    width: 200px;
+    height: 200px;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    pointer-events: none;
+  }
+  #gesture-wheel.visible { display: block; }
+
+  .chev-path {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .chev-path.dim    { stroke: rgba(255,255,255,0.2); }
+  .chev-path.bright { stroke: rgba(255,255,255,0.82); }
+
+  @keyframes nudge-up    { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-down  { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-left  { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-right { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
+
+  @keyframes nudge-up-rev    { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-down-rev  { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-left-rev  { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-right-rev { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
+
+  #chev-up-g.nudge      { animation: nudge-up        0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-down-g.nudge    { animation: nudge-down      0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-left-g.nudge    { animation: nudge-left      0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-right-g.nudge   { animation: nudge-right     0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-up-g.nudge-rev    { animation: nudge-up-rev    0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-down-g.nudge-rev  { animation: nudge-down-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-left-g.nudge-rev  { animation: nudge-left-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-right-g.nudge-rev { animation: nudge-right-rev 0.32s cubic-bezier(0.2,0,0.4,1); }
 </style>
 </head>
 <body>
@@ -99,6 +139,29 @@
   <button class="key" data-insert="G">G</button>
   <button class="key" data-insert="A">A</button>
   <button class="key" data-insert="B">B</button>
+</div>
+
+<div id="gesture-wheel">
+  <!-- SVG viewBox 200x200, centre at 100,100, chevrons on a circle of radius 78px -->
+  <!-- Chevron span ±28px, depth 14px toward centre -->
+  <svg viewBox="0 0 200 200" width="200" height="200" overflow="visible">
+    <!-- Up: apex at (100,22), arms at (72,36) and (128,36) -->
+    <g id="chev-up-g">
+      <polyline class="chev-path dim" points="72,36 100,22 128,36"/>
+    </g>
+    <!-- Down: apex at (100,178), arms at (72,164) and (128,164) -->
+    <g id="chev-down-g">
+      <polyline class="chev-path dim" points="72,164 100,178 128,164"/>
+    </g>
+    <!-- Left: apex at (22,100), arms at (36,72) and (36,128) -->
+    <g id="chev-left-g">
+      <polyline class="chev-path dim" points="36,72 22,100 36,128"/>
+    </g>
+    <!-- Right: apex at (178,100), arms at (164,72) and (164,128) -->
+    <g id="chev-right-g">
+      <polyline class="chev-path dim" points="164,72 178,100 164,128"/>
+    </g>
+  </svg>
 </div>
 
 <script>
@@ -117,11 +180,80 @@
   });
 
   // --- Gesture state ---
-  const OCTAVE_PX = 40;   // pixels per octave step
-  const MAX_OCTAVE = 3;   // max octave steps in either direction
-  const H_THRESHOLD = 40; // pixels before horizontal counts
+  const OCTAVE_PX = 40;
+  const MAX_OCTAVE = 3;
+  const H_THRESHOLD = 40;
+  const WHEEL_DELAY = 180; // ms before wheel appears
 
-  let gesture = null; // active gesture state
+  const wheel = document.getElementById('gesture-wheel');
+  const chevGrps = {
+    up:    document.getElementById('chev-up-g'),
+    down:  document.getElementById('chev-down-g'),
+    left:  document.getElementById('chev-left-g'),
+    right: document.getElementById('chev-right-g'),
+  };
+
+  function setChevState(grp, active) {
+    const path = grp.querySelector('.chev-path');
+    path.classList.toggle('dim',    !active);
+    path.classList.toggle('bright',  active);
+  }
+
+  function nudgeChev(grp, reverse) {
+    const cls = reverse ? 'nudge-rev' : 'nudge';
+    grp.classList.remove('nudge', 'nudge-rev');
+    void grp.getBoundingClientRect();
+    grp.classList.add(cls);
+    grp.addEventListener('animationend', () => grp.classList.remove(cls), { once: true });
+  }
+
+  function initChevrons() {
+    Object.values(chevGrps).forEach(g => setChevState(g, false));
+  }
+  initChevrons();
+
+  function showWheel(x, y) {
+    wheel.style.left = x + 'px';
+    wheel.style.top  = y + 'px';
+    wheel.classList.add('visible');
+    Object.values(chevGrps).forEach(g => setChevState(g, false));
+  }
+
+  function hideWheel() {
+    wheel.classList.remove('visible');
+  }
+
+  let prevOctaveSteps = 0;
+  let prevHDir = 0;
+
+  function onNoteChange(dx, dy) {
+    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const goingUp    = dy < 0 && octaveSteps > 0;
+    const goingDown  = dy > 0 && octaveSteps > 0;
+    const goingLeft  = dx <= -H_THRESHOLD;
+    const goingRight = dx >= H_THRESHOLD;
+    const hDir = goingLeft ? -1 : goingRight ? 1 : 0;
+
+    setChevState(chevGrps.up,    goingUp);
+    setChevState(chevGrps.down,  goingDown);
+    setChevState(chevGrps.left,  goingLeft);
+    setChevState(chevGrps.right, goingRight);
+
+    if (octaveSteps !== prevOctaveSteps) {
+      const decreasing = octaveSteps < prevOctaveSteps;
+      if (octaveSteps > 0) nudgeChev(dy < 0 ? chevGrps.up : chevGrps.down, decreasing);
+      // if octaveSteps === 0, just dim — no animation
+      prevOctaveSteps = octaveSteps;
+    }
+
+    if (hDir !== prevHDir) {
+      if (hDir === -1) nudgeChev(chevGrps.left);
+      if (hDir ===  1) nudgeChev(chevGrps.right);
+      prevHDir = hDir;
+    }
+  }
+
+  let gesture = null;
 
   function noteFromGesture(baseLetter, dx, dy) {
     // dy: negative = up = higher octave, positive = down = lower octave
@@ -147,17 +279,10 @@
       octaveStr = octaveSteps > 0 ? ','.repeat(octaveSteps) : '';
     }
 
-    // Horizontal: sharp or flat
-    const accidental = Math.abs(dx) >= H_THRESHOLD ? (dx > 0 ? '^' : '_') : '';
+    // Horizontal: sharp or flat — use same threshold logic as onNoteChange
+    const accidental = dx >= H_THRESHOLD ? '^' : dx <= -H_THRESHOLD ? '_' : '';
 
     return accidental + note + octaveStr;
-  }
-
-  function flashBtn(btn) {
-    btn.classList.remove('pressed');
-    btn.classList.remove('shrink');
-    void btn.offsetWidth;
-    btn.classList.add('shrink');
   }
 
   function startGesture(btn, startX, startY) {
@@ -165,7 +290,6 @@
     const insertPos = savedStart;
     const insertEnd = savedEnd;
 
-    // Insert the base note immediately
     const initial = baseLetter.toUpperCase();
     ta.value = ta.value.slice(0, insertPos) + initial + ta.value.slice(insertEnd);
     savedStart = insertPos + initial.length;
@@ -175,6 +299,18 @@
     btn.classList.add('pressed');
     btn.textContent = initial;
 
+    // Get button centre for wheel positioning
+    const rect = btn.getBoundingClientRect();
+    const btnCX = rect.left + rect.width / 2;
+    const btnCY = rect.top  + rect.height / 2;
+
+    const wheelTimer = setTimeout(() => {
+      if (gesture) showWheel(btnCX, btnCY);
+    }, WHEEL_DELAY);
+
+    prevOctaveSteps = 0;
+    prevHDir = 0;
+
     gesture = {
       btn,
       baseLetter,
@@ -182,6 +318,8 @@
       startX,
       startY,
       lastNote: initial,
+      wheelTimer,
+      wheelVisible: false,
     };
   }
 
@@ -192,7 +330,6 @@
     const note = noteFromGesture(gesture.baseLetter, dx, dy);
 
     if (note !== gesture.lastNote) {
-      // Replace the previously inserted text
       const start = gesture.insertPos;
       const end = start + gesture.lastNote.length;
       ta.value = ta.value.slice(0, start) + note + ta.value.slice(end);
@@ -201,13 +338,20 @@
       if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
       gesture.btn.textContent = note;
       gesture.lastNote = note;
+      if (wheel.classList.contains('visible')) onNoteChange(dx, dy);
     }
   }
 
   function endGesture() {
     if (!gesture) return;
-    flashBtn(gesture.btn);
-    gesture.btn.textContent = gesture.baseLetter.toUpperCase();
+    clearTimeout(gesture.wheelTimer);
+    hideWheel();
+    const btn = gesture.btn;
+    btn.classList.remove('pressed');
+    btn.classList.remove('shrink');
+    void btn.offsetWidth;
+    btn.classList.add('shrink');
+    btn.textContent = gesture.baseLetter.toUpperCase();
     gesture = null;
   }
 
