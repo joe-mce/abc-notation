@@ -494,7 +494,7 @@
       <div class="modal-wrap-fields" id="wrapFields">
         <span class="modal-field-label">Before</span>
         <textarea class="modal-textarea" id="wrapBefore" rows="3">```abc
-{"staffwidth": 700}
+{"staffwidth": 500}
 ---</textarea>
         <span class="modal-field-label">After</span>
         <textarea class="modal-textarea" id="wrapAfter" rows="1">```</textarea>
@@ -548,7 +548,7 @@
     <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
     <button class="tmpl-btn" data-insert="(3">(3</button>
     <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
-    <button class="tmpl-btn" data-insert="%%score {RH | LH}&#10;V:RH clef=treble&#10;V:LH clef=bass&#10;[V:RH]&#10;[V:LH]">Grand Staff</button>
+    <button class="tmpl-btn" data-insert="%%score {1 | 2}&#10;V:1 clef=treble&#10;V:2 clef=bass&#10;[V:1]&#10;[V:2]">Grand Staff</button>
     <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
   </div>
 </div>
@@ -816,7 +816,7 @@
     }
   }, { passive: true });
 
-  document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 700}\n---";
+  document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 500}\n---";
   document.getElementById('wrapAfter').value = "```";
 
   // Unified button interaction — works for both touch and mouse
