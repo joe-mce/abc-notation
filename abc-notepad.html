@@ -270,6 +270,20 @@
   .btn-templates { background: transparent; color: var(--accent2); border: 1px solid #2a5a4a; }
   .btn-templates.active { background: #0a2a1f; border-color: var(--accent2); }
 
+  .arrow-btns { display: flex; gap: 3px; }
+  .btn-arrow {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius-sm);
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1;
+  }
+
   /* Split copy button */
   .copy-split {
     display: flex;
@@ -513,6 +527,12 @@
   <div class="editor-footer">
     <div class="footer-left">
       <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates">Templates</button>
+      <div class="arrow-btns">
+        <button class="btn-arrow action-btn" data-action="arrowLeft" data-keepfocus="1">◀</button>
+        <button class="btn-arrow action-btn" data-action="arrowUp" data-keepfocus="1">▲</button>
+        <button class="btn-arrow action-btn" data-action="arrowDown" data-keepfocus="1">▼</button>
+        <button class="btn-arrow action-btn" data-action="arrowRight" data-keepfocus="1">▶</button>
+      </div>
     </div>
     <div class="footer-right">
       <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
@@ -711,6 +731,41 @@
     schedulePreview();
   }
 
+  function moveCursor(key) {
+    const wasFocused = taFocused;
+    ta.focus();
+    const s = savedStart;
+    const val = ta.value;
+    let pos;
+    if (key === 'ArrowLeft') {
+      pos = s > 0 ? s - 1 : 0;
+    } else if (key === 'ArrowRight') {
+      pos = s < val.length ? s + 1 : val.length;
+    } else {
+      const lines = val.split('\n');
+      let line = 0, col = 0, count = 0;
+      for (let i = 0; i < lines.length; i++) {
+        if (count + lines[i].length >= s) { line = i; col = s - count; break; }
+        count += lines[i].length + 1;
+      }
+      if (key === 'ArrowUp') {
+        // On first line: move to beginning
+        pos = line === 0 ? 0 : lines.slice(0, line - 1).reduce((a, l) => a + l.length + 1, 0) + Math.min(col, lines[line - 1].length);
+      } else {
+        // On last line: move to end
+        pos = line === lines.length - 1 ? val.length : lines.slice(0, line + 1).reduce((a, l) => a + l.length + 1, 0) + Math.min(col, lines[line + 1].length);
+      }
+    }
+    savedStart = pos; savedEnd = pos;
+    ta.setSelectionRange(pos, pos);
+    if (!wasFocused) ta.blur();
+  }
+
+  function arrowLeft()  { moveCursor('ArrowLeft');  }
+  function arrowRight() { moveCursor('ArrowRight'); }
+  function arrowUp()    { moveCursor('ArrowUp');    }
+  function arrowDown()  { moveCursor('ArrowDown');  }
+
   function toggleTemplates() {
     const panel = document.getElementById('tmpl-panel');
     const btn = document.getElementById('tmplToggle');
@@ -820,7 +875,7 @@
   document.getElementById('wrapAfter').value = "```";
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp };
+  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown };
 
   const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleZoom', 'openSettings', 'clearStep1', 'clearStep2', 'clearCancel']);
 
@@ -858,8 +913,7 @@
   document.addEventListener('touchstart', e => {
     const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
     if (!btn) return;
-    // Prevent textarea blur for key/tmpl buttons
-    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
+    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
       e.preventDefault();
     }
     activeBtn = btn;
@@ -885,8 +939,8 @@
   document.addEventListener('mousedown', e => {
     const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
     if (!btn) return;
-    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
-      e.preventDefault(); // prevent textarea blur for keyboard/template buttons
+    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
+      e.preventDefault(); // prevent textarea blur
     }
     activeMouseBtn = btn;
     handleButtonPress(btn);
