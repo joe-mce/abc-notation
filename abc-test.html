@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ABC Test</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --border: #333;
+    --accent: #e8c84a;
+    --text: #f0ede6;
+    --text-dim: #888;
+    --btn-bg: #222;
+    --btn-border: #3a3a3a;
+    --radius: 8px;
+    --radius-sm: 5px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    gap: 7px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  #notation {
+    width: 100%;
+    min-height: 120px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    line-height: 1.6;
+    padding: 10px 12px;
+    resize: vertical;
+    caret-color: var(--accent);
+    outline: none;
+  }
+  #notation::placeholder { color: var(--text-dim); }
+
+  .key-row {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 1rem;
+    border: 1.5px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    flex: 1 1 0;
+    touch-action: manipulation;
+  }
+
+  @keyframes keyshrink {
+    0%   { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .key { transition: transform 0.0s; }
+  .key.pressed { transform: scale(1.18); z-index: 10; position: relative; }
+  .key.shrink { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+</style>
+</head>
+<body>
+
+<textarea id="notation" placeholder="Type or tap…"
+  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+
+<div class="key-row">
+  <button class="key" data-insert="C">C</button>
+  <button class="key" data-insert="D">D</button>
+  <button class="key" data-insert="E">E</button>
+  <button class="key" data-insert="F">F</button>
+  <button class="key" data-insert="G">G</button>
+  <button class="key" data-insert="A">A</button>
+  <button class="key" data-insert="B">B</button>
+</div>
+
+<script>
+  const ta = document.getElementById('notation');
+  let taFocused = false;
+  let savedStart = 0, savedEnd = 0;
+
+  ta.addEventListener('focus', () => { taFocused = true; });
+  ta.addEventListener('blur', () => {
+    taFocused = false;
+    savedStart = ta.selectionStart;
+    savedEnd = ta.selectionEnd;
+  });
+  document.addEventListener('selectionchange', () => {
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+  });
+
+  // --- Gesture state ---
+  const OCTAVE_PX = 40;   // pixels per octave step
+  const MAX_OCTAVE = 3;   // max octave steps in either direction
+  const H_THRESHOLD = 15; // pixels before horizontal counts
+
+  let gesture = null; // active gesture state
+
+  function noteFromGesture(baseLetter, dx, dy) {
+    // dy: negative = up = higher octave, positive = down = lower octave
+    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const goingUp = dy < 0;
+
+    // Base is uppercase C D E F G A B
+    // Up from uppercase: lowercase, then add '
+    // Down from uppercase: add ,
+    let note = baseLetter; // always uppercase base
+    let octaveStr = '';
+    if (goingUp) {
+      if (octaveSteps === 0) {
+        note = baseLetter.toUpperCase();
+      } else {
+        // 1 step up = lowercase, 2 = lowercase + ', 3 = lowercase + ''
+        note = baseLetter.toLowerCase();
+        octaveStr = octaveSteps > 1 ? "'".repeat(octaveSteps - 1) : '';
+      }
+    } else {
+      // 0 steps = uppercase, 1+ = uppercase + ,
+      note = baseLetter.toUpperCase();
+      octaveStr = octaveSteps > 0 ? ','.repeat(octaveSteps) : '';
+    }
+
+    // Horizontal: sharp or flat
+    const accidental = Math.abs(dx) >= H_THRESHOLD ? (dx > 0 ? '^' : '_') : '';
+
+    return accidental + note + octaveStr;
+  }
+
+  function flashBtn(btn) {
+    btn.classList.remove('pressed');
+    btn.classList.remove('shrink');
+    void btn.offsetWidth;
+    btn.classList.add('shrink');
+  }
+
+  function startGesture(btn, startX, startY) {
+    const baseLetter = btn.dataset.insert;
+    const insertPos = savedStart;
+    const insertEnd = savedEnd;
+
+    // Insert the base note immediately
+    const initial = baseLetter.toUpperCase();
+    ta.value = ta.value.slice(0, insertPos) + initial + ta.value.slice(insertEnd);
+    savedStart = insertPos + initial.length;
+    savedEnd = savedStart;
+    if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+
+    btn.classList.add('pressed');
+    btn.textContent = initial;
+
+    gesture = {
+      btn,
+      baseLetter,
+      insertPos,
+      startX,
+      startY,
+      lastNote: initial,
+    };
+  }
+
+  function updateGesture(currentX, currentY) {
+    if (!gesture) return;
+    const dx = currentX - gesture.startX;
+    const dy = currentY - gesture.startY;
+    const note = noteFromGesture(gesture.baseLetter, dx, dy);
+
+    if (note !== gesture.lastNote) {
+      // Replace the previously inserted text
+      const start = gesture.insertPos;
+      const end = start + gesture.lastNote.length;
+      ta.value = ta.value.slice(0, start) + note + ta.value.slice(end);
+      savedStart = start + note.length;
+      savedEnd = savedStart;
+      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+      gesture.btn.textContent = note;
+      gesture.lastNote = note;
+    }
+  }
+
+  function endGesture() {
+    if (!gesture) return;
+    flashBtn(gesture.btn);
+    gesture.btn.textContent = gesture.baseLetter.toUpperCase();
+    gesture = null;
+  }
+
+  // --- Touch ---
+  document.addEventListener('touchstart', e => {
+    const btn = e.target.closest('.key');
+    if (!btn) return;
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    startGesture(btn, t.clientX, t.clientY);
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    if (!gesture) return;
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    updateGesture(t.clientX, t.clientY);
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    endGesture();
+    e.preventDefault();
+  }, { passive: false });
+
+  // --- Mouse ---
+  let mouseDown = false;
+  document.addEventListener('mousedown', e => {
+    const btn = e.target.closest('.key');
+    if (!btn) return;
+    e.preventDefault();
+    mouseDown = true;
+    startGesture(btn, e.clientX, e.clientY);
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!mouseDown || !gesture) return;
+    updateGesture(e.clientX, e.clientY);
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!mouseDown) return;
+    mouseDown = false;
+    endGesture();
+  });
+</script>
+</body>
+</html>
