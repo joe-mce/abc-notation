@@ -537,7 +537,7 @@
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="editor-footer">
     <div class="footer-left">
-      <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates">&#9776;</button>
+      <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates" data-keepfocus="1">&#9776;</button>
       <div class="arrow-btns">
         <button class="btn-arrow action-btn" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;font-style:normal;">&#x2190;</button>
         <!--
@@ -912,8 +912,12 @@
       if (fn) fn();
     } else if (btn.dataset.insert !== undefined) {
       const isKey = btn.classList.contains('key');
-      if (btn.classList.contains('tmpl-btn')) closeTemplates();
-      doInsert(btn.dataset.insert, isKey && taFocused);
+      if (btn.classList.contains('tmpl-btn')) {
+        closeTemplates();
+        doInsert(btn.dataset.insert, taFocused);
+      } else {
+        doInsert(btn.dataset.insert, isKey && taFocused);
+      }
     }
   }
 
