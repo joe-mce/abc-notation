@@ -750,7 +750,6 @@
 
   function moveCursor(key) {
     const wasFocused = taFocused;
-    ta.focus();
     const s = savedStart;
     const val = ta.value;
     let pos;
@@ -766,16 +765,13 @@
         count += lines[i].length + 1;
       }
       if (key === 'ArrowUp') {
-        // On first line: move to beginning
         pos = line === 0 ? 0 : lines.slice(0, line - 1).reduce((a, l) => a + l.length + 1, 0) + Math.min(col, lines[line - 1].length);
       } else {
-        // On last line: move to end
         pos = line === lines.length - 1 ? val.length : lines.slice(0, line + 1).reduce((a, l) => a + l.length + 1, 0) + Math.min(col, lines[line + 1].length);
       }
     }
     savedStart = pos; savedEnd = pos;
-    ta.setSelectionRange(pos, pos);
-    if (!wasFocused) ta.blur();
+    if (wasFocused) ta.setSelectionRange(pos, pos);
   }
 
   function arrowLeft()  { moveCursor('ArrowLeft');  }
@@ -936,8 +932,12 @@
   document.addEventListener('touchstart', e => {
     const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
     if (!btn) return;
-    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
+    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
       e.preventDefault();
+    } else if (btn.dataset.keepfocus) {
+      // For arrow/keepfocus buttons: don't preventDefault (avoids iOS scroll jump)
+      // but immediately refocus the textarea if it was focused
+      if (taFocused) ta.focus();
     }
     activeBtn = btn;
     handleButtonPress(btn);
