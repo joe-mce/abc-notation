@@ -494,6 +494,17 @@
   </div>
 </header>
 
+<!-- Clear confirm modal -->
+<div id="clear-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:18px; width:100%; max-width:280px; display:flex; flex-direction:column; gap:14px;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.9rem; color:var(--text);">Clear all text?</div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="action-btn btn-clear" data-action="clearCancel">Cancel</button>
+      <button class="action-btn btn-clear" style="color:#e06060;" data-action="clearStep2">Clear</button>
+    </div>
+  </div>
+</div>
+
 <!-- Settings modal -->
 <div id="settings-overlay">
   <div id="modal-box">
@@ -526,20 +537,18 @@
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="editor-footer">
     <div class="footer-left">
-      <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates">Templates</button>
+      <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates">&#9776;</button>
       <div class="arrow-btns">
-        <button class="btn-arrow action-btn" data-action="arrowLeft" data-keepfocus="1">◀</button>
-        <button class="btn-arrow action-btn" data-action="arrowUp" data-keepfocus="1">▲</button>
-        <button class="btn-arrow action-btn" data-action="arrowDown" data-keepfocus="1">▼</button>
-        <button class="btn-arrow action-btn" data-action="arrowRight" data-keepfocus="1">▶</button>
+        <button class="btn-arrow action-btn" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;font-style:normal;">&#x2190;</button>
+        <!--
+        <button class="btn-arrow action-btn" data-action="arrowUp" data-keepfocus="1">&#x2191;</button>
+        <button class="btn-arrow action-btn" data-action="arrowDown" data-keepfocus="1">&#x2193;</button>
+        -->
+        <button class="btn-arrow action-btn" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;font-style:normal;">&#x2192;</button>
       </div>
     </div>
     <div class="footer-right">
       <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
-      <span id="clearConfirm" style="display:none; align-items:center; gap:5px;">
-        <button class="action-btn btn-clear" style="color:#e06060;" data-action="clearStep2">Clear</button>
-        <button class="action-btn btn-clear" data-action="clearCancel">Cancel</button>
-      </span>
       <div class="copy-split">
         <button class="btn-copy-main action-btn" data-action="copyText">Copy</button>
         <div class="copy-split-divider"></div>
@@ -661,7 +670,13 @@
   document.addEventListener('selectionchange', () => {
     if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
   });
-  ta.addEventListener('input', schedulePreview);
+  const clearBtn = document.getElementById('clearBtn');
+  function updateClearBtn() {
+    clearBtn.style.visibility = ta.value ? '' : 'hidden';
+  }
+  updateClearBtn();
+
+  ta.addEventListener('input', () => { schedulePreview(); updateClearBtn(); });
 
   const zoomSlider = document.getElementById('zoom-slider');
   let zoomLevel = 0.5;
@@ -713,6 +728,7 @@
       ta.setSelectionRange(savedStart, savedEnd);
     }
     if (atEnd) ta.scrollTop = ta.scrollHeight;
+    updateClearBtn();
     schedulePreview();
   }
 
@@ -728,6 +744,7 @@
     }
     if (wasActive) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
     if (atEnd) ta.scrollTop = ta.scrollHeight;
+    updateClearBtn();
     schedulePreview();
   }
 
@@ -819,8 +836,10 @@
 
   function clearStep1() {
     if (!ta.value) return;
-    document.getElementById('clearBtn').style.display = 'none';
-    document.getElementById('clearConfirm').style.display = 'flex';
+    activeBtn = null; // allow modal buttons to get fresh touch events
+    const overlay = document.getElementById('clear-overlay');
+    overlay.style.display = 'flex';
+    overlay.onclick = e => { if (e.target === overlay) clearCancel(); };
   }
 
   function clearStep2() {
@@ -828,12 +847,12 @@
     previewDiv.innerHTML = '';
     previewDiv.removeAttribute('style');
     clearTimeout(debounceTimer);
+    updateClearBtn();
     clearCancel();
   }
 
   function clearCancel() {
-    document.getElementById('clearBtn').style.display = '';
-    document.getElementById('clearConfirm').style.display = 'none';
+    document.getElementById('clear-overlay').style.display = 'none';
   }
 
   function toggleZoom() {
