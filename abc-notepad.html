@@ -510,6 +510,9 @@
     z-index: 102;
   }
   #gesture-badge.visible { display: block; }
+  @media (pointer: coarse) {
+    #gesture-badge { margin-top: -48px; }
+  }
 
   /* Gesture chevron wheel */
   #gesture-wheel {
