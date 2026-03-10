@@ -466,6 +466,7 @@
     font-size: clamp(0.85rem, 3vw, 1rem) !important;
   }
   .row-notes .key { height: 42px; font-size: clamp(0.8rem, 2.8vw, 1rem); }
+  .row-notes-pad { padding: 0 32px; }
   .key-z { color: var(--accent2) !important; }
   .key-space {
     flex: 4 1 0 !important;
@@ -479,6 +480,53 @@
     color: var(--text-dim) !important;
   }
   .row-small .key { height: 36px; font-size: clamp(0.7rem, 2.6vw, 0.9rem); color: var(--text-dim); }
+
+  /* Gesture system — note key press/release animation */
+  @keyframes keyshrink {
+    0%   { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .key.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
+  .key.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+
+  /* Gesture chevron wheel */
+  #gesture-wheel {
+    display: none;
+    position: fixed;
+    width: 160px;
+    height: 160px;
+    transform: translate(-50%, -50%);
+    z-index: 101;
+    pointer-events: none;
+  }
+  #gesture-wheel.visible { display: block; }
+
+  .chev-path {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .chev-path.dim    { stroke: rgba(255,255,255,0.2); }
+  .chev-path.bright { stroke: rgba(255,255,255,0.82); }
+
+  @keyframes nudge-up        { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-down      { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-left      { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-right     { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-up-rev    { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-down-rev  { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-left-rev  { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-right-rev { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
+
+  #chev-up-g.nudge        { animation: nudge-up        0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-down-g.nudge      { animation: nudge-down      0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-left-g.nudge      { animation: nudge-left      0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-right-g.nudge     { animation: nudge-right     0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-up-g.nudge-rev    { animation: nudge-up-rev    0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-down-g.nudge-rev  { animation: nudge-down-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-left-g.nudge-rev  { animation: nudge-left-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-right-g.nudge-rev { animation: nudge-right-rev 0.32s cubic-bezier(0.2,0,0.4,1); }
 </style>
 </head>
 <body>
@@ -582,35 +630,22 @@
   </div>
 </div>
 
-<!-- Row 1: _ ^ = [ ] ( ) " . ⌫ -->
-<div class="key-row row-primary">
+<!-- Row 1: . [ ] " _ ^ = , ' ⌫ -->
+<div class="key-row row-notes">
+  <button class="key" data-insert=".">.</button>
+  <button class="key" data-insert="[">&#91;</button>
+  <button class="key" data-insert="]">&#93;</button>
+  <button class="key" data-insert="&quot;">&quot;</button>
   <button class="key" data-insert="_">_</button>
   <button class="key" data-insert="^">^</button>
   <button class="key" data-insert="=">=</button>
-  <button class="key" data-insert="[">&#91;</button>
-  <button class="key" data-insert="]">&#93;</button>
-  <button class="key" data-insert="(">&#40;</button>
-  <button class="key" data-insert=")">&#41;</button>
-  <button class="key" data-insert="&quot;">&quot;</button>
-  <button class="key" data-insert=".">.</button>
+  <button class="key" data-insert=",">,</button>
+  <button class="key" data-insert="'">'</button>
   <button class="key key-bksp" data-action="bksp">⌫</button>
 </div>
 
-<!-- Row 2: c d e f g a b ' z -->
-<div class="key-row row-notes">
-  <button class="key" data-insert="c">c</button>
-  <button class="key" data-insert="d">d</button>
-  <button class="key" data-insert="e">e</button>
-  <button class="key" data-insert="f">f</button>
-  <button class="key" data-insert="g">g</button>
-  <button class="key" data-insert="a">a</button>
-  <button class="key" data-insert="b">b</button>
-  <button class="key" data-insert="'">'</button>
-  <button class="key key-z" data-insert="z">z</button>
-</div>
-
-<!-- Row 3: C D E F G A B , / -->
-<div class="key-row row-notes">
+<!-- Row 2: C D E F G A B z -->
+<div class="key-row row-primary row-notes-pad">
   <button class="key" data-insert="C">C</button>
   <button class="key" data-insert="D">D</button>
   <button class="key" data-insert="E">E</button>
@@ -618,11 +653,10 @@
   <button class="key" data-insert="G">G</button>
   <button class="key" data-insert="A">A</button>
   <button class="key" data-insert="B">B</button>
-  <button class="key" data-insert=","><span style="font-size:1.4em;line-height:1">,</span></button>
-  <button class="key" data-insert="/">/</button>
+  <button class="key key-z" data-insert="z">z</button>
 </div>
 
-<!-- Row 4: 0-9 -->
+<!-- Row 3: 0-9 -->
 <div class="key-row row-small">
   <button class="key" data-insert="0">0</button>
   <button class="key" data-insert="1">1</button>
@@ -636,12 +670,22 @@
   <button class="key" data-insert="9">9</button>
 </div>
 
-<!-- Row 5: - SPACE | ↵ -->
+<!-- Row 4: / - SPACE | ↵ -->
 <div class="key-row row-notes">
+  <button class="key" data-insert="/">/</button>
   <button class="key" data-insert="-">-</button>
   <button class="key key-space" data-insert=" ">SPACE</button>
   <button class="key" data-insert="|">|</button>
   <button class="key key-nl" data-insert="&#10;">↵</button>
+</div>
+
+<div id="gesture-wheel">
+  <svg viewBox="0 0 200 200" width="160" height="160" overflow="visible">
+    <g id="chev-up-g">    <polyline class="chev-path dim" points="76,40 100,28 124,40"/></g>
+    <g id="chev-down-g">  <polyline class="chev-path dim" points="76,160 100,172 124,160"/></g>
+    <g id="chev-left-g">  <polyline class="chev-path dim" points="40,76 28,100 40,124"/></g>
+    <g id="chev-right-g"> <polyline class="chev-path dim" points="160,76 172,100 160,124"/></g>
+  </svg>
 </div>
 
 <div class="copy-toast" id="toast">Copied ✓</div>
@@ -927,16 +971,179 @@
     }
   }
 
+  // ---- Gesture system for note-letter keys (A-G, a-g) ----
+  const OCTAVE_PX   = 40;
+  const MAX_OCTAVE  = 3;
+  const H_THRESHOLD = 40;
+  const WHEEL_DELAY = 180;
+
+  function isNoteKey(btn) {
+    return btn && btn.dataset.insert && /^[a-gA-G]$/.test(btn.dataset.insert);
+  }
+
+  const wheel = document.getElementById('gesture-wheel');
+  const chevGrps = {
+    up:    document.getElementById('chev-up-g'),
+    down:  document.getElementById('chev-down-g'),
+    left:  document.getElementById('chev-left-g'),
+    right: document.getElementById('chev-right-g'),
+  };
+
+  function setChevState(grp, active) {
+    const path = grp.querySelector('.chev-path');
+    path.classList.toggle('dim',    !active);
+    path.classList.toggle('bright',  active);
+  }
+
+  function nudgeChev(grp, reverse) {
+    const cls = reverse ? 'nudge-rev' : 'nudge';
+    grp.classList.remove('nudge', 'nudge-rev');
+    void grp.getBoundingClientRect();
+    grp.classList.add(cls);
+    grp.addEventListener('animationend', () => grp.classList.remove(cls), { once: true });
+  }
+
+  Object.values(chevGrps).forEach(g => setChevState(g, false));
+
+  function showWheel(x, y) {
+    wheel.style.left = x + 'px';
+    wheel.style.top  = y + 'px';
+    wheel.classList.add('visible');
+    Object.values(chevGrps).forEach(g => setChevState(g, false));
+  }
+
+  function hideWheel() { wheel.classList.remove('visible'); }
+
+  let prevOctaveSteps = 0;
+  let prevHDir = 0;
+
+  function onNoteChange(dx, dy) {
+    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const goingUp    = dy < 0 && octaveSteps > 0;
+    const goingDown  = dy > 0 && octaveSteps > 0;
+    const goingLeft  = dx <= -H_THRESHOLD;
+    const goingRight = dx >= H_THRESHOLD;
+    const hDir = goingLeft ? -1 : goingRight ? 1 : 0;
+
+    setChevState(chevGrps.up,    goingUp);
+    setChevState(chevGrps.down,  goingDown);
+    setChevState(chevGrps.left,  goingLeft);
+    setChevState(chevGrps.right, goingRight);
+
+    if (octaveSteps !== prevOctaveSteps) {
+      const decreasing = octaveSteps < prevOctaveSteps;
+      if (octaveSteps > 0) nudgeChev(dy < 0 ? chevGrps.up : chevGrps.down, decreasing);
+      prevOctaveSteps = octaveSteps;
+    }
+    if (hDir !== prevHDir) {
+      if (hDir === -1) nudgeChev(chevGrps.left);
+      if (hDir ===  1) nudgeChev(chevGrps.right);
+      prevHDir = hDir;
+    }
+  }
+
+  function noteFromGesture(baseLetter, dx, dy) {
+    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const goingUp = dy < 0;
+    let note, octaveStr = '';
+    if (goingUp) {
+      note = octaveSteps === 0 ? baseLetter.toUpperCase() : baseLetter.toLowerCase();
+      octaveStr = octaveSteps > 1 ? "'".repeat(octaveSteps - 1) : '';
+    } else {
+      note = baseLetter.toUpperCase();
+      octaveStr = octaveSteps > 0 ? ','.repeat(octaveSteps) : '';
+    }
+    const accidental = dx >= H_THRESHOLD ? '^' : dx <= -H_THRESHOLD ? '_' : '';
+    return accidental + note + octaveStr;
+  }
+
+  let gesture = null;
+
+  function startGesture(btn, startX, startY) {
+    const baseLetter = btn.dataset.insert;
+    const insertPos  = savedStart;
+    const insertEnd  = savedEnd;
+    const initial    = baseLetter.toUpperCase();
+
+    ta.value   = ta.value.slice(0, insertPos) + initial + ta.value.slice(insertEnd);
+    savedStart = insertPos + initial.length;
+    savedEnd   = savedStart;
+    if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+    updateClearBtn();
+    schedulePreview();
+
+    btn.classList.add('pressed');
+    btn.textContent = initial;
+
+    const rect  = btn.getBoundingClientRect();
+    const btnCX = rect.left + rect.width  / 2;
+    const btnCY = rect.top  + rect.height / 2;
+
+    prevOctaveSteps = 0;
+    prevHDir = 0;
+
+    const wheelTimer = setTimeout(() => {
+      if (gesture) showWheel(btnCX, btnCY);
+    }, WHEEL_DELAY);
+
+    gesture = { btn, baseLetter, insertPos, startX, startY, lastNote: initial, wheelTimer };
+  }
+
+  function updateGesture(currentX, currentY) {
+    if (!gesture) return;
+    const dx   = currentX - gesture.startX;
+    const dy   = currentY - gesture.startY;
+    const note = noteFromGesture(gesture.baseLetter, dx, dy);
+    if (note !== gesture.lastNote) {
+      const start = gesture.insertPos;
+      const end   = start + gesture.lastNote.length;
+      ta.value   = ta.value.slice(0, start) + note + ta.value.slice(end);
+      savedStart = start + note.length;
+      savedEnd   = savedStart;
+      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+      gesture.btn.textContent = note;
+      gesture.lastNote = note;
+      updateClearBtn();
+      schedulePreview();
+      if (wheel.classList.contains('visible')) onNoteChange(dx, dy);
+    }
+  }
+
+  function endGesture() {
+    if (!gesture) return;
+    clearTimeout(gesture.wheelTimer);
+    hideWheel();
+    const btn = gesture.btn;
+    btn.classList.remove('pressed', 'shrink');
+    void btn.offsetWidth;
+    btn.classList.add('shrink');
+    btn.textContent = gesture.baseLetter.toUpperCase();
+    gesture = null;
+  }
+
+  // Touch move — new listener needed for gesture dragging
+  document.addEventListener('touchmove', e => {
+    if (!gesture) return;
+    e.preventDefault();
+    updateGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+  }, { passive: false });
+
   // Touch handling — press on touchstart, fire on touchend
   let activeBtn = null;
   document.addEventListener('touchstart', e => {
     const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
     if (!btn) return;
+
+    if (isNoteKey(btn)) {
+      e.preventDefault();
+      activeBtn = null; // gesture system takes over
+      startGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+
     if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn')) {
       e.preventDefault();
     } else if (btn.dataset.keepfocus) {
-      // For arrow/keepfocus buttons: don't preventDefault (avoids iOS scroll jump)
-      // but immediately refocus the textarea if it was focused
       if (taFocused) ta.focus();
     }
     activeBtn = btn;
@@ -944,6 +1151,11 @@
   }, { passive: false });
 
   document.addEventListener('touchend', e => {
+    if (gesture) {
+      endGesture();
+      e.preventDefault();
+      return;
+    }
     if (!activeBtn) return;
     const touch = e.changedTouches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -953,23 +1165,38 @@
   }, { passive: false });
 
   document.addEventListener('touchcancel', e => {
+    if (gesture) { endGesture(); return; }
     activeBtn = null;
   }, { passive: true });
 
-  // Mouse handling for desktop — single document-level listener so mouseup always fires
+  // Mouse handling
   let activeMouseBtn = null;
 
   document.addEventListener('mousedown', e => {
     const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
     if (!btn) return;
+
+    if (isNoteKey(btn)) {
+      e.preventDefault();
+      activeMouseBtn = null;
+      startGesture(btn, e.clientX, e.clientY);
+      return;
+    }
+
     if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
-      e.preventDefault(); // prevent textarea blur
+      e.preventDefault();
     }
     activeMouseBtn = btn;
     handleButtonPress(btn);
   });
 
+  document.addEventListener('mousemove', e => {
+    if (!gesture) return;
+    updateGesture(e.clientX, e.clientY);
+  });
+
   document.addEventListener('mouseup', e => {
+    if (gesture) { endGesture(); return; }
     if (!activeMouseBtn) return;
     const btn = activeMouseBtn;
     activeMouseBtn = null;
