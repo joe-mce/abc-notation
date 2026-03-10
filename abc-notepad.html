@@ -489,6 +489,28 @@
   .key.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
   .key.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
+  /* Gesture note badge */
+  #gesture-badge {
+    display: none;
+    position: fixed;
+    transform: translate(-50%, -100%);
+    margin-top: -14px;
+    background: rgba(30, 30, 36, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-sm);
+    padding: 8px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 102;
+  }
+  #gesture-badge.visible { display: block; }
+
   /* Gesture chevron wheel */
   #gesture-wheel {
     display: none;
@@ -678,6 +700,8 @@
   <button class="key" data-insert="|">|</button>
   <button class="key key-nl" data-insert="&#10;">↵</button>
 </div>
+
+<div id="gesture-badge"></div>
 
 <div id="gesture-wheel">
   <svg viewBox="0 0 200 200" width="160" height="160" overflow="visible">
@@ -981,7 +1005,8 @@
     return btn && btn.dataset.insert && /^[a-gA-G]$/.test(btn.dataset.insert);
   }
 
-  const wheel = document.getElementById('gesture-wheel');
+  const wheel  = document.getElementById('gesture-wheel');
+  const badge  = document.getElementById('gesture-badge');
   const chevGrps = {
     up:    document.getElementById('chev-up-g'),
     down:  document.getElementById('chev-down-g'),
@@ -1012,7 +1037,16 @@
     Object.values(chevGrps).forEach(g => setChevState(g, false));
   }
 
-  function hideWheel() { wheel.classList.remove('visible'); }
+  function hideWheel() {
+    wheel.classList.remove('visible');
+    badge.classList.remove('visible');
+  }
+
+  function updateBadge(note, x, y) {
+    badge.textContent = note;
+    badge.style.left = x + 'px';
+    badge.style.top  = y + 'px';
+  }
 
   let prevOctaveSteps = 0;
   let prevHDir = 0;
@@ -1073,7 +1107,6 @@
     schedulePreview();
 
     btn.classList.add('pressed');
-    btn.textContent = initial;
 
     const rect  = btn.getBoundingClientRect();
     const btnCX = rect.left + rect.width  / 2;
@@ -1086,11 +1119,13 @@
       if (gesture) showWheel(btnCX, btnCY);
     }, WHEEL_DELAY);
 
-    gesture = { btn, baseLetter, insertPos, startX, startY, lastNote: initial, wheelTimer };
+    gesture = { btn, baseLetter, insertPos, startX, startY, lastNote: initial, wheelTimer, curX: startX, curY: startY };
   }
 
   function updateGesture(currentX, currentY) {
     if (!gesture) return;
+    gesture.curX = currentX;
+    gesture.curY = currentY;
     const dx   = currentX - gesture.startX;
     const dy   = currentY - gesture.startY;
     const note = noteFromGesture(gesture.baseLetter, dx, dy);
@@ -1101,12 +1136,15 @@
       savedStart = start + note.length;
       savedEnd   = savedStart;
       if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
-      gesture.btn.textContent = note;
       gesture.lastNote = note;
       updateClearBtn();
       schedulePreview();
-      if (wheel.classList.contains('visible')) onNoteChange(dx, dy);
+      if (wheel.classList.contains('visible')) {
+        onNoteChange(dx, dy);
+        badge.classList.add('visible');
+      }
     }
+    if (badge.classList.contains('visible')) updateBadge(gesture.lastNote, currentX, currentY);
   }
 
   function endGesture() {
@@ -1117,7 +1155,6 @@
     btn.classList.remove('pressed', 'shrink');
     void btn.offsetWidth;
     btn.classList.add('shrink');
-    btn.textContent = gesture.baseLetter.toUpperCase();
     gesture = null;
   }
 
