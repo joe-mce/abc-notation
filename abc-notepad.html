@@ -362,7 +362,7 @@
   .tools-dropdown {
     display: none;
     position: absolute;
-    bottom: calc(100% + 4px);
+    top: calc(100% + 4px);
     left: 0;
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -389,6 +389,19 @@
     touch-action: manipulation;
   }
   .tools-dropdown-item:hover { background: var(--surface2); }
+  .tools-sel-preview {
+    padding: 7px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tools-sel-preview.has-sel { color: var(--accent2); }
+  .tools-sel-preview.no-sel  { font-style: italic; }
 
   /* Template panel */
   #tmpl-panel {
@@ -662,6 +675,7 @@
       <div class="tools-wrap">
         <button class="action-btn btn-clear btn-tools" id="toolsBtn" data-action="toggleTools">Tools</button>
         <div class="tools-dropdown" id="toolsDropdown">
+          <div class="tools-sel-preview" id="toolsSelPreview">No selection</div>
           <button class="tools-dropdown-item action-btn" data-action="transposeUp">Octave up</button>
           <button class="tools-dropdown-item action-btn" data-action="transposeDown">Octave down</button>
           <button class="tools-dropdown-item action-btn" data-action="doubleLength">Double lengths</button>
@@ -1034,8 +1048,19 @@
 
   // --- Tools ---
   function toggleTools() {
-    if (savedStart === savedEnd) return;
-    document.getElementById('toolsDropdown').classList.toggle('open');
+    const dropdown = document.getElementById('toolsDropdown');
+    const preview  = document.getElementById('toolsSelPreview');
+    const isOpen   = dropdown.classList.toggle('open');
+    if (isOpen) {
+      const sel = ta.value.slice(savedStart, savedEnd);
+      if (sel) {
+        preview.textContent = sel;
+        preview.className = 'tools-sel-preview has-sel';
+      } else {
+        preview.textContent = 'No selection';
+        preview.className = 'tools-sel-preview no-sel';
+      }
+    }
   }
 
   // Close tools dropdown on outside click/tap
