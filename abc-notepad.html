@@ -355,9 +355,7 @@
     background: transparent;
     color: var(--accent2);
     border: 1px solid #2a5a4a;
-    visibility: hidden;
   }
-  .btn-tools.has-selection { visibility: visible; }
   .tools-wrap {
     position: relative;
   }
@@ -365,7 +363,7 @@
     display: none;
     position: absolute;
     bottom: calc(100% + 4px);
-    right: 0;
+    left: 0;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
@@ -661,8 +659,6 @@
         -->
         <button class="btn-arrow action-btn" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;font-style:normal;">&#x2192;</button>
       </div>
-    </div>
-    <div class="footer-right">
       <div class="tools-wrap">
         <button class="action-btn btn-clear btn-tools" id="toolsBtn" data-action="toggleTools">Tools</button>
         <div class="tools-dropdown" id="toolsDropdown">
@@ -672,8 +668,11 @@
           <button class="tools-dropdown-item action-btn" data-action="halveLength">Halve lengths</button>
           <button class="tools-dropdown-item action-btn" data-action="removeText">Remove text</button>
           <button class="tools-dropdown-item action-btn" data-action="removeAccidentals">Remove accidentals</button>
+          <button class="tools-dropdown-item action-btn" data-action="respellEnharmonic">Respell enharmonic</button>
         </div>
       </div>
+    </div>
+    <div class="footer-right">
       <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
       <div class="copy-split">
         <button class="btn-copy-main action-btn" data-action="copyText">Copy</button>
@@ -1193,8 +1192,81 @@
     });
   }
 
+  // Enharmonic respelling.
+  // Strategy: convert to chromatic pitch number, find the enharmonic spelling, convert back.
+  // ABC octave: uppercase = middle octave (C=60), lowercase = one up, ' adds one, , subtracts one.
+  // Chromatic values within octave (C=0): C=0,D=2,E=4,F=5,G=7,A=9,B=11
+  const CHROMA = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+  const FROM_CHROMA_SHARP = {0:'C',1:'^C',2:'D',3:'^D',4:'E',5:'F',6:'^F',7:'G',8:'^G',9:'A',10:'^A',11:'B'};
+  const FROM_CHROMA_FLAT  = {0:'C',1:'_D',2:'D',3:'_E',4:'E',5:'F',6:'_G',7:'G',8:'_A',9:'A',10:'_B',11:'B'};
+
+  function noteToAbcOctaveLevel(letter, octs) {
+    // uppercase = level 0, lowercase = level 1, each ' adds 1, each , subtracts 1
+    const base = letter === letter.toUpperCase() ? 0 : 1;
+    const ticks  = (octs.match(/'/g) || []).length;
+    const commas = (octs.match(/,/g) || []).length;
+    return base + ticks - commas;
+  }
+
+  function abcOctaveLevelToOcts(level, useUppercase) {
+    // uppercase base level = 0, lowercase base level = 1
+    const base = useUppercase ? 0 : 1;
+    const offset = level - base;
+    if (offset > 0) return "'".repeat(offset);
+    if (offset < 0) return ','.repeat(-offset);
+    return '';
+  }
+
+  function respellEnharmonicNote(acc, letter, octs) {
+    const upperLetter = letter.toUpperCase();
+    const baseChroma = CHROMA[upperLetter];
+    const accShift = acc === '^' ? 1 : acc === '_' ? -1 : 0;
+    const chroma = ((baseChroma + accShift) % 12 + 12) % 12;
+    const level = noteToAbcOctaveLevel(letter, octs);
+
+    // Current spelling uses sharp or flat (or natural — nothing to respell)
+    if (acc === '' || acc === '=') return acc + letter + octs;
+
+    // Pick the opposite spelling
+    const newSpelling = acc === '^' ? FROM_CHROMA_FLAT[chroma] : FROM_CHROMA_SHARP[chroma];
+    if (!newSpelling || newSpelling === acc + upperLetter) return acc + letter + octs; // no change (e.g. natural notes)
+
+    // Parse new spelling
+    const newAcc    = newSpelling.length === 2 ? newSpelling[0] : '';
+    const newUpper  = newSpelling.length === 2 ? newSpelling[1] : newSpelling[0];
+    const newChroma = CHROMA[newUpper];
+
+    // Determine if the chroma crossed a C boundary (i.e. octave shift needed)
+    // e.g. ^B (chroma 0, which is C) respelled as _c: the new note C is "above" B in the scale
+    // We need the new note to represent the same absolute pitch.
+    // Absolute pitch = level * 12 + baseChroma + accShift
+    // New absolute pitch should be the same.
+    // new level = (absolutePitch - newChroma) / 12
+    const absolutePitch = level * 12 + baseChroma + accShift;
+    // Find the level that puts newChroma closest to absolutePitch
+    let newLevel = Math.round((absolutePitch - newChroma) / 12);
+    // Verify: newLevel * 12 + newChroma should === absolutePitch
+    // (it will be, since chroma values match mod 12)
+
+    // Convert new level back to ABC octave markers
+    const newUpperBool = newLevel <= 0; // level 0 and below = uppercase
+    // Actually: uppercase = level 0, lowercase = level 1+, but commas push uppercase down
+    // Simpler: if newLevel < 1 use uppercase, else lowercase
+    const useUppercase = newLevel < 1;
+    const newLetter = useUppercase ? newUpper : newUpper.toLowerCase();
+    const newOcts = abcOctaveLevelToOcts(newLevel, useUppercase);
+
+    return newAcc + newLetter + newOcts;
+  }
+
+  function respellEnharmonic() {
+    closeTools();
+    transformSelection(sel => sel.replace(/([_^]?)([a-gA-G])([',]*)/g, (_, acc, letter, octs) =>
+      respellEnharmonicNote(acc, letter, octs)));
+  }
+
   // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, toggleTools, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals };
+  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, toggleTools, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic };
 
   const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleZoom', 'openSettings', 'clearStep1', 'clearStep2', 'clearCancel', 'toggleTools']);
 
