@@ -284,6 +284,101 @@
     line-height: 1;
   }
 
+  /* Arrow key row — below keyboard, left-aligned */
+  .row-arrows {
+    justify-content: flex-start;
+    gap: 4px;
+  }
+  .row-arrows .key {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 36px;
+    font-size: 1rem;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* Chord + text insert buttons */
+  .btn-chord {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--btn-border-lg);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0;
+  }
+  .btn-addtext {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    font-style: italic;
+    padding: 3px 10px;
+  }
+
+  /* Insert popups */
+  .insert-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .insert-overlay.open { display: flex; }
+  .insert-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 340px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .insert-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .insert-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    padding: 9px 12px;
+    outline: none;
+    caret-color: var(--accent);
+  }
+  .insert-input:focus { border-color: var(--accent); }
+  .insert-radios {
+    display: flex;
+    gap: 16px;
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+  .insert-radios label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .insert-radios input[type="radio"] { accent-color: var(--accent); }
+  .insert-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
   /* Split copy button */
   .copy-split {
     display: flex;
@@ -664,14 +759,6 @@
   <div class="editor-footer">
     <div class="footer-left">
       <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates" data-keepfocus="1">&#9776;</button>
-      <div class="arrow-btns">
-        <button class="btn-arrow action-btn" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;font-style:normal;">&#x2190;</button>
-        <!--
-        <button class="btn-arrow action-btn" data-action="arrowUp" data-keepfocus="1">&#x2191;</button>
-        <button class="btn-arrow action-btn" data-action="arrowDown" data-keepfocus="1">&#x2193;</button>
-        -->
-        <button class="btn-arrow action-btn" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;font-style:normal;">&#x2192;</button>
-      </div>
       <div class="tools-wrap">
         <button class="action-btn btn-clear btn-tools" id="toolsBtn" data-action="toggleTools">Tools</button>
         <div class="tools-dropdown" id="toolsDropdown">
@@ -685,6 +772,8 @@
           <button class="tools-dropdown-item action-btn" data-action="respellEnharmonic">Respell enharmonic</button>
         </div>
       </div>
+      <button class="action-btn btn-chord" data-action="openChordPopup">G7</button>
+      <button class="action-btn btn-addtext" data-action="openTextPopup">T</button>
     </div>
     <div class="footer-right">
       <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
@@ -768,6 +857,40 @@
   <button class="key key-space" data-insert=" ">SPACE</button>
   <button class="key" data-insert="|">|</button>
   <button class="key key-nl" data-insert="&#10;">↵</button>
+</div>
+
+<!-- Row 5: arrow keys, left-aligned -->
+<div class="key-row row-small row-arrows">
+  <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
+  <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
+</div>
+
+<!-- Chord insert popup -->
+<div class="insert-overlay" id="chordOverlay">
+  <div class="insert-box">
+    <div class="insert-title">Add chord symbol</div>
+    <input class="insert-input" id="chordInput" type="text" placeholder="e.g. C7#9" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div class="insert-footer">
+      <button class="action-btn btn-clear" data-action="closeChordPopup">Cancel</button>
+      <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" id="chordDone" data-action="doneChordPopup">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Text insert popup -->
+<div class="insert-overlay" id="textOverlay">
+  <div class="insert-box">
+    <div class="insert-title">Add text</div>
+    <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div class="insert-radios">
+      <label><input type="radio" name="textPos" value="above" checked> Above staff</label>
+      <label><input type="radio" name="textPos" value="below"> Below staff</label>
+    </div>
+    <div class="insert-footer">
+      <button class="action-btn btn-clear" data-action="closeTextPopup">Cancel</button>
+      <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" id="textDone" data-action="doneTextPopup">Done</button>
+    </div>
+  </div>
 </div>
 
 <div id="gesture-badge"></div>
@@ -1290,10 +1413,62 @@
       respellEnharmonicNote(acc, letter, octs)));
   }
 
-  // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, toggleTools, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic };
+  // --- Chord popup ---
+  function openChordPopup() {
+    document.getElementById('chordInput').value = '';
+    document.getElementById('chordOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('chordInput').focus(), 50);
+  }
+  function closeChordPopup() {
+    document.getElementById('chordOverlay').classList.remove('open');
+  }
+  function doneChordPopup() {
+    const val = document.getElementById('chordInput').value;
+    closeChordPopup();
+    if (!val) return;
+    const text = '"' + val + '"';
+    doInsert(text, true);
+  }
+  document.getElementById('chordOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('chordOverlay')) closeChordPopup();
+  });
+  document.getElementById('chordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doneChordPopup();
+    if (e.key === 'Escape') closeChordPopup();
+  });
 
-  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleZoom', 'openSettings', 'clearStep1', 'clearStep2', 'clearCancel', 'toggleTools']);
+  // --- Text popup ---
+  function openTextPopup() {
+    document.getElementById('textInput').value = '';
+    // Reset to Above
+    document.querySelector('input[name="textPos"][value="above"]').checked = true;
+    document.getElementById('textOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('textInput').focus(), 50);
+  }
+  function closeTextPopup() {
+    document.getElementById('textOverlay').classList.remove('open');
+  }
+  function doneTextPopup() {
+    const val = document.getElementById('textInput').value;
+    const pos = document.querySelector('input[name="textPos"]:checked').value;
+    closeTextPopup();
+    if (!val) return;
+    const prefix = pos === 'above' ? '^' : '_';
+    const text = '"' + prefix + val + '"';
+    doInsert(text, true);
+  }
+  document.getElementById('textOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('textOverlay')) closeTextPopup();
+  });
+  document.getElementById('textInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doneTextPopup();
+    if (e.key === 'Escape') closeTextPopup();
+  });
+
+  // Unified button interaction — works for both touch and mouse
+  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, toggleTools, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup };
+
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleZoom', 'openSettings', 'clearStep1', 'clearStep2', 'clearCancel', 'toggleTools', 'openChordPopup', 'openTextPopup']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
