@@ -300,8 +300,8 @@
   /* Chord + text insert buttons */
   .btn-chord {
     background: transparent;
-    color: var(--accent);
-    border: 1px solid var(--btn-border-lg);
+    color: var(--text);
+    border: 1px solid var(--btn-border);
     font-family: 'IBM Plex Mono', monospace;
     font-weight: 600;
     font-size: 0.72rem;
@@ -869,7 +869,7 @@
 <div class="insert-overlay" id="chordOverlay">
   <div class="insert-box">
     <div class="insert-title">Add chord symbol</div>
-    <input class="insert-input" id="chordInput" type="text" placeholder="e.g. C7#9" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input class="insert-input" id="chordInput" type="text" placeholder="e.g. C7#9" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
     <div class="insert-footer">
       <button class="action-btn btn-clear" data-action="closeChordPopup">Cancel</button>
       <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" id="chordDone" data-action="doneChordPopup">Done</button>
@@ -881,7 +881,7 @@
 <div class="insert-overlay" id="textOverlay">
   <div class="insert-box">
     <div class="insert-title">Add text</div>
-    <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
     <div class="insert-radios">
       <label><input type="radio" name="textPos" value="above" checked> Above staff</label>
       <label><input type="radio" name="textPos" value="below"> Below staff</label>
@@ -1414,39 +1414,53 @@
   }
 
   // --- Chord popup ---
+  let popupPrevFocused = false; // was textarea focused before popup opened
+
   function openChordPopup() {
+    popupPrevFocused = taFocused;
     document.getElementById('chordInput').value = '';
     document.getElementById('chordOverlay').classList.add('open');
-    setTimeout(() => document.getElementById('chordInput').focus(), 50);
+    document.getElementById('chordInput').focus();
   }
   function closeChordPopup() {
     document.getElementById('chordOverlay').classList.remove('open');
+    if (popupPrevFocused) {
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else {
+      document.activeElement.blur();
+    }
   }
   function doneChordPopup() {
     const val = document.getElementById('chordInput').value;
     closeChordPopup();
     if (!val) return;
-    const text = '"' + val + '"';
-    doInsert(text, true);
+    doInsert('"' + val + '"', popupPrevFocused);
   }
   document.getElementById('chordOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('chordOverlay')) closeChordPopup();
   });
   document.getElementById('chordInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doneChordPopup();
+    if (e.key === 'Enter') { e.preventDefault(); doneChordPopup(); }
     if (e.key === 'Escape') closeChordPopup();
   });
 
   // --- Text popup ---
   function openTextPopup() {
+    popupPrevFocused = taFocused;
     document.getElementById('textInput').value = '';
-    // Reset to Above
     document.querySelector('input[name="textPos"][value="above"]').checked = true;
     document.getElementById('textOverlay').classList.add('open');
-    setTimeout(() => document.getElementById('textInput').focus(), 50);
+    document.getElementById('textInput').focus();
   }
   function closeTextPopup() {
     document.getElementById('textOverlay').classList.remove('open');
+    if (popupPrevFocused) {
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else {
+      document.activeElement.blur();
+    }
   }
   function doneTextPopup() {
     const val = document.getElementById('textInput').value;
@@ -1454,15 +1468,29 @@
     closeTextPopup();
     if (!val) return;
     const prefix = pos === 'above' ? '^' : '_';
-    const text = '"' + prefix + val + '"';
-    doInsert(text, true);
+    doInsert('"' + prefix + val + '"', popupPrevFocused);
   }
   document.getElementById('textOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('textOverlay')) closeTextPopup();
   });
   document.getElementById('textInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doneTextPopup();
+    if (e.key === 'Enter') { e.preventDefault(); doneTextPopup(); }
     if (e.key === 'Escape') closeTextPopup();
+  });
+  // Keep text input focused when tapping radio buttons
+  document.querySelectorAll('input[name="textPos"]').forEach(radio => {
+    radio.addEventListener('mousedown', e => {
+      if (document.activeElement === document.getElementById('textInput')) {
+        e.preventDefault(); // prevent input blur
+        radio.checked = true;
+      }
+    });
+    radio.addEventListener('touchstart', e => {
+      if (document.activeElement === document.getElementById('textInput')) {
+        e.preventDefault();
+        radio.checked = true;
+      }
+    }, { passive: false });
   });
 
   // Unified button interaction — works for both touch and mouse
