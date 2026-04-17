@@ -741,7 +741,8 @@
         <span class="modal-field-label">Before</span>
         <textarea class="modal-textarea" id="wrapBefore" rows="3">```abc
 {"staffwidth": 500}
----</textarea>
+---
+%%MIDI gchord "none"</textarea>
         <span class="modal-field-label">After</span>
         <textarea class="modal-textarea" id="wrapAfter" rows="1">```</textarea>
       </div>
@@ -795,16 +796,19 @@
     <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
     <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
     <button class="tmpl-btn" data-insert="T:">T:</button>
-    <button class="tmpl-btn" data-insert="V:">V:</button>
-    <button class="tmpl-btn" data-insert="L:">L:</button>
-    <button class="tmpl-btn" data-insert="W:">W:</button>
-    <button class="tmpl-btn" data-insert="clef=treble ">clef=treble</button>
-    <button class="tmpl-btn" data-insert="clef=bass ">clef=bass</button>
-    <button class="tmpl-btn" data-insert="style=">style=</button>
     <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
     <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
     <button class="tmpl-btn" data-insert="(3">(3</button>
     <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
+    <button class="tmpl-btn" data-insert="!style=x!">!style=x!</button>
+    <button class="tmpl-btn" data-insert="!style=rhythm!">!style=rhythm!</button>
+    <button class="tmpl-btn" data-insert="Q:1/4=">Q:1/4=</button>
+    <button class="tmpl-btn" data-insert="L:1/16">L:1/16</button>
+    <button class="tmpl-btn" data-insert="L:1/4">L:1/4</button>
+    <button class="tmpl-btn" data-insert="L:1/2">L:1/2</button>
+    <button class="tmpl-btn" data-insert="L:1">L:1</button>
+    <button class="tmpl-btn" data-insert="%%printTempo false">%%printTempo false</button>
+    <button class="tmpl-btn" data-insert='%%MIDI gchord "none"'>%%MIDI gchord</button>
     <button class="tmpl-btn" data-insert="%%score {1 | 2}&#10;V:1 clef=treble&#10;V:2 clef=bass&#10;[V:1]&#10;[V:2]">Grand Staff</button>
     <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
   </div>
@@ -1166,7 +1170,7 @@
     }
   }, { passive: true });
 
-  document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 500}\n---";
+  document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 500}\n---\n%%MIDI gchord \"none\"";
   document.getElementById('wrapAfter').value = "```";
 
   // --- Tools ---
