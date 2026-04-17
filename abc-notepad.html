@@ -366,7 +366,7 @@
     font-size: 0.82rem;
     color: var(--text);
   }
-  .insert-radios label {
+  .insert-radios label, .insert-radios .insert-radio-opt {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -887,8 +887,8 @@
     <div class="insert-title">Add text</div>
     <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
     <div class="insert-radios">
-      <label><input type="radio" name="textPos" value="above" checked> Above staff</label>
-      <label><input type="radio" name="textPos" value="below"> Below staff</label>
+      <span class="insert-radio-opt"><input type="radio" name="textPos" value="above" checked> Above staff</span>
+      <span class="insert-radio-opt"><input type="radio" name="textPos" value="below"> Below staff</span>
     </div>
     <div class="insert-footer">
       <button class="action-btn btn-clear" data-action="closeTextPopup">Cancel</button>
@@ -1481,20 +1481,26 @@
     if (e.key === 'Enter') { e.preventDefault(); doneTextPopup(); }
     if (e.key === 'Escape') closeTextPopup();
   });
-  // Keep text input focused when tapping radio buttons
-  document.querySelectorAll('input[name="textPos"]').forEach(radio => {
-    radio.addEventListener('mousedown', e => {
-      if (document.activeElement === document.getElementById('textInput')) {
-        e.preventDefault(); // prevent input blur
-        radio.checked = true;
-      }
+  // Keep text input focused when tapping radio buttons OR their spans.
+  const textInputEl = document.getElementById('textInput');
+  document.querySelectorAll('.insert-radio-opt').forEach(span => {
+    ['mousedown', 'touchstart'].forEach(evtType => {
+      span.addEventListener(evtType, e => {
+        e.preventDefault();
+        const radio = span.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+        textInputEl.focus();
+      }, { passive: false });
     });
-    radio.addEventListener('touchstart', e => {
-      if (document.activeElement === document.getElementById('textInput')) {
+  });
+  document.querySelectorAll('.insert-radios input[type="radio"]').forEach(radio => {
+    ['mousedown', 'touchstart'].forEach(evtType => {
+      radio.addEventListener(evtType, e => {
         e.preventDefault();
         radio.checked = true;
-      }
-    }, { passive: false });
+        textInputEl.focus();
+      }, { passive: false });
+    });
   });
 
   // Unified button interaction — works for both touch and mouse
