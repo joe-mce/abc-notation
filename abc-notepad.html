@@ -196,6 +196,44 @@
   .logo { text-decoration: none; }
   .logo span { color: var(--text-dim); font-weight: 400; }
 
+  /* Static cursor in editor display view */
+  .editor-cursor {
+    display: inline-block;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+    margin: 0 -1px;
+    vertical-align: text-bottom;
+    height: 1.15em;
+    position: relative;
+    top: 0.07em;
+  }
+
+  /* Static editor display (shown when textarea is unfocused) */
+  #notation-display {
+    display: none;
+    width: 100%;
+    min-height: 90px;
+    max-height: 160px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    line-height: 1.6;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-y: auto;
+    cursor: text;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  #notation-display.active { display: block; }
+  #notation-display .display-placeholder { color: var(--text-dim); }
+  #notation.hidden { display: none; }
+
   /* Preview */
   #preview-wrap { overflow: hidden; min-height: 120px; }
   #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
@@ -236,7 +274,7 @@
     font-size: 1rem;
     line-height: 1.6;
     padding: 10px 12px;
-    resize: vertical;
+    resize: none;
     caret-color: var(--accent);
   }
   #notation::placeholder { color: var(--text-dim); }
@@ -755,6 +793,7 @@
 </div>
 
 <div class="editor-wrap">
+  <div id="notation-display" aria-hidden="true"></div>
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="editor-footer">
@@ -919,11 +958,65 @@
   let savedStart = 0, savedEnd = 0;
   let debounceTimer = null;
 
-  ta.addEventListener('focus', () => { taFocused = true; });
+  const taDisplay = document.getElementById('notation-display');
+
+  function renderStaticDisplay() {
+    const val = ta.value;
+    const pos = savedStart;
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    if (!val) {
+      taDisplay.innerHTML = '<span class="display-placeholder">' + esc(ta.placeholder) + '</span>';
+    } else {
+      const before = val.slice(0, pos);
+      const after  = val.slice(pos);
+      taDisplay.innerHTML = esc(before) + '<span class="editor-cursor"></span>' + esc(after);
+    }
+    taDisplay.scrollTop = ta.scrollTop;
+  }
+
+  // Show static display whenever textarea is not focused
+  function syncDisplayIfUnfocused() {
+    if (!taFocused) {
+      renderStaticDisplay();
+      if (!taDisplay.classList.contains('active')) {
+        ta.classList.add('hidden');
+        taDisplay.classList.add('active');
+      }
+    }
+  }
+
+  function showStaticDisplay() {
+    renderStaticDisplay();
+    ta.classList.add('hidden');
+    taDisplay.classList.add('active');
+  }
+  function hideStaticDisplay() {
+    taDisplay.classList.remove('active');
+    ta.classList.remove('hidden');
+  }
+
+  // Tapping the display div refocuses the textarea
+  taDisplay.addEventListener('mousedown', e => {
+    e.preventDefault();
+    hideStaticDisplay();
+    ta.focus();
+    ta.setSelectionRange(savedStart, savedEnd);
+  });
+  taDisplay.addEventListener('touchstart', e => {
+    e.preventDefault();
+    hideStaticDisplay();
+    ta.focus();
+    ta.setSelectionRange(savedStart, savedEnd);
+  }, { passive: false });
+
+  ta.addEventListener('focus', () => { taFocused = true; hideStaticDisplay(); });
   ta.addEventListener('blur', () => {
     taFocused = false;
     savedStart = ta.selectionStart;
     savedEnd = ta.selectionEnd;
+    showStaticDisplay();
   });
   ta.addEventListener('keyup', () => {
     if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
@@ -959,6 +1052,7 @@
     updateToolsBtn();
   }
   updateClearBtn();
+  syncDisplayIfUnfocused();
 
   ta.addEventListener('input', () => { schedulePreview(); updateClearBtn(); });
 
@@ -1010,6 +1104,8 @@
     if (refocus) {
       ta.focus();
       ta.setSelectionRange(savedStart, savedEnd);
+    } else if (!taFocused) {
+      syncDisplayIfUnfocused();
     }
     if (atEnd) ta.scrollTop = ta.scrollHeight;
     updateClearBtn();
@@ -1027,6 +1123,7 @@
       savedEnd = savedStart;
     }
     if (wasActive) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
     if (atEnd) ta.scrollTop = ta.scrollHeight;
     updateClearBtn();
     schedulePreview();
@@ -1056,6 +1153,7 @@
     }
     savedStart = pos; savedEnd = pos;
     if (wasFocused) ta.setSelectionRange(pos, pos);
+    else syncDisplayIfUnfocused();
   }
 
   function arrowLeft()  { moveCursor('ArrowLeft');  }
@@ -1128,6 +1226,7 @@
     previewDiv.removeAttribute('style');
     clearTimeout(debounceTimer);
     updateClearBtn();
+    syncDisplayIfUnfocused();
     clearCancel();
   }
 
@@ -1649,6 +1748,7 @@
     savedStart = insertPos + initial.length;
     savedEnd   = savedStart;
     if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+    else syncDisplayIfUnfocused();
     updateClearBtn();
     schedulePreview();
 
@@ -1682,6 +1782,7 @@
       savedStart = start + note.length;
       savedEnd   = savedStart;
       if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+      else syncDisplayIfUnfocused();
       gesture.lastNote = note;
       updateClearBtn();
       schedulePreview();
