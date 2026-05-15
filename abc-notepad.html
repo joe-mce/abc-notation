@@ -1212,6 +1212,7 @@
     if (!taFocused) {
       renderStaticDisplay();
       if (!taDisplay.classList.contains('active')) {
+        taDisplay.style.height = ta.offsetHeight + 'px';
         ta.classList.add('hidden');
         taDisplay.classList.add('active');
       }
@@ -1220,17 +1221,18 @@
 
   function showStaticDisplay() {
     renderStaticDisplay();
-    // Match any user-resized height
-    const h = ta.style.height;
-    taDisplay.style.height = h || '';
+    // Always match the textarea's actual rendered height (not just inline style)
+    // so pasted/inserted content that didn't resize the handle is still correct.
+    taDisplay.style.height = ta.offsetHeight + 'px';
     ta.classList.add('hidden');
     taDisplay.classList.add('active');
   }
   function hideStaticDisplay() {
     taDisplay.classList.remove('active');
     ta.classList.remove('hidden');
-    // Restore any height the user had set (in case display div was resized)
-    ta.style.height = taDisplay.style.height || '';
+    // Restore height if user dragged the resize handle while viewing the div
+    // (offsetHeight on a hidden element isn't reliable, so we sync from display)
+    if (taDisplay.style.height) ta.style.height = taDisplay.style.height;
   }
 
   // Tapping the display div refocuses the textarea
