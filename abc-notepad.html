@@ -889,7 +889,7 @@
 </div>
 
 <!-- Row 2: C D E F G A B z -->
-<div class="key-row row-primary row-notes-pad">
+<div class="key-row row-primary row-notes-pad" id="row-letters">
   <button class="key" data-insert="C">C</button>
   <button class="key" data-insert="D">D</button>
   <button class="key" data-insert="E">E</button>
@@ -901,7 +901,7 @@
 </div>
 
 <!-- Row 3: 0-9 -->
-<div class="key-row row-small">
+<div class="key-row row-small" id="row-numbers">
   <button class="key" data-insert="0">0</button>
   <button class="key" data-insert="1">1</button>
   <button class="key" data-insert="2">2</button>
@@ -914,19 +914,15 @@
   <button class="key" data-insert="9">9</button>
 </div>
 
-<!-- Row 4: / - SPACE | ↵ -->
+<!-- Row 4: ← → / - SPACE | ↵ -->
 <div class="key-row row-notes">
+  <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
+  <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
   <button class="key" data-insert="/">/</button>
   <button class="key" data-insert="-">-</button>
   <button class="key key-space" data-insert=" ">SPACE</button>
   <button class="key" data-insert="|">|</button>
   <button class="key key-nl" data-insert="&#10;">↵</button>
-</div>
-
-<!-- Row 5: arrow keys, left-aligned -->
-<div class="key-row row-small row-arrows">
-  <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
-  <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
 </div>
 
 <!-- Chord insert popup -->
@@ -1201,12 +1197,22 @@
     ta.setSelectionRange(savedStart, savedEnd);
   }, { passive: false });
 
-  ta.addEventListener('focus', () => { taFocused = true; hideStaticDisplay(); });
+  const rowLetters = document.getElementById('row-letters');
+  const rowNumbers = document.getElementById('row-numbers');
+
+  function setTypingRows(focused) {
+    const v = focused ? 'none' : '';
+    rowLetters.style.display = v;
+    rowNumbers.style.display = v;
+  }
+
+  ta.addEventListener('focus', () => { taFocused = true; hideStaticDisplay(); setTypingRows(true); });
   ta.addEventListener('blur', () => {
     taFocused = false;
     savedStart = ta.selectionStart;
     savedEnd = ta.selectionEnd;
     showStaticDisplay();
+    setTypingRows(false);
   });
   ta.addEventListener('keyup', () => {
     if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
@@ -1243,6 +1249,7 @@
   }
   updateClearBtn();
   syncDisplayIfUnfocused();
+  setTypingRows(false);
 
   ta.addEventListener('input', () => { schedulePreview(); updateClearBtn(); });
 
