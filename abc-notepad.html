@@ -419,24 +419,128 @@
     caret-color: var(--accent);
   }
   .insert-input:focus { border-color: var(--accent); }
-  .insert-radios {
-    display: flex;
-    gap: 16px;
-    font-size: 0.82rem;
-    color: var(--text);
-  }
-  .insert-radios label, .insert-radios .insert-radio-opt {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-  }
-  .insert-radios input[type="radio"] { accent-color: var(--accent); }
   .insert-footer {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
   }
+
+  /* Context menu (hamburger) */
+  .menu-wrap {
+    position: relative;
+  }
+  .menu-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: visible;
+    z-index: 50;
+    white-space: nowrap;
+    min-width: 170px;
+  }
+  .menu-dropdown.open { display: block; }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+    box-sizing: border-box;
+  }
+  .menu-item:hover { background: var(--surface2); }
+  .menu-item.danger { color: #e06060; }
+  .menu-item-arrow { opacity: 0.5; font-size: 0.7rem; margin-left: 12px; }
+  .menu-divider { height: 1px; background: var(--border); margin: 3px 0; }
+
+  /* Tools submenu */
+  .menu-submenu-wrap {
+    position: relative;
+  }
+  .menu-submenu {
+    display: none;
+    position: absolute;
+    top: -2px;
+    left: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    z-index: 51;
+    white-space: nowrap;
+    min-width: 190px;
+  }
+  .menu-submenu.open { display: block; }
+  .submenu-sel-preview {
+    padding: 7px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .submenu-sel-preview.has-sel { color: var(--accent2); }
+  .submenu-sel-preview.no-sel  { font-style: italic; }
+  .submenu-item {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+  }
+  .submenu-item:hover { background: var(--surface2); }
+
+  /* Template popover overlay */
+  #tmpl-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #tmpl-overlay.open { display: flex; }
+  #tmpl-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 400px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  #tmpl-box .insert-title { margin-bottom: 2px; }
+  .tmpl-overlay-grid { display: flex; flex-wrap: wrap; gap: 5px; }
 
   /* Split copy button */
   .copy-split {
@@ -504,72 +608,7 @@
   }
   .copy-dropdown-item:hover { background: var(--surface2); }
 
-  /* Tools button + dropdown */
-  .btn-tools {
-    background: transparent;
-    color: var(--accent2);
-    border: 1px solid #2a5a4a;
-  }
-  .tools-wrap {
-    position: relative;
-  }
-  .tools-dropdown {
-    display: none;
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    z-index: 50;
-    white-space: nowrap;
-    min-width: 160px;
-  }
-  .tools-dropdown.open { display: block; }
-  .tools-dropdown-item {
-    display: block;
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 8px 14px;
-    text-align: left;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    touch-action: manipulation;
-  }
-  .tools-dropdown-item:hover { background: var(--surface2); }
-  .tools-sel-preview {
-    padding: 7px 14px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.72rem;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--border);
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .tools-sel-preview.has-sel { color: var(--accent2); }
-  .tools-sel-preview.no-sel  { font-style: italic; }
-
-  /* Template panel */
-  #tmpl-panel {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
-    padding: 0 8px;
-    border-width: 0;
-  }
-  #tmpl-panel.open { max-height: 300px; padding: 8px; border-width: 1.5px; }
-  .tmpl-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+  /* Template panel - removed (now a popover overlay) */
   .tmpl-btn {
     font-family: 'IBM Plex Mono', monospace;
     font-size: clamp(0.65rem, 2.4vw, 0.8rem);
@@ -819,25 +858,33 @@
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="editor-footer">
     <div class="footer-left">
-      <button class="action-btn btn-templates" id="tmplToggle" data-action="toggleTemplates" data-keepfocus="1">&#9776;</button>
-      <div class="tools-wrap">
-        <button class="action-btn btn-clear btn-tools" id="toolsBtn" data-action="toggleTools">Tools</button>
-        <div class="tools-dropdown" id="toolsDropdown">
-          <div class="tools-sel-preview" id="toolsSelPreview">No selection</div>
-          <button class="tools-dropdown-item action-btn" data-action="transposeUp">Octave up</button>
-          <button class="tools-dropdown-item action-btn" data-action="transposeDown">Octave down</button>
-          <button class="tools-dropdown-item action-btn" data-action="doubleLength">Double lengths</button>
-          <button class="tools-dropdown-item action-btn" data-action="halveLength">Halve lengths</button>
-          <button class="tools-dropdown-item action-btn" data-action="removeText">Remove text</button>
-          <button class="tools-dropdown-item action-btn" data-action="removeAccidentals">Remove accidentals</button>
-          <button class="tools-dropdown-item action-btn" data-action="respellEnharmonic">Respell enharmonic</button>
+      <div class="menu-wrap">
+        <button class="action-btn btn-templates" id="menuBtn" data-action="toggleMenu" data-keepfocus="1">&#9776;</button>
+        <div class="menu-dropdown" id="menuDropdown">
+          <button class="menu-item action-btn" data-action="openTmplOverlay">Insert template…</button>
+          <div class="menu-divider"></div>
+          <div class="menu-submenu-wrap" id="toolsSubmenuWrap">
+            <button class="menu-item" id="toolsMenuItem">Tools <span class="menu-item-arrow">▶</span></button>
+            <div class="menu-submenu" id="toolsSubmenu">
+              <div class="submenu-sel-preview" id="toolsSelPreview">No selection</div>
+              <button class="submenu-item action-btn" data-action="transposeUp">Octave up</button>
+              <button class="submenu-item action-btn" data-action="transposeDown">Octave down</button>
+              <button class="submenu-item action-btn" data-action="doubleLength">Double lengths</button>
+              <button class="submenu-item action-btn" data-action="halveLength">Halve lengths</button>
+              <button class="submenu-item action-btn" data-action="removeText">Remove text</button>
+              <button class="submenu-item action-btn" data-action="removeAccidentals">Remove accidentals</button>
+              <button class="submenu-item action-btn" data-action="respellEnharmonic">Respell enharmonic</button>
+            </div>
+          </div>
+          <div class="menu-divider"></div>
+          <button class="menu-item danger action-btn" data-action="resetStep1">Reset…</button>
         </div>
       </div>
       <button class="action-btn btn-chord" data-action="openChordPopup">G7</button>
-      <button class="action-btn btn-addtext" data-action="openTextPopup">T</button>
+      <button class="action-btn btn-addtext" data-action="openTextPopupAbove" title="Text above staff">T↑</button>
+      <button class="action-btn btn-addtext" data-action="openTextPopupBelow" title="Text below staff">T↓</button>
     </div>
     <div class="footer-right">
-      <button class="action-btn btn-clear" id="clearBtn" data-action="clearStep1">Clear</button>
       <div class="copy-split">
         <button class="btn-copy-main action-btn" data-action="copyText">Copy</button>
         <div class="copy-split-divider"></div>
@@ -850,27 +897,34 @@
   </div>
 </div>
 
-<div id="tmpl-panel">
-  <div class="tmpl-grid">
-    <button class="tmpl-btn" data-insert="%%score ">%%score</button>
-    <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
-    <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
-    <button class="tmpl-btn" data-insert="T:">T:</button>
-    <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
-    <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
-    <button class="tmpl-btn" data-insert="(3">(3</button>
-    <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
-    <button class="tmpl-btn" data-insert="!style=x!">!style=x!</button>
-    <button class="tmpl-btn" data-insert="!style=rhythm!">!style=rhythm!</button>
-    <button class="tmpl-btn" data-insert="Q:1/4=">Q:1/4=</button>
-    <button class="tmpl-btn" data-insert="L:1/16">L:1/16</button>
-    <button class="tmpl-btn" data-insert="L:1/4">L:1/4</button>
-    <button class="tmpl-btn" data-insert="L:1/2">L:1/2</button>
-    <button class="tmpl-btn" data-insert="L:1">L:1</button>
-    <button class="tmpl-btn" data-insert="%%printTempo false">%%printTempo false</button>
-    <button class="tmpl-btn" data-insert='%%MIDI gchord "none"'>%%MIDI gchord</button>
-    <button class="tmpl-btn" data-insert="%%score {1 | 2}&#10;V:1 clef=treble&#10;V:2 clef=bass&#10;[V:1]&#10;[V:2]">Grand Staff</button>
-    <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
+<!-- Template insert overlay -->
+<div class="insert-overlay" id="tmpl-overlay">
+  <div class="insert-box" id="tmpl-box">
+    <div class="insert-title">Insert template</div>
+    <div class="tmpl-overlay-grid">
+      <button class="tmpl-btn" data-insert="%%score ">%%score</button>
+      <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
+      <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
+      <button class="tmpl-btn" data-insert="T:">T:</button>
+      <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
+      <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
+      <button class="tmpl-btn" data-insert="(3">(3</button>
+      <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
+      <button class="tmpl-btn" data-insert="!style=x!">!style=x!</button>
+      <button class="tmpl-btn" data-insert="!style=rhythm!">!style=rhythm!</button>
+      <button class="tmpl-btn" data-insert="Q:1/4=">Q:1/4=</button>
+      <button class="tmpl-btn" data-insert="L:1/16">L:1/16</button>
+      <button class="tmpl-btn" data-insert="L:1/4">L:1/4</button>
+      <button class="tmpl-btn" data-insert="L:1/2">L:1/2</button>
+      <button class="tmpl-btn" data-insert="L:1">L:1</button>
+      <button class="tmpl-btn" data-insert="%%printTempo false">%%printTempo false</button>
+      <button class="tmpl-btn" data-insert='%%MIDI gchord "none"'>%%MIDI gchord</button>
+      <button class="tmpl-btn" data-insert="%%score {1 | 2}&#10;V:1 clef=treble&#10;V:2 clef=bass&#10;[V:1]&#10;[V:2]">Grand Staff</button>
+      <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
+    </div>
+    <div class="insert-footer">
+      <button class="action-btn btn-clear" data-action="closeTmplOverlay">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -940,12 +994,8 @@
 <!-- Text insert popup -->
 <div class="insert-overlay" id="textOverlay">
   <div class="insert-box">
-    <div class="insert-title">Add text</div>
+    <div class="insert-title" id="textPopupTitle">Add text</div>
     <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
-    <div class="insert-radios">
-      <span class="insert-radio-opt"><input type="radio" name="textPos" value="above" checked> Above staff</span>
-      <span class="insert-radio-opt"><input type="radio" name="textPos" value="below"> Below staff</span>
-    </div>
     <div class="insert-footer">
       <button class="action-btn btn-clear" data-action="closeTextPopup">Cancel</button>
       <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" id="textDone" data-action="doneTextPopup">Done</button>
@@ -1218,40 +1268,26 @@
     if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
   });
   ta.addEventListener('click', () => {
-    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; updateToolsBtn(); }
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
   });
   ta.addEventListener('mouseup', () => {
-    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; updateToolsBtn(); }
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
   });
   document.addEventListener('selectionchange', () => {
     if (taFocused) {
       savedStart = ta.selectionStart;
       savedEnd = ta.selectionEnd;
-      updateToolsBtn();
     }
   });
-  const clearBtn  = document.getElementById('clearBtn');
-  const toolsBtn  = document.getElementById('toolsBtn');
-
-  function closeTools() {
-    document.getElementById('toolsDropdown').classList.remove('open');
-  }
-
-  function updateToolsBtn() {
-    const hasSel = savedStart !== savedEnd;
-    toolsBtn.classList.toggle('has-selection', hasSel);
-    if (!hasSel) closeTools();
-  }
-
   function updateClearBtn() {
-    clearBtn.style.visibility = ta.value ? '' : 'hidden';
-    updateToolsBtn();
+    // Reset menu item greyed out when empty
+    // (no clearBtn DOM element anymore — just keep for callers)
   }
   updateClearBtn();
   syncDisplayIfUnfocused();
   setTypingRows(false);
 
-  ta.addEventListener('input', () => { schedulePreview(); updateClearBtn(); });
+  ta.addEventListener('input', () => { schedulePreview(); });
 
   const zoomSlider = document.getElementById('zoom-slider');
   let zoomLevel = 0.5;
@@ -1358,19 +1394,72 @@
   function arrowUp()    { moveCursor('ArrowUp');    }
   function arrowDown()  { moveCursor('ArrowDown');  }
 
-  function toggleTemplates() {
-    const panel = document.getElementById('tmpl-panel');
-    const btn = document.getElementById('tmplToggle');
-    const isOpen = panel.classList.toggle('open');
-    btn.classList.toggle('active', isOpen);
+  // --- Context menu ---
+  function toggleMenu() {
+    document.getElementById('menuDropdown').classList.toggle('open');
+  }
+  function closeMenu() {
+    document.getElementById('menuDropdown').classList.remove('open');
+    closeToolsSubmenu();
   }
 
-  function closeTemplates() {
-    const panel = document.getElementById('tmpl-panel');
-    const btn = document.getElementById('tmplToggle');
-    panel.classList.remove('open');
-    btn.classList.remove('active');
+  // Tools submenu within context menu
+  function openToolsSubmenu() {
+    const preview = document.getElementById('toolsSelPreview');
+    const sel = ta.value.slice(savedStart, savedEnd);
+    if (sel) {
+      preview.textContent = sel;
+      preview.className = 'submenu-sel-preview has-sel';
+    } else {
+      preview.textContent = 'No selection';
+      preview.className = 'submenu-sel-preview no-sel';
+    }
+    document.getElementById('toolsSubmenu').classList.add('open');
   }
+  function closeToolsSubmenu() {
+    document.getElementById('toolsSubmenu').classList.remove('open');
+  }
+
+  // Tools menu item opens/closes submenu
+  document.getElementById('toolsMenuItem').addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const submenu = document.getElementById('toolsSubmenu');
+    submenu.classList.contains('open') ? closeToolsSubmenu() : openToolsSubmenu();
+  });
+  document.getElementById('toolsMenuItem').addEventListener('touchstart', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const submenu = document.getElementById('toolsSubmenu');
+    submenu.classList.contains('open') ? closeToolsSubmenu() : openToolsSubmenu();
+  }, { passive: false });
+
+  // Close menu on outside click/tap
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.menu-wrap')) closeMenu();
+  });
+  document.addEventListener('touchstart', e => {
+    if (!e.target.closest('.menu-wrap')) closeMenu();
+  }, { passive: true });
+
+  // Template overlay
+  function openTmplOverlay() {
+    closeMenu();
+    document.getElementById('tmpl-overlay').classList.add('open');
+  }
+  function closeTmplOverlay() {
+    document.getElementById('tmpl-overlay').classList.remove('open');
+  }
+  document.getElementById('tmpl-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('tmpl-overlay')) closeTmplOverlay();
+  });
+  // Template buttons in overlay insert and close
+  document.getElementById('tmpl-box').addEventListener('click', e => {
+    const btn = e.target.closest('.tmpl-btn');
+    if (!btn) return;
+    closeTmplOverlay();
+    doInsert(btn.dataset.insert, false);
+  });
 
   function copyText() {
     closeCopyDropdown();
@@ -1409,9 +1498,10 @@
     setTimeout(() => toast.classList.remove('show'), 1800);
   }
 
-  function clearStep1() {
+  function resetStep1() {
+    closeMenu();
     if (!ta.value) return;
-    activeBtn = null; // allow modal buttons to get fresh touch events
+    activeBtn = null;
     const overlay = document.getElementById('clear-overlay');
     overlay.style.display = 'flex';
     overlay.onclick = e => { if (e.target === overlay) clearCancel(); };
@@ -1469,31 +1559,6 @@
   document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 500}\n---\n%%MIDI gchord \"none\"";
   document.getElementById('wrapAfter').value = "```";
 
-  // --- Tools ---
-  function toggleTools() {
-    const dropdown = document.getElementById('toolsDropdown');
-    const preview  = document.getElementById('toolsSelPreview');
-    const isOpen   = dropdown.classList.toggle('open');
-    if (isOpen) {
-      const sel = ta.value.slice(savedStart, savedEnd);
-      if (sel) {
-        preview.textContent = sel;
-        preview.className = 'tools-sel-preview has-sel';
-      } else {
-        preview.textContent = 'No selection';
-        preview.className = 'tools-sel-preview no-sel';
-      }
-    }
-  }
-
-  // Close tools dropdown on outside click/tap
-  document.addEventListener('mousedown', e => {
-    if (!e.target.closest('.tools-wrap')) closeTools();
-  });
-  document.addEventListener('touchstart', e => {
-    if (!e.target.closest('.tools-wrap')) closeTools();
-  }, { passive: true });
-
   // Transpose a single note token one octave up or down.
   // A note token is: optional accidental(s), note letter, optional octave markers (',+)
   // Up:   C→c, c→c', c'→c'', C,→C, C,,→C, (bottom out at C/A-G uppercase with commas, shift up one)
@@ -1548,13 +1613,13 @@
   }
 
   function transposeUp() {
-    closeTools();
+    closeMenu();
     transformSelection(sel => sel.replace(NOTE_RE, (_, acc, letter, octs) =>
       transposeNoteUp(acc, letter, octs)));
   }
 
   function transposeDown() {
-    closeTools();
+    closeMenu();
     transformSelection(sel => sel.replace(NOTE_RE, (_, acc, letter, octs) =>
       transposeNoteDown(acc, letter, octs)));
   }
@@ -1609,23 +1674,23 @@
   }
 
   function doubleLength() {
-    closeTools();
+    closeMenu();
     transformSelection(sel => scaleLengths(sel, true));
   }
 
   function halveLength() {
-    closeTools();
+    closeMenu();
     transformSelection(sel => scaleLengths(sel, false));
   }
 
   function removeText() {
-    closeTools();
+    closeMenu();
     // Remove quoted strings (chord symbols / annotations): "..."
     transformSelection(sel => sel.replace(/"[^"]*"/g, ''));
   }
 
   function removeAccidentals() {
-    closeTools();
+    closeMenu();
     // Strip ^ _ = outside of quoted strings
     transformSelection(sel => {
       let result = '';
@@ -1708,7 +1773,7 @@
   }
 
   function respellEnharmonic() {
-    closeTools();
+    closeMenu();
     transformSelection(sel => sel.replace(/([_^]?)([a-gA-G])([',]*)/g, (_, acc, letter, octs) =>
       respellEnharmonicNote(acc, letter, octs)));
   }
@@ -1746,13 +1811,17 @@
   });
 
   // --- Text popup ---
-  function openTextPopup() {
+  let textPopupPos = 'above';
+  function openTextPopup(pos) {
+    textPopupPos = pos;
     popupPrevFocused = taFocused;
     document.getElementById('textInput').value = '';
-    document.querySelector('input[name="textPos"][value="above"]').checked = true;
+    document.getElementById('textPopupTitle').textContent = pos === 'above' ? 'Add text above staff' : 'Add text below staff';
     document.getElementById('textOverlay').classList.add('open');
     document.getElementById('textInput').focus();
   }
+  function openTextPopupAbove() { openTextPopup('above'); }
+  function openTextPopupBelow() { openTextPopup('below'); }
   function closeTextPopup() {
     document.getElementById('textOverlay').classList.remove('open');
     if (popupPrevFocused) {
@@ -1764,10 +1833,9 @@
   }
   function doneTextPopup() {
     const val = document.getElementById('textInput').value;
-    const pos = document.querySelector('input[name="textPos"]:checked').value;
     closeTextPopup();
     if (!val) return;
-    const prefix = pos === 'above' ? '^' : '_';
+    const prefix = textPopupPos === 'above' ? '^' : '_';
     doInsert('"' + prefix + val + '"', popupPrevFocused);
   }
   document.getElementById('textOverlay').addEventListener('click', e => {
@@ -1777,32 +1845,11 @@
     if (e.key === 'Enter') { e.preventDefault(); doneTextPopup(); }
     if (e.key === 'Escape') closeTextPopup();
   });
-  // Keep text input focused when tapping radio buttons OR their spans.
-  const textInputEl = document.getElementById('textInput');
-  document.querySelectorAll('.insert-radio-opt').forEach(span => {
-    ['mousedown', 'touchstart'].forEach(evtType => {
-      span.addEventListener(evtType, e => {
-        e.preventDefault();
-        const radio = span.querySelector('input[type="radio"]');
-        if (radio) radio.checked = true;
-        textInputEl.focus();
-      }, { passive: false });
-    });
-  });
-  document.querySelectorAll('.insert-radios input[type="radio"]').forEach(radio => {
-    ['mousedown', 'touchstart'].forEach(evtType => {
-      radio.addEventListener(evtType, e => {
-        e.preventDefault();
-        radio.checked = true;
-        textInputEl.focus();
-      }, { passive: false });
-    });
-  });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { toggleTemplates, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, clearStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, toggleTools, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup };
+  const actions = { toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
 
-  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleTemplates', 'toggleZoom', 'openSettings', 'clearStep1', 'clearStep2', 'clearCancel', 'toggleTools', 'openChordPopup', 'openTextPopup']);
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
@@ -1819,7 +1866,7 @@
     } else if (btn.dataset.insert !== undefined) {
       const isKey = btn.classList.contains('key');
       if (btn.classList.contains('tmpl-btn')) {
-        closeTemplates();
+        closeTmplOverlay();
         doInsert(btn.dataset.insert, taFocused);
       } else {
         doInsert(btn.dataset.insert, isKey && taFocused);
