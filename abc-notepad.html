@@ -23,6 +23,16 @@
     --btn-border-lg: #5a5020;
     --radius: 8px;
     --radius-sm: 5px;
+    /* Syntax highlighting */
+    --hl-note:       #e8c84a; /* accent - note letters A-G */
+    --hl-modifier:   #e8964a; /* orange  - accidentals ^ _ = , ' and dot */
+    --hl-rest:       #4ae8b4; /* accent2 - z x Z */
+    --hl-duration:   #7ab8e8; /* blue    - digits and / */
+    --hl-barline:    #666;    /* dim     - | barlines */
+    --hl-chord:      #b48ae8; /* purple  - "chord symbols" */
+    --hl-decoration: #e8a84a; /* amber   - !decoration! */
+    --hl-header:     #888;    /* dim     - header field keys T: K: M: etc */
+    --hl-directive:  #555;    /* dimmer  - %% directives */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -198,15 +208,14 @@
 
   /* Static cursor in editor display view */
   .editor-cursor {
-    display: inline-block;
-    width: 2px;
-    background: var(--accent);
-    border-radius: 1px;
-    margin: 0 -1px;
-    vertical-align: text-bottom;
-    height: 1.15em;
-    position: relative;
+    position: absolute;
     top: 0.07em;
+    right: -2px;
+    width: 2px;
+    height: 1.15em;
+    background: #fff;
+    border-radius: 1px;
+    pointer-events: none;
   }
 
   /* Static editor display (shown when textarea is unfocused) */
@@ -225,13 +234,24 @@
     padding: 10px 12px;
     box-sizing: border-box;
     white-space: pre-wrap;
-    word-break: break-all;
+    overflow-wrap: break-word;
     overflow-y: auto;
     cursor: text;
     border-radius: var(--radius) var(--radius) 0 0;
   }
   #notation-display.active { display: block; }
   #notation-display .display-placeholder { color: var(--text-dim); }
+  #notation-display .hl-note  { color: var(--hl-note); }
+  #notation-display .hl-mod   { color: var(--hl-modifier); }
+  #notation-display .hl-rest  { color: var(--hl-rest); }
+  #notation-display .hl-dur   { color: var(--hl-duration); }
+  #notation-display .hl-bar   { color: var(--hl-barline); }
+  #notation-display .hl-chord { color: var(--hl-chord); }
+  #notation-display .hl-deco  { color: var(--hl-decoration); }
+  #notation-display .hl-hkey  { color: var(--hl-header); }
+  #notation-display .hl-hval  { color: var(--text-dim); }
+  #notation-display .hl-dir   { color: var(--hl-directive); }
+  #notation-display .hl-header{ color: var(--hl-header); }
   #notation.hidden { display: none; }
 
   /* Preview */
@@ -961,18 +981,182 @@
 
   const taDisplay = document.getElementById('notation-display');
 
+  // ---- ABC syntax highlighting tokeniser ----
+  // Returns array of {type, text} objects covering every character in val.
+  function tokeniseABC(val) {
+    const tokens = [];
+    // Line-scoped pass: identify header lines and directive lines first,
+    // then fall through to the character-level regex for body content.
+    const lines = val.split('\n');
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+      const nl = li < lines.length - 1 ? '\n' : '';
+
+      // Header field: letter followed by colon at start of line (e.g. T:, K:, M:)
+      const headerMatch = line.match(/^([A-Za-z]:)(.*)/);
+      // %% directive line
+      const directiveMatch = !headerMatch && line.match(/^(%%)(.*)/);
+      // % comment line
+      const commentMatch = !headerMatch && !directiveMatch && line.match(/^(%)(.*)/);
+
+      if (headerMatch) {
+        tokens.push({ type: 'header-key',   text: headerMatch[1] });
+        if (headerMatch[2]) tokens.push({ type: 'header-val', text: headerMatch[2] });
+        if (nl) tokens.push({ type: 'plain', text: nl });
+        continue;
+      }
+      if (directiveMatch) {
+        tokens.push({ type: 'directive', text: '%%' + directiveMatch[2] });
+        if (nl) tokens.push({ type: 'plain', text: nl });
+        continue;
+      }
+      if (commentMatch) {
+        tokens.push({ type: 'directive', text: '%' + commentMatch[2] });
+        if (nl) tokens.push({ type: 'plain', text: nl });
+        continue;
+      }
+
+      // Body line: character-level tokenisation
+      // Order matters — longer/more-specific patterns first.
+      const bodyRe = new RegExp(
+        '"[^"]*"'          + '|' +  // chord symbols "Gm7"
+        '![^!\\n]+!'       + '|' +  // decorations !trill!
+        '\\[\\s*[A-Za-z]:' +         // inline fields [K:C] [V:1]
+          '[^\\]]*\\]'     + '|' +
+        '\\|\\||\\|:|:\\|' + '|' +  // double/repeat barlines
+        '\\[\\|\\||\\[\\|' + '|' +  // thick-thin barlines
+        '\\|\\]|::'        + '|' +  // thin-thick, double-repeat
+        '\\|'              + '|' +  // single barline
+        '[a-gA-G]'         + '|' +  // note letters
+        '[zxZ]'            + '|' +  // rests
+        '[\\^_=]'          + '|' +  // accidentals
+        "[\\',]"           + '|' +  // octave markers
+        '\\.'              + '|' +  // augmentation dot
+        '[0-9]+\\/[0-9]*'  + '|' +  // fractional durations 3/2 1/
+        '\\/[0-9]*'        + '|' +  // leading-slash durations /2 /
+        '[0-9]+'           + '|' +  // plain numbers
+        '[-]'              + '|' +  // tie
+        '[><]'             + '|' +  // broken rhythm
+        '[()]'             + '|' +  // slur
+        '[\\s\\S]',                  // catch-all (one char)
+        'g'
+      );
+
+      let m;
+      while ((m = bodyRe.exec(line)) !== null) {
+        const t = m[0];
+        let type = 'plain';
+        if (t.startsWith('"'))                          type = 'chord';
+        else if (t.startsWith('!'))                     type = 'decoration';
+        else if (t.startsWith('[') && t.includes(':'))  type = 'inline-field';
+        else if (/^(\|\||:\||\|:|:\:|\\[\\|\\||\[\\|\|\\]|::)/.test(t)) type = 'barline';
+        else if (t === '|')                             type = 'barline';
+        else if (/^[a-gA-G]$/.test(t))                 type = 'note';
+        else if (/^[zxZ]$/.test(t))                    type = 'rest';
+        else if (/^[\^_=]$/.test(t))                   type = 'modifier';
+        else if (/^[',]$/.test(t))                     type = 'modifier';
+        else if (t === '.')                             type = 'modifier';
+        else if (/^[0-9]/.test(t) || t.startsWith('/'))type = 'duration';
+        else if (t === '-')                             type = 'tie';
+        else if (/^[><()]$/.test(t))                   type = 'duration';
+        tokens.push({ type, text: t });
+      }
+      if (nl) tokens.push({ type: 'plain', text: nl });
+    }
+    return tokens;
+  }
+
+  const TYPE_CLASS = {
+    'note':         'hl-note',
+    'modifier':     'hl-mod',
+    'rest':         'hl-rest',
+    'duration':     'hl-dur',
+    'tie':          'hl-dur',
+    'barline':      'hl-bar',
+    'chord':        'hl-chord',
+    'decoration':   'hl-deco',
+    'inline-field': 'hl-header',
+    'header-key':   'hl-hkey',
+    'header-val':   'hl-hval',
+    'directive':    'hl-dir',
+    'plain':        '',
+  };
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function tokensToHTML(tokens, cursorPos) {
+    // Attach cursor as absolute child of the character immediately BEFORE
+    // the cursor position. This keeps the cursor on the same line as that
+    // character at wrap boundaries, since it's inside that char's span.
+    // The cursor is positioned at right:-2px of the anchor char's span.
+    const cursorSpan = '<span class="editor-cursor"></span>';
+
+    function charWithCursor(ch) {
+      return `<span style="position:relative;display:inline">${esc(ch)}${cursorSpan}</span>`;
+    }
+
+    let html = '';
+    let charCount = 0;
+    let cursorInserted = cursorPos === null;
+
+    for (let ti = 0; ti < tokens.length; ti++) {
+      const tok = tokens[ti];
+      const cls = TYPE_CLASS[tok.type] || '';
+      const len = tok.text.length;
+      const tokStart = charCount;
+      const tokEnd   = charCount + len;
+
+      if (!cursorInserted && cursorPos >= tokStart && cursorPos <= tokEnd) {
+        const split = cursorPos - tokStart;
+
+        if (split === 0) {
+          // Cursor is before this token — attach to last char of previous output.
+          // We can't easily retroactively modify html, so instead attach to the
+          // first char of THIS token and position the cursor at left:-2px instead.
+          const firstChar = tok.text[0] || '';
+          const rest = tok.text.slice(1);
+          const anchor = `<span style="position:relative;display:inline">${esc(firstChar)}<span class="editor-cursor" style="right:auto;left:-2px"></span></span>`;
+          html += cls ? `<span class="${cls}">${anchor}${esc(rest)}</span>` : anchor + esc(rest);
+        } else {
+          // Cursor is after split chars into this token — anchor to char at split-1
+          const pre      = tok.text.slice(0, split);
+          const post     = tok.text.slice(split);
+          const preRest  = pre.slice(0, -1);
+          const anchorCh = pre.slice(-1);
+          const anchor   = charWithCursor(anchorCh);
+          if (cls) {
+            html += `<span class="${cls}">${esc(preRest)}${anchor}</span>`;
+            if (post) html += `<span class="${cls}">${esc(post)}</span>`;
+          } else {
+            html += esc(preRest) + anchor + esc(post);
+          }
+        }
+        cursorInserted = true;
+      } else {
+        html += cls ? `<span class="${cls}">${esc(tok.text)}</span>` : esc(tok.text);
+      }
+
+      charCount = tokEnd;
+    }
+
+    // Cursor after all text
+    if (!cursorInserted) {
+      // Append a zero-width anchor span after everything
+      html += `<span style="position:relative;display:inline">&#8203;${cursorSpan}</span>`;
+    }
+
+    return html;
+  }
+
   function renderStaticDisplay() {
     const val = ta.value;
-    const pos = savedStart;
-    function esc(s) {
-      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
     if (!val) {
       taDisplay.innerHTML = '<span class="display-placeholder">' + esc(ta.placeholder) + '</span>';
     } else {
-      const before = val.slice(0, pos);
-      const after  = val.slice(pos);
-      taDisplay.innerHTML = esc(before) + '<span class="editor-cursor"></span>' + esc(after);
+      const tokens = tokeniseABC(val);
+      taDisplay.innerHTML = tokensToHTML(tokens, savedStart);
     }
     taDisplay.scrollTop = ta.scrollTop;
   }
