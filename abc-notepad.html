@@ -241,7 +241,10 @@
   }
   #notation-display.active { display: block; }
   #notation-display .display-placeholder { color: var(--text-dim); }
-  #notation-display .hl-note  { color: var(--hl-note); }
+  #notation-display .hl-sel {
+    background: rgba(232, 200, 74, 0.28);
+    border-radius: 2px;
+  }
   #notation-display .hl-mod   { color: var(--hl-modifier); }
   #notation-display .hl-rest  { color: var(--hl-rest); }
   #notation-display .hl-dur   { color: var(--hl-duration); }
@@ -1132,20 +1135,73 @@
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  function tokensToHTML(tokens, cursorPos) {
-    // Attach cursor as absolute child of the character immediately BEFORE
-    // the cursor position. This keeps the cursor on the same line as that
-    // character at wrap boundaries, since it's inside that char's span.
-    // The cursor is positioned at right:-2px of the anchor char's span.
+  function tokensToHTML(tokens, selStart, selEnd) {
+    const hasSel = selEnd > selStart;
     const cursorSpan = '<span class="editor-cursor"></span>';
 
     function charWithCursor(ch) {
       return `<span style="position:relative;display:inline">${esc(ch)}${cursorSpan}</span>`;
     }
 
+    // Render a fragment of token text, optionally wrapped in a class span,
+    // optionally wrapped in a selection highlight span.
+    function renderFragment(text, cls, inSel) {
+      if (!text) return '';
+      let inner = cls ? `<span class="${cls}">${esc(text)}</span>` : esc(text);
+      if (inSel) inner = `<span class="hl-sel">${inner}</span>`;
+      return inner;
+    }
+
+    // Split a token at up to two boundary points (selStart, selEnd) and
+    // render each piece with correct highlighting.
+    function renderToken(tok, charCount) {
+      const cls  = TYPE_CLASS[tok.type] || '';
+      const text = tok.text;
+      const len  = text.length;
+      const tokStart = charCount;
+      const tokEnd   = charCount + len;
+
+      if (!hasSel) {
+        // No selection — normal render (cursor handled separately below)
+        return cls ? `<span class="${cls}">${esc(text)}</span>` : esc(text);
+      }
+
+      // Clamp selection to this token's range
+      const sA = Math.max(selStart, tokStart) - tokStart; // start offset within token
+      const sB = Math.min(selEnd,   tokEnd)   - tokStart; // end offset within token
+
+      if (sA >= sB) {
+        // Token entirely outside selection
+        return renderFragment(text, cls, false);
+      }
+      if (sA === 0 && sB === len) {
+        // Token entirely inside selection
+        return renderFragment(text, cls, true);
+      }
+      // Token straddles a boundary — split into up to 3 pieces
+      let html = '';
+      if (sA > 0)   html += renderFragment(text.slice(0, sA), cls, false);
+                    html += renderFragment(text.slice(sA, sB), cls, true);
+      if (sB < len) html += renderFragment(text.slice(sB), cls, false);
+      return html;
+    }
+
+    if (hasSel) {
+      // Selection mode — no cursor, just highlighted ranges
+      let html = '';
+      let charCount = 0;
+      for (const tok of tokens) {
+        html += renderToken(tok, charCount);
+        charCount += tok.text.length;
+      }
+      return html;
+    }
+
+    // Cursor mode — single insertion point
+    const cursorPos = selStart;
     let html = '';
     let charCount = 0;
-    let cursorInserted = cursorPos === null;
+    let cursorInserted = false;
 
     for (let ti = 0; ti < tokens.length; ti++) {
       const tok = tokens[ti];
@@ -1156,17 +1212,12 @@
 
       if (!cursorInserted && cursorPos >= tokStart && cursorPos <= tokEnd) {
         const split = cursorPos - tokStart;
-
         if (split === 0) {
-          // Cursor is before this token — attach to last char of previous output.
-          // We can't easily retroactively modify html, so instead attach to the
-          // first char of THIS token and position the cursor at left:-2px instead.
           const firstChar = tok.text[0] || '';
           const rest = tok.text.slice(1);
           const anchor = `<span style="position:relative;display:inline">${esc(firstChar)}<span class="editor-cursor" style="right:auto;left:-2px"></span></span>`;
           html += cls ? `<span class="${cls}">${anchor}${esc(rest)}</span>` : anchor + esc(rest);
         } else {
-          // Cursor is after split chars into this token — anchor to char at split-1
           const pre      = tok.text.slice(0, split);
           const post     = tok.text.slice(split);
           const preRest  = pre.slice(0, -1);
@@ -1183,16 +1234,11 @@
       } else {
         html += cls ? `<span class="${cls}">${esc(tok.text)}</span>` : esc(tok.text);
       }
-
       charCount = tokEnd;
     }
-
-    // Cursor after all text
     if (!cursorInserted) {
-      // Append a zero-width anchor span after everything
       html += `<span style="position:relative;display:inline">&#8203;${cursorSpan}</span>`;
     }
-
     return html;
   }
 
@@ -1202,7 +1248,7 @@
       taDisplay.innerHTML = '<span class="display-placeholder">' + esc(ta.placeholder) + '</span>';
     } else {
       const tokens = tokeniseABC(val);
-      taDisplay.innerHTML = tokensToHTML(tokens, savedStart);
+      taDisplay.innerHTML = tokensToHTML(tokens, savedStart, savedEnd);
     }
   }
 
