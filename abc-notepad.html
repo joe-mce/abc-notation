@@ -257,8 +257,19 @@
   #notation-display .hl-header{ color: var(--hl-header); }
   #notation.hidden { display: none; }
 
-  /* Preview */
-  #preview-wrap { overflow: hidden; min-height: 120px; }
+  .btn-undo {
+    background: transparent;
+    border: none;
+    padding: 4px 6px;
+    opacity: 1;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-undo:hover { background: transparent; }
+  .btn-undo:disabled { opacity: 0.25; cursor: default; }
+  .btn-undo svg { display: block; }
   #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
   #preview svg { display: block; }
   #preview svg path, #preview svg rect, #preview svg ellipse,
@@ -888,6 +899,12 @@
       <button class="action-btn btn-addtext" data-action="openTextPopupBelow" title="Text below staff">T↓</button>
     </div>
     <div class="footer-right">
+      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
       <div class="copy-split">
         <button class="btn-copy-main action-btn" data-action="copyText">Copy</button>
         <div class="copy-split-divider"></div>
@@ -1026,6 +1043,33 @@
 
   let taFocused = false;
   let savedStart = 0, savedEnd = 0;
+
+  // --- Undo ---
+  const MAX_UNDO = 100;
+  const undoStack = [];
+  const undoBtn = document.getElementById('undoBtn');
+
+  function pushUndo() {
+    undoStack.push({ value: ta.value, selStart: savedStart, selEnd: savedEnd });
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    undoBtn.disabled = false;
+  }
+
+  function undo() {
+    if (!undoStack.length) return;
+    const state = undoStack.pop();
+    ta.value = state.value;
+    savedStart = state.selStart;
+    savedEnd   = state.selEnd;
+    if (taFocused) {
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else {
+      syncDisplayIfUnfocused();
+    }
+    updateClearBtn();
+    schedulePreview();
+    undoBtn.disabled = undoStack.length === 0;
+  }
   let debounceTimer = null;
 
   const taDisplay = document.getElementById('notation-display');
@@ -1365,6 +1409,16 @@
   syncDisplayIfUnfocused();
   setTypingRows(false);
 
+  ta.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      undo();
+      return;
+    }
+    // Push before any character-modifying key
+    const modifying = e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete';
+    if (modifying && !e.ctrlKey && !e.metaKey && !e.altKey) pushUndo();
+  });
   ta.addEventListener('input', () => { schedulePreview(); });
 
   const zoomSlider = document.getElementById('zoom-slider');
@@ -1406,6 +1460,7 @@
 
   // Core insert — used by both key buttons and template buttons
   function doInsert(text, refocus) {
+    pushUndo();
     const s = savedStart;
     const e = savedEnd;
     const atEnd = e === ta.value.length;
@@ -1424,6 +1479,7 @@
   }
 
   function bksp() {
+    pushUndo();
     const wasActive = taFocused;
     const atEnd = savedEnd === ta.value.length;
     if (savedStart === savedEnd && savedStart > 0) {
@@ -1586,6 +1642,7 @@
   }
 
   function clearStep2() {
+    pushUndo();
     ta.value = ''; savedStart = 0; savedEnd = 0;
     previewDiv.innerHTML = '';
     previewDiv.removeAttribute('style');
@@ -1678,6 +1735,7 @@
   function transformSelection(fn) {
     const s = savedStart, e = savedEnd;
     if (s === e) return;
+    pushUndo();
     const before = ta.value.slice(0, s);
     const sel    = ta.value.slice(s, e);
     const after  = ta.value.slice(e);
@@ -1925,9 +1983,9 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
 
-  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay']);
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
@@ -2061,6 +2119,7 @@
   let gesture = null;
 
   function startGesture(btn, startX, startY) {
+    pushUndo();
     const baseLetter = btn.dataset.insert;
     const insertPos  = savedStart;
     const insertEnd  = savedEnd;
