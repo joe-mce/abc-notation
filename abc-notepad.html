@@ -875,7 +875,7 @@
       <div class="menu-wrap">
         <button class="action-btn btn-templates" id="menuBtn" data-action="toggleMenu" data-keepfocus="1">&#9776;</button>
         <div class="menu-dropdown" id="menuDropdown">
-          <button class="menu-item action-btn" data-action="openTmplOverlay">Insert template…</button>
+          <button class="menu-item action-btn" data-action="openTmplOverlay" data-keepfocus="1">Insert template…</button>
           <div class="menu-divider"></div>
           <div class="menu-submenu-wrap" id="toolsSubmenuWrap">
             <button class="menu-item" id="toolsMenuItem">Tools <span class="menu-item-arrow">▶</span></button>
@@ -1577,13 +1577,29 @@
   }, { passive: true });
 
   // Template overlay
+  let tmplPrevFocused = false;
   function openTmplOverlay() {
     closeMenu();
+    tmplPrevFocused = taFocused;
+    if (taFocused) {
+      savedStart = ta.selectionStart;
+      savedEnd = ta.selectionEnd;
+      ta.blur();
+    }
     document.getElementById('tmpl-overlay').classList.add('open');
   }
   function closeTmplOverlay() {
     document.getElementById('tmpl-overlay').classList.remove('open');
+    if (tmplPrevFocused) {
+      hideStaticDisplay();
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+    }
   }
+  // Prevent overlay buttons from stealing focus on mousedown
+  document.getElementById('tmpl-overlay').addEventListener('mousedown', e => {
+    if (tmplPrevFocused) e.preventDefault();
+  });
   document.getElementById('tmpl-overlay').addEventListener('click', e => {
     if (e.target === document.getElementById('tmpl-overlay')) closeTmplOverlay();
   });
@@ -1592,7 +1608,7 @@
     const btn = e.target.closest('.tmpl-btn');
     if (!btn) return;
     closeTmplOverlay();
-    doInsert(btn.dataset.insert, false);
+    doInsert(btn.dataset.insert, tmplPrevFocused);
   });
 
   function copyText() {
@@ -1927,6 +1943,7 @@
     popupOpen = false;
     document.getElementById('chordOverlay').classList.remove('open');
     if (popupPrevFocused) {
+      hideStaticDisplay();
       ta.focus();
       ta.setSelectionRange(savedStart, savedEnd);
     } else {
@@ -1962,6 +1979,7 @@
     popupOpen = false;
     document.getElementById('textOverlay').classList.remove('open');
     if (popupPrevFocused) {
+      hideStaticDisplay();
       ta.focus();
       ta.setSelectionRange(savedStart, savedEnd);
     } else {
