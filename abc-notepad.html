@@ -1255,16 +1255,13 @@
   function scrollCursorIntoView() {
     const cursor = taDisplay.querySelector('.editor-cursor');
     if (!cursor) return;
-    let offsetTop = 0;
-    let el = cursor.parentElement;
-    while (el && el !== taDisplay) {
-      offsetTop += el.offsetTop;
-      el = el.offsetParent;
-    }
-    const cursorH = cursor.offsetHeight || 16;
-    const divH    = taDisplay.clientHeight;
-    const pad     = 8;
-    const scroll  = taDisplay.scrollTop;
+    const cursorRect  = cursor.getBoundingClientRect();
+    const displayRect = taDisplay.getBoundingClientRect();
+    const offsetTop   = cursorRect.top - displayRect.top + taDisplay.scrollTop;
+    const cursorH     = cursorRect.height || 16;
+    const divH        = taDisplay.clientHeight;
+    const pad         = 8;
+    const scroll      = taDisplay.scrollTop;
     if (offsetTop - pad < scroll) {
       taDisplay.scrollTop = Math.max(0, offsetTop - pad);
     } else if (offsetTop + cursorH + pad > scroll + divH) {
@@ -1275,13 +1272,14 @@
   // Show/hide static display — capture scroll at the moment of transition, apply after swap
   function syncDisplayIfUnfocused() {
     if (!taFocused) {
-      renderStaticDisplay();
       if (!taDisplay.classList.contains('active')) {
+        renderStaticDisplay();
         taDisplay.style.height = ta.offsetHeight + 'px';
         taDisplay.scrollTop = ta.scrollTop;
         ta.classList.add('hidden');
         taDisplay.classList.add('active');
       } else {
+        renderStaticDisplay();
         scrollCursorIntoView();
       }
     }
