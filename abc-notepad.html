@@ -1204,29 +1204,58 @@
       const tokens = tokeniseABC(val);
       taDisplay.innerHTML = tokensToHTML(tokens, savedStart);
     }
-    scrollCursorIntoView();
   }
 
   function scrollCursorIntoView() {
     const cursor = taDisplay.querySelector('.editor-cursor');
-    if (!cursor) { taDisplay.scrollTop = ta.scrollTop; return; }
-    // Walk offsetParent chain from the anchor span up to taDisplay
+    if (!cursor) return;
     let offsetTop = 0;
     let el = cursor.parentElement;
     while (el && el !== taDisplay) {
       offsetTop += el.offsetTop;
       el = el.offsetParent;
     }
-    const cursorH  = cursor.offsetHeight || 16;
-    const divH     = taDisplay.clientHeight;
-    const scrollTop = taDisplay.scrollTop;
-    const pad      = 8;
-    if (offsetTop - pad < scrollTop) {
+    const cursorH = cursor.offsetHeight || 16;
+    const divH    = taDisplay.clientHeight;
+    const pad     = 8;
+    const scroll  = taDisplay.scrollTop;
+    if (offsetTop - pad < scroll) {
       taDisplay.scrollTop = Math.max(0, offsetTop - pad);
-    } else if (offsetTop + cursorH + pad > scrollTop + divH) {
+    } else if (offsetTop + cursorH + pad > scroll + divH) {
       taDisplay.scrollTop = offsetTop + cursorH + pad - divH;
     }
-    ta.scrollTop = taDisplay.scrollTop;
+  }
+
+  // Show/hide static display — capture scroll at the moment of transition, apply after swap
+  function syncDisplayIfUnfocused() {
+    if (!taFocused) {
+      renderStaticDisplay();
+      if (!taDisplay.classList.contains('active')) {
+        taDisplay.style.height = ta.offsetHeight + 'px';
+        taDisplay.scrollTop = ta.scrollTop;
+        ta.classList.add('hidden');
+        taDisplay.classList.add('active');
+      } else {
+        scrollCursorIntoView();
+      }
+    }
+  }
+
+  function showStaticDisplay() {
+    const scroll = ta.scrollTop;
+    renderStaticDisplay();
+    taDisplay.style.height = ta.offsetHeight + 'px';
+    ta.classList.add('hidden');
+    taDisplay.classList.add('active');
+    requestAnimationFrame(() => { taDisplay.scrollTop = scroll; });
+  }
+
+  function hideStaticDisplay() {
+    if (!taDisplay.classList.contains('active')) return;
+    const scroll = taDisplay.scrollTop;
+    taDisplay.classList.remove('active');
+    ta.classList.remove('hidden');
+    requestAnimationFrame(() => { ta.scrollTop = scroll; });
   }
 
   // Tapping the display div refocuses the textarea.
@@ -1245,37 +1274,12 @@
   }, { passive: true });
   taDisplay.addEventListener('touchend', e => {
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
-    if (dy > 8) return; // was a scroll, not a tap
+    if (dy > 8) return;
     e.preventDefault();
     hideStaticDisplay();
     ta.focus();
     ta.setSelectionRange(savedStart, savedEnd);
   }, { passive: false });
-
-  // Show/hide static display
-  function syncDisplayIfUnfocused() {
-    if (!taFocused) {
-      renderStaticDisplay();
-      if (!taDisplay.classList.contains('active')) {
-        taDisplay.style.height = ta.offsetHeight + 'px';
-        ta.classList.add('hidden');
-        taDisplay.classList.add('active');
-      }
-    }
-  }
-
-  function showStaticDisplay() {
-    renderStaticDisplay();
-    taDisplay.style.height = ta.offsetHeight + 'px';
-    ta.classList.add('hidden');
-    taDisplay.classList.add('active');
-  }
-
-  function hideStaticDisplay() {
-    taDisplay.classList.remove('active');
-    ta.classList.remove('hidden');
-    if (taDisplay.style.height) ta.style.height = taDisplay.style.height;
-  }
 
   const rowLetters = document.getElementById('row-letters');
   const rowNumbers = document.getElementById('row-numbers');
