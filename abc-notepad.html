@@ -889,6 +889,7 @@
               <button class="submenu-item action-btn" data-action="removeAccidentals" data-keepfocus="1">Remove accidentals</button>
               <button class="submenu-item action-btn" data-action="respellEnharmonic" data-keepfocus="1">Respell enharmonic</button>
               <button class="submenu-item action-btn" data-action="wrapRepeats" data-keepfocus="1">Wrap in repeats</button>
+              <button class="submenu-item action-btn" data-action="markNotes" data-keepfocus="1">Mark notes</button>
             </div>
           </div>
           <div class="menu-divider"></div>
@@ -1955,11 +1956,13 @@
     schedulePreview();
     syncDisplayIfUnfocused();
   }
-  function respellEnharmonic() {
+  function markNotes() {
     closeMenu();
     transformSelection(sel => transformSkippingQuotes(sel, ch =>
-      ch.replace(/([_^]?)([a-gA-G])([',]*)/g, (_, acc, letter, octs) =>
-        respellEnharmonicNote(acc, letter, octs))));
+      ch.replace(NOTE_RE, (match, acc, letter, octs) => '!mark!' + acc + letter + octs)));
+  }
+  function respellEnharmonic() {
+    closeMenu();
   }
 
   // --- Chord popup ---
@@ -2034,7 +2037,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
 
   const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
 
