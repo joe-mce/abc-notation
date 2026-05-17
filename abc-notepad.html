@@ -924,25 +924,34 @@
   <div class="insert-box" id="tmpl-box">
     <div class="insert-title">Insert template</div>
     <div class="tmpl-overlay-grid">
+      <!-- %% directives -->
       <button class="tmpl-btn" data-insert="%%score ">%%score</button>
       <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
       <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
+      <button class="tmpl-btn" data-insert="%%staffSep 60">%%staffSep 60</button>
+      <button class="tmpl-btn" data-insert="%%printTempo false">%%printTempo false</button>
+      <!-- Header fields -->
       <button class="tmpl-btn" data-insert="T:">T:</button>
-      <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
-      <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
-      <button class="tmpl-btn" data-insert="(3">(3</button>
-      <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
-      <button class="tmpl-btn" data-insert="!style=x!">!style=x!</button>
-      <button class="tmpl-btn" data-insert="!style=rhythm!">!style=rhythm!</button>
       <button class="tmpl-btn" data-insert="Q:1/4=">Q:1/4=</button>
       <button class="tmpl-btn" data-insert="L:1/16">L:1/16</button>
       <button class="tmpl-btn" data-insert="L:1/4">L:1/4</button>
       <button class="tmpl-btn" data-insert="L:1/2">L:1/2</button>
       <button class="tmpl-btn" data-insert="L:1">L:1</button>
-      <button class="tmpl-btn" data-insert="%%printTempo false">%%printTempo false</button>
-      <button class="tmpl-btn" data-insert='%%MIDI gchord "none"'>%%MIDI gchord</button>
+      <!-- Inline fields -->
+      <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
+      <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
+      <!-- Barlines -->
+      <button class="tmpl-btn" data-insert="|:">|:</button>
+      <button class="tmpl-btn" data-insert=":|">:|</button>
+      <button class="tmpl-btn" data-insert=":||:">:||:</button>
+      <!-- Note prefixes -->
+      <button class="tmpl-btn" data-insert="(3">(3</button>
+      <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
+      <button class="tmpl-btn" data-insert="!>!">!&gt;!</button>
+      <button class="tmpl-btn" data-insert="!style=x!">!style=x!</button>
+      <button class="tmpl-btn" data-insert="!style=rhythm!">!style=rhythm!</button>
+      <!-- Complex -->
       <button class="tmpl-btn" data-insert="%%score {1 | 2}&#10;V:1 clef=treble&#10;V:2 clef=bass&#10;[V:1]&#10;[V:2]">Grand Staff</button>
-      <button class="tmpl-btn" data-insert="%%staffsep 25&#10;K:perc stafflines=0&#10;L:3/2&#10;z z | z z | z z | z z |">Chord Chart</button>
     </div>
     <div class="insert-footer">
       <button class="action-btn btn-clear" data-action="closeTmplOverlay">Cancel</button>
