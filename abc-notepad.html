@@ -878,16 +878,17 @@
           <button class="menu-item action-btn" data-action="openTmplOverlay" data-keepfocus="1">Insert template…</button>
           <div class="menu-divider"></div>
           <div class="menu-submenu-wrap" id="toolsSubmenuWrap">
-            <button class="menu-item" id="toolsMenuItem">Tools <span class="menu-item-arrow">▶</span></button>
+            <button class="menu-item" id="toolsMenuItem" data-keepfocus="1">Tools <span class="menu-item-arrow">▶</span></button>
             <div class="menu-submenu" id="toolsSubmenu">
               <div class="submenu-sel-preview" id="toolsSelPreview">No selection</div>
-              <button class="submenu-item action-btn" data-action="transposeUp">Octave up</button>
-              <button class="submenu-item action-btn" data-action="transposeDown">Octave down</button>
-              <button class="submenu-item action-btn" data-action="doubleLength">Double lengths</button>
-              <button class="submenu-item action-btn" data-action="halveLength">Halve lengths</button>
-              <button class="submenu-item action-btn" data-action="removeText">Remove text</button>
-              <button class="submenu-item action-btn" data-action="removeAccidentals">Remove accidentals</button>
-              <button class="submenu-item action-btn" data-action="respellEnharmonic">Respell enharmonic</button>
+              <button class="submenu-item action-btn" data-action="transposeUp" data-keepfocus="1">Octave up</button>
+              <button class="submenu-item action-btn" data-action="transposeDown" data-keepfocus="1">Octave down</button>
+              <button class="submenu-item action-btn" data-action="doubleLength" data-keepfocus="1">Double lengths</button>
+              <button class="submenu-item action-btn" data-action="halveLength" data-keepfocus="1">Halve lengths</button>
+              <button class="submenu-item action-btn" data-action="removeText" data-keepfocus="1">Remove text</button>
+              <button class="submenu-item action-btn" data-action="removeAccidentals" data-keepfocus="1">Remove accidentals</button>
+              <button class="submenu-item action-btn" data-action="respellEnharmonic" data-keepfocus="1">Respell enharmonic</button>
+              <button class="submenu-item action-btn" data-action="wrapRepeats" data-keepfocus="1">Wrap in repeats</button>
             </div>
           </div>
           <div class="menu-divider"></div>
@@ -1568,6 +1569,10 @@
     submenu.classList.contains('open') ? closeToolsSubmenu() : openToolsSubmenu();
   }, { passive: false });
 
+  // Hover to open/close submenu on desktop
+  document.getElementById('toolsSubmenuWrap').addEventListener('mouseenter', () => openToolsSubmenu());
+  document.getElementById('toolsSubmenuWrap').addEventListener('mouseleave', () => closeToolsSubmenu());
+
   // Close menu on outside click/tap
   document.addEventListener('mousedown', e => {
     if (!e.target.closest('.menu-wrap')) closeMenu();
@@ -1764,16 +1769,25 @@
     schedulePreview();
   }
 
+  // Apply a transform only to the parts of `sel` outside quoted strings "..."
+  // Splits into quoted/unquoted segments, applies fn only to unquoted ones.
+  function transformSkippingQuotes(sel, fn) {
+    return sel.replace(/"[^"]*"|[^"]*/g, token => {
+      if (token.startsWith('"')) return token;
+      return fn(token);
+    });
+  }
+
   function transposeUp() {
     closeMenu();
-    transformSelection(sel => sel.replace(NOTE_RE, (_, acc, letter, octs) =>
-      transposeNoteUp(acc, letter, octs)));
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteUp(acc, letter, octs))));
   }
 
   function transposeDown() {
     closeMenu();
-    transformSelection(sel => sel.replace(NOTE_RE, (_, acc, letter, octs) =>
-      transposeNoteDown(acc, letter, octs)));
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteDown(acc, letter, octs))));
   }
 
   // Note length token: optional multiplier digit(s) OR slash notation
@@ -1827,12 +1841,12 @@
 
   function doubleLength() {
     closeMenu();
-    transformSelection(sel => scaleLengths(sel, true));
+    transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, true)));
   }
 
   function halveLength() {
     closeMenu();
-    transformSelection(sel => scaleLengths(sel, false));
+    transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, false)));
   }
 
   function removeText() {
@@ -1924,10 +1938,28 @@
     return newAcc + newLetter + newOcts;
   }
 
+  function wrapRepeats() {
+    closeMenu();
+    const s = savedStart, e = savedEnd;
+    if (s === e) return;
+    pushUndo();
+    const before = ta.value.slice(0, s);
+    const sel    = ta.value.slice(s, e);
+    const after  = ta.value.slice(e);
+    const open = '|:', close = ':|';
+    ta.value = before + open + sel + close + after;
+    savedStart = s + open.length;
+    savedEnd   = s + open.length + sel.length;
+    if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    updateClearBtn();
+    schedulePreview();
+    syncDisplayIfUnfocused();
+  }
   function respellEnharmonic() {
     closeMenu();
-    transformSelection(sel => sel.replace(/([_^]?)([a-gA-G])([',]*)/g, (_, acc, letter, octs) =>
-      respellEnharmonicNote(acc, letter, octs)));
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(/([_^]?)([a-gA-G])([',]*)/g, (_, acc, letter, octs) =>
+        respellEnharmonicNote(acc, letter, octs))));
   }
 
   // --- Chord popup ---
@@ -2002,7 +2034,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
 
   const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
 
