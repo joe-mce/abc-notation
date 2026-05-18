@@ -340,8 +340,8 @@
   }
   .btn-copy { background: var(--accent); color: #111; }
   .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-  .btn-templates { background: transparent; color: var(--accent2); border: 1px solid #2a5a4a; }
-  .btn-templates.active { background: #0a2a1f; border-color: var(--accent2); }
+  .btn-templates { background: transparent; color: var(--text); border: 1px solid var(--border); font-size: 1.1rem; padding: 4px 9px; }
+  .btn-templates.active { background: var(--surface2); border-color: var(--text-dim); }
 
   .arrow-btns { display: flex; gap: 3px; }
   .btn-arrow {
@@ -374,22 +374,40 @@
   .btn-chord {
     background: transparent;
     color: var(--text);
-    border: 1px solid var(--btn-border);
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 600;
-    font-size: 0.72rem;
+    border: none;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 700;
+    font-size: 1rem;
     letter-spacing: 0;
+    padding: 4px 8px;
+    line-height: 1;
+  }
+  .btn-chord sup {
+    font-size: 0.6em;
+    font-style: normal;
+    vertical-align: super;
+    font-weight: 600;
   }
   .btn-addtext {
     background: transparent;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
+    color: var(--text);
+    border: none;
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1rem;
     font-weight: 700;
-    font-style: italic;
-    padding: 3px 10px;
+    padding: 4px 8px;
+    line-height: 1;
   }
+  .btn-addtext .t-arrow {
+    font-style: normal;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.52em;
+    font-weight: 400;
+    position: relative;
+    margin-left: 1px;
+    color: var(--text);
+  }
+  .btn-addtext .t-arrow-up   { top: -0.2em; }
 
   /* Insert popups */
   .insert-overlay {
@@ -896,9 +914,9 @@
           <button class="menu-item danger action-btn" data-action="resetStep1">Reset…</button>
         </div>
       </div>
-      <button class="action-btn btn-chord" data-action="openChordPopup" data-keepfocus="1">G7</button>
-      <button class="action-btn btn-addtext" data-action="openTextPopupAbove" data-keepfocus="1" title="Text above staff">T↑</button>
-      <button class="action-btn btn-addtext" data-action="openTextPopupBelow" data-keepfocus="1" title="Text below staff">T↓</button>
+      <button class="action-btn btn-chord" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
+      <button class="action-btn btn-addtext" data-action="openTextPopupAbove" data-keepfocus="1" title="Text above staff">T<span class="t-arrow t-arrow-up">▲</span></button>
+      <button class="action-btn btn-addtext" data-action="openTextPopupBelow" data-keepfocus="1" title="Text below staff">T<span class="t-arrow t-arrow-down">▼</span></button>
     </div>
     <div class="footer-right">
       <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled>
