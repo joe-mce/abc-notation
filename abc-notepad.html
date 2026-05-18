@@ -1265,7 +1265,7 @@
       const tokStart = charCount;
       const tokEnd   = charCount + len;
 
-      if (!cursorInserted && cursorPos >= tokStart && cursorPos <= tokEnd) {
+      if (!cursorInserted && cursorPos >= tokStart && cursorPos < tokEnd) {
         const split = cursorPos - tokStart;
         if (split === 0) {
           const firstChar = tok.text[0] || '';
