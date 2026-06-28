@@ -2019,6 +2019,7 @@
     savedStart = s;
     savedEnd   = s + result.length;
     if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
     updateClearBtn();
     schedulePreview();
   }
