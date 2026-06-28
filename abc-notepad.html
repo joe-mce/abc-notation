@@ -971,6 +971,7 @@
               <button class="submenu-item action-btn" data-action="wrapRepeats" data-keepfocus="1">Wrap in repeats</button>
               <button class="submenu-item action-btn" data-action="markNotes" data-keepfocus="1">Mark notes</button>
               <button class="submenu-item action-btn" data-action="addTriplets" data-keepfocus="1">Add triplets</button>
+              <button class="submenu-item action-btn" data-action="removeRedundantAccidentals" data-keepfocus="1">Remove redundant accidentals</button>
             </div>
           </div>
           <div class="menu-divider"></div>
@@ -2124,70 +2125,59 @@
   }
 
   // Enharmonic respelling.
-  // Strategy: convert to chromatic pitch number, find the enharmonic spelling, convert back.
-  // ABC octave: uppercase = middle octave (C=60), lowercase = one up, ' adds one, , subtracts one.
-  // Chromatic values within octave (C=0): C=0,D=2,E=4,F=5,G=7,A=9,B=11
-  const CHROMA = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
-  const FROM_CHROMA_SHARP = {0:'C',1:'^C',2:'D',3:'^D',4:'E',5:'F',6:'^F',7:'G',8:'^G',9:'A',10:'^A',11:'B'};
-  const FROM_CHROMA_FLAT  = {0:'C',1:'_D',2:'D',3:'_E',4:'E',5:'F',6:'_G',7:'G',8:'_A',9:'A',10:'_B',11:'B'};
+  // For a sharp note (^): step the note name one up; use flat (_) unless the new name
+  //   is F or C (already a semitone above E/B), in which case use natural (=).
+  // For a flat note (_): step the note name one down; use sharp (^) unless the new name
+  //   is E or B (already a semitone below F/C), in which case use natural (=).
+  // Unaccidentalled notes and naturals (=) are left unchanged.
+  // Octave boundary: stepping up from B enters the next octave (B→c, b→c'…).
+  //                  stepping down from C drops one (C→B,, c→B…).
 
-  function noteToAbcOctaveLevel(letter, octs) {
-    // uppercase = level 0, lowercase = level 1, each ' adds 1, each , subtracts 1
-    const base = letter === letter.toUpperCase() ? 0 : 1;
+  const NOTE_NAMES = ['C','D','E','F','G','A','B'];
+
+  // Compute integer octave level: 0 = uppercase no markers, 1 = lowercase, etc.
+  function noteLevel(letter, octs) {
+    const base   = letter === letter.toUpperCase() ? 0 : 1;
     const ticks  = (octs.match(/'/g) || []).length;
     const commas = (octs.match(/,/g) || []).length;
     return base + ticks - commas;
   }
 
-  function abcOctaveLevelToOcts(level, useUppercase) {
-    // uppercase base level = 0, lowercase base level = 1
-    const base = useUppercase ? 0 : 1;
-    const offset = level - base;
-    if (offset > 0) return "'".repeat(offset);
-    if (offset < 0) return ','.repeat(-offset);
-    return '';
+  // Convert note-name index (0–6) + level back to ABC letter + octave markers.
+  function levelToAbc(nameIdx, level) {
+    const upper = NOTE_NAMES[nameIdx];
+    if (level < 1) {
+      return { letter: upper, octs: ','.repeat(-level) };
+    } else {
+      return { letter: upper.toLowerCase(), octs: "'".repeat(level - 1) };
+    }
   }
 
   function respellEnharmonicNote(acc, letter, octs) {
-    const upperLetter = letter.toUpperCase();
-    const baseChroma = CHROMA[upperLetter];
-    const accShift = acc === '^' ? 1 : acc === '_' ? -1 : 0;
-    const chroma = ((baseChroma + accShift) % 12 + 12) % 12;
-    const level = noteToAbcOctaveLevel(letter, octs);
+    if (acc !== '^' && acc !== '_') return acc + letter + octs;
 
-    // Current spelling uses sharp or flat (or natural — nothing to respell)
-    if (acc === '' || acc === '=') return acc + letter + octs;
+    const nameIdx = NOTE_NAMES.indexOf(letter.toUpperCase());
+    const level   = noteLevel(letter, octs);
 
-    // Pick the opposite spelling
-    const newSpelling = acc === '^' ? FROM_CHROMA_FLAT[chroma] : FROM_CHROMA_SHARP[chroma];
-    if (!newSpelling || newSpelling === acc + upperLetter) return acc + letter + octs; // no change (e.g. natural notes)
-
-    // Parse new spelling
-    const newAcc    = newSpelling.length === 2 ? newSpelling[0] : '';
-    const newUpper  = newSpelling.length === 2 ? newSpelling[1] : newSpelling[0];
-    const newChroma = CHROMA[newUpper];
-
-    // Determine if the chroma crossed a C boundary (i.e. octave shift needed)
-    // e.g. ^B (chroma 0, which is C) respelled as _c: the new note C is "above" B in the scale
-    // We need the new note to represent the same absolute pitch.
-    // Absolute pitch = level * 12 + baseChroma + accShift
-    // New absolute pitch should be the same.
-    // new level = (absolutePitch - newChroma) / 12
-    const absolutePitch = level * 12 + baseChroma + accShift;
-    // Find the level that puts newChroma closest to absolutePitch
-    let newLevel = Math.round((absolutePitch - newChroma) / 12);
-    // Verify: newLevel * 12 + newChroma should === absolutePitch
-    // (it will be, since chroma values match mod 12)
-
-    // Convert new level back to ABC octave markers
-    const newUpperBool = newLevel <= 0; // level 0 and below = uppercase
-    // Actually: uppercase = level 0, lowercase = level 1+, but commas push uppercase down
-    // Simpler: if newLevel < 1 use uppercase, else lowercase
-    const useUppercase = newLevel < 1;
-    const newLetter = useUppercase ? newUpper : newUpper.toLowerCase();
-    const newOcts = abcOctaveLevelToOcts(newLevel, useUppercase);
-
-    return newAcc + newLetter + newOcts;
+    if (acc === '^') {
+      // Step note name one up; B→C crosses into the next octave
+      const newIdx   = (nameIdx + 1) % 7;
+      const newLevel = newIdx === 0 ? level + 1 : level;
+      const newUpper = NOTE_NAMES[newIdx];
+      // F and C are naturally a semitone above E and B — no accidental needed
+      const newAcc   = (newUpper === 'F' || newUpper === 'C') ? '=' : '_';
+      const { letter: nl, octs: no } = levelToAbc(newIdx, newLevel);
+      return newAcc + nl + no;
+    } else {
+      // Step note name one down; C→B drops an octave
+      const newIdx   = (nameIdx + 6) % 7;
+      const newLevel = newIdx === 6 ? level - 1 : level;
+      const newUpper = NOTE_NAMES[newIdx];
+      // E and B are naturally a semitone below F and C — no accidental needed
+      const newAcc   = (newUpper === 'E' || newUpper === 'B') ? '=' : '^';
+      const { letter: nl, octs: no } = levelToAbc(newIdx, newLevel);
+      return newAcc + nl + no;
+    }
   }
 
   function wrapRepeats() {
@@ -2391,6 +2381,180 @@
 
   function respellEnharmonic() {
     closeMenu();
+    // NOTE_RE captures (accidentals)(letter)(octave markers) — duration is untouched.
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (match, acc, letter, octs) =>
+        respellEnharmonicNote(acc, letter, octs)
+      )
+    ));
+  }
+
+  // --- Remove redundant accidentals ---
+  //
+  // An accidental is redundant if, looking back through the same bar, the most recent
+  // prior occurrence of the same note+octave that ITSELF carried an explicit accidental
+  // had the same accidental as the current one.
+  //
+  // Special case for natural (=): also redundant if there is NO prior accidentalled
+  // occurrence at all in the bar (the natural is not cancelling anything) — UNLESS the
+  // piece has a non-trivial key signature, in which case the natural might be cancelling
+  // a key-sig accidental and we leave it alone.
+  //
+  // We detect the key by scanning backwards from the selection for the last K: field.
+  // If the key is C / Am / none (zero sharps/flats), or no K: is found, naturals with
+  // no prior accidentalled note in the bar are considered redundant.
+
+  function keyHasAccidentals() {
+    // Returns true if the current key signature implies any sharps or flats.
+    // Scan backwards in the full textarea from savedStart for the last K: field.
+    const text = ta.value.slice(0, savedStart);
+
+    // Match both header lines (^K:...) and inline fields ([K:...])
+    const KEY_RE = /(?:^|\[)K:([^\]\n]*)/gm;
+    let lastKey = null;
+    let m;
+    KEY_RE.lastIndex = 0;
+    const matches = [...text.matchAll(/(?:^|\[)K:([^\]\n]*)/gm)];
+    if (matches.length === 0) return false; // no key found → assume C, naturals may be redundant
+    lastKey = matches[matches.length - 1][1].trim().toLowerCase();
+
+    // Keys with zero accidentals: C major and its relative/parallel minors declared as such
+    const ZERO_ACC = new Set(['c', 'am', 'cmaj', 'aminor', 'amin', 'none', 'c major', 'a minor', 'a min']);
+    return !ZERO_ACC.has(lastKey);
+  }
+
+  // Barline pattern — same variants as used in addTriplets
+  const BARLINE_RE_SRC = '(?:::?\\|::|::\\|:|:\\|\\|:|:\\|\\||\\|\\|:|::\\|\\||::\\|:|:\\||:\\]|\\[\\|\\||\\|\\||\\[\\||\\|\\]|\\||:\\|)';
+
+  function processBarForRedundantAccidentals(bar) {
+    // Scan the bar for all note occurrences, tracking positions.
+    // We skip content inside quoted strings (chord symbols "...").
+    // NOTE_RE: /([_^=]*)([a-gA-G])([',]*)/g
+
+    // Build list of all note hits with their positions in `bar`
+    const hits = []; // {index, accLen, acc, letter, octs, noteKey}
+
+    // We need to skip quoted strings. Build a set of ranges to ignore.
+    const quotedRanges = [];
+    const QUOTE_RE = /"[^"]*"/g;
+    let qm;
+    while ((qm = QUOTE_RE.exec(bar)) !== null) {
+      quotedRanges.push([qm.index, qm.index + qm[0].length]);
+    }
+    function inQuoted(idx) {
+      return quotedRanges.some(([a, b]) => idx >= a && idx < b);
+    }
+
+    const SCAN = /([_^=]*)([a-gA-G])([',]*)/g;
+    let sm;
+    while ((sm = SCAN.exec(bar)) !== null) {
+      if (inQuoted(sm.index)) continue;
+      const [, acc, letter, octs] = sm;
+      hits.push({
+        index:   sm.index,
+        accLen:  acc.length,
+        acc,
+        letter,
+        octs,
+        noteKey: letter + octs,  // includes case and octave markers
+      });
+    }
+
+    // Forward pass: for each hit, record the "last accidentalled state" for its noteKey
+    // at the time we reach it (i.e. from all prior hits in the bar).
+    // We also note whether any prior accidentalled occurrence exists at all for that key.
+    const stateMap = new Map(); // noteKey → acc string of most recent accidentalled occurrence
+
+    // We'll annotate each hit with {prevAcc, hasPrevAcc} then decide removals.
+    const annotated = hits.map(hit => {
+      const prevAcc    = stateMap.get(hit.noteKey); // undefined if none seen yet
+      const hasPrevAcc = prevAcc !== undefined;
+      // Update state if this hit has an accidental
+      if (hit.acc !== '') stateMap.set(hit.noteKey, hit.acc);
+      return { ...hit, prevAcc, hasPrevAcc };
+    });
+
+    // Determine which hits are redundant (working backwards so we can splice safely)
+    const toRemove = []; // indices into `bar` where we should remove the accidental prefix
+    const noKeyAcc = !keyHasAccidentals();
+
+    for (const h of annotated) {
+      if (h.acc === '') continue; // no accidental, nothing to do
+
+      let redundant = false;
+      if (h.acc === '=' ) {
+        // Natural: redundant if previous accidentalled occurrence was also '=',
+        // OR (if key has no accidentals) there was no prior accidentalled occurrence at all.
+        if (h.hasPrevAcc && h.prevAcc === '=') redundant = true;
+        else if (!h.hasPrevAcc && noKeyAcc)    redundant = true;
+      } else {
+        // Sharp or flat: redundant only if previous accidentalled occurrence was identical.
+        if (h.hasPrevAcc && h.prevAcc === h.acc) redundant = true;
+      }
+
+      if (redundant) toRemove.push({ index: h.index, accLen: h.accLen });
+    }
+
+    // Apply removals right-to-left so earlier positions aren't disturbed
+    toRemove.sort((a, b) => b.index - a.index);
+    let result = bar;
+    for (const { index, accLen } of toRemove) {
+      result = result.slice(0, index) + result.slice(index + accLen);
+    }
+    return result;
+  }
+
+  function removeRedundantAccidentals() {
+    closeMenu();
+    const BARLINE_RE = new RegExp(BARLINE_RE_SRC, 'g');
+
+    transformSelection(sel => {
+      // Split selection into bars (preserving barline tokens) and process each bar segment.
+      // We also skip header/field lines (e.g. "T:title\n") by passing them through.
+      const FIELD_LINE_RE = /^[A-Za-z]:[^\n]*\n?/gm;
+
+      // Build a list of segments: {type:'field'|'barline'|'music', text, start, end}
+      // Strategy: find all barlines and field lines, everything else is music content.
+      const splits = []; // {pos, len, type, text}
+
+      // Find field lines
+      let fm;
+      FIELD_LINE_RE.lastIndex = 0;
+      while ((fm = FIELD_LINE_RE.exec(sel)) !== null) {
+        splits.push({ pos: fm.index, len: fm[0].length, type: 'field', text: fm[0] });
+      }
+
+      // Find barlines
+      BARLINE_RE.lastIndex = 0;
+      let bm;
+      while ((bm = BARLINE_RE.exec(sel)) !== null) {
+        // Make sure this barline isn't inside a field line
+        const inField = splits.some(s => s.type === 'field' && bm.index >= s.pos && bm.index < s.pos + s.len);
+        if (!inField) {
+          splits.push({ pos: bm.index, len: bm[0].length, type: 'barline', text: bm[0] });
+        }
+      }
+
+      // Sort by position
+      splits.sort((a, b) => a.pos - b.pos);
+
+      // Walk through `sel`, collecting music segments between the splits
+      let result = '';
+      let cursor = 0;
+      for (const sp of splits) {
+        if (sp.pos > cursor) {
+          // Music content before this split — process it as a bar segment
+          result += processBarForRedundantAccidentals(sel.slice(cursor, sp.pos));
+        }
+        result += sp.text;
+        cursor = sp.pos + sp.len;
+      }
+      // Trailing music segment after last split
+      if (cursor < sel.length) {
+        result += processBarForRedundantAccidentals(sel.slice(cursor));
+      }
+      return result;
+    });
   }
 
   // --- Chord popup ---
@@ -2465,7 +2629,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
 
   const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
 
