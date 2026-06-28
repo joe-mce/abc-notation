@@ -953,7 +953,7 @@
   <div class="editor-footer">
     <div class="footer-left">
       <div class="menu-wrap">
-        <button class="action-btn btn-templates" id="menuBtn" data-action="toggleMenu" data-keepfocus="1">&#9776;</button>
+        <button class="action-btn btn-templates" id="menuBtn" data-action="toggleMenu">&#9776;</button>
         <div class="menu-dropdown" id="menuDropdown">
           <button class="menu-item action-btn" data-action="openTmplOverlay" data-keepfocus="1">Insert template…</button>
           <div class="menu-divider"></div>
@@ -1785,6 +1785,7 @@
   // --- Context menu ---
   function toggleMenu() {
     document.getElementById('menuDropdown').classList.toggle('open');
+    if (taFocused) ta.blur();
   }
   function closeMenu() {
     document.getElementById('menuDropdown').classList.remove('open');
