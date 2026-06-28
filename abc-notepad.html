@@ -970,6 +970,7 @@
               <button class="submenu-item action-btn" data-action="respellEnharmonic" data-keepfocus="1">Respell enharmonic</button>
               <button class="submenu-item action-btn" data-action="wrapRepeats" data-keepfocus="1">Wrap in repeats</button>
               <button class="submenu-item action-btn" data-action="markNotes" data-keepfocus="1">Mark notes</button>
+              <button class="submenu-item action-btn" data-action="addTriplets" data-keepfocus="1">Add triplets</button>
             </div>
           </div>
           <div class="menu-divider"></div>
@@ -2211,6 +2212,183 @@
     transformSelection(sel => transformSkippingQuotes(sel, ch =>
       ch.replace(NOTE_RE, (match, acc, letter, octs) => '!mark!' + acc + letter + octs)));
   }
+  // --- Add triplets tool ---
+  // Parse an ABC duration string into a rational number as {num, den}.
+  // A bare note (no duration token) has duration 1 (passed as undefined/empty).
+  // Rules:
+  //   undefined / ''  → 1/1
+  //   '/'             → 1/2
+  //   '/N'            → 1/N
+  //   'N'             → N/1
+  //   'N/'            → N/2
+  //   'N/M'           → N/M
+  function parseDuration(tok) {
+    if (!tok) return { num: 1, den: 1 };
+    if (tok === '/') return { num: 1, den: 2 };
+    if (tok.startsWith('/')) return { num: 1, den: parseInt(tok.slice(1), 10) };
+    const slashIdx = tok.indexOf('/');
+    if (slashIdx === -1) return { num: parseInt(tok, 10), den: 1 };
+    const num = parseInt(tok.slice(0, slashIdx), 10);
+    const denStr = tok.slice(slashIdx + 1);
+    const den = denStr === '' ? 2 : parseInt(denStr, 10);
+    return { num, den };
+  }
+
+  // Check if a value (num/den) equals 3 * 2^n for some integer n.
+  // Equivalently: (num/den) / 3 = 2^n, i.e. num == 3 * den * 2^k for some integer k,
+  // or after simplification num/den in lowest terms has num = 3 * 2^a, den = 2^b.
+  function isTripletDuration(num, den) {
+    // Simplify num/den
+    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+    const g = gcd(num, den);
+    let n = num / g, d = den / g;
+    // d must be a power of 2
+    while (d % 2 === 0) d /= 2;
+    if (d !== 1) return false;
+    // n must equal 3 * 2^a
+    if (n % 3 !== 0) return false;
+    let m = n / 3;
+    while (m % 2 === 0) m /= 2;
+    return m === 1;
+  }
+
+  // Split a selection into groups separated by spaces and/or barlines.
+  // Each group is a contiguous run of note/rest tokens (no spaces or barlines).
+  // Returns an array of {text: string, start: number, end: number} chunks,
+  // where text is the group content (or separator content for spaces/barlines).
+  // We process in two passes: first tokenise into notes/rests vs separators.
+  function addTriplets() {
+    closeMenu();
+    const s = savedStart, e = savedEnd;
+    if (s === e) return;
+    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+    const val = ta.value;
+    const sel = val.slice(s, e);
+
+    // Regex to tokenise ABC selection into meaningful chunks.
+    // We identify: barlines, spaces/newlines (separators), and note/rest tokens.
+    // A note/rest token: optional decorations, optional chord, optional accidentals,
+    //   note letter or rest letter, optional octave markers, optional duration, optional tie.
+    // For triplet purposes we mainly need: the note/rest letter + duration suffix.
+    // We use a simpler scan: split on spaces and barlines to get groups,
+    // then within each group find note/rest tokens.
+
+    const BARLINE_RE = /(?::\|::|::\|:|:\|\|:|:\|\||\|\|:|\|\||::\||::\||\[\|\||:\||:\]|\|\]|\[?\||\|:|::])/;
+
+    // Tokenise the selection into segments: 'sep' (spaces/newlines/barlines) or 'content' (other)
+    // We'll split by spaces, newlines, and barlines.
+    // Strategy: walk through and collect runs.
+    const SEP_RE = new RegExp(
+      '(' +
+      BARLINE_RE.source +
+      '|[ \\t\\n]+' +
+      ')', 'g'
+    );
+
+    // Build list of segments: {type:'sep'|'content', text, pos}
+    const segments = [];
+    let lastIdx = 0;
+    let m;
+    SEP_RE.lastIndex = 0;
+    while ((m = SEP_RE.exec(sel)) !== null) {
+      if (m.index > lastIdx) {
+        segments.push({ type: 'content', text: sel.slice(lastIdx, m.index), pos: lastIdx });
+      }
+      segments.push({ type: 'sep', text: m[0], pos: m.index });
+      lastIdx = m.index + m[0].length;
+    }
+    if (lastIdx < sel.length) {
+      segments.push({ type: 'content', text: sel.slice(lastIdx), pos: lastIdx });
+    }
+
+    // For each content segment, decide if it should get a triplet prefix.
+    // We need to reconstruct the result with possibly inserted prefixes.
+    let result = '';
+    for (const seg of segments) {
+      if (seg.type === 'sep') {
+        result += seg.text;
+        continue;
+      }
+
+      // Content group: find all note/rest tokens and their durations.
+      // Skip decorations, chord symbols, inline fields when counting.
+      const group = seg.text;
+
+      // Find note/rest tokens
+      // Each match is a note/rest possibly with duration
+      const SCAN_RE = new RegExp(
+        '"[^"]*"'               + '|' +  // chord symbol — skip
+        '![^!\\n]+!'            + '|' +  // decoration — skip
+        '\\[[A-Za-z]:[^\\]]*\\]' + '|' + // inline field — skip
+        "(?:[_^=]*)(?:[a-gA-G])[,\']*(?:\\d+\\/\\d+|\\d+\\/|\\/\\d+|\\/|\\d+)?-?" + '|' + // note
+        '[zxZ](?:\\d+\\/\\d+|\\d+\\/|\\/\\d+|\\/|\\d+)?-?',  // rest
+        'g'
+      );
+
+      const noteRests = [];
+      let sm;
+      SCAN_RE.lastIndex = 0;
+      while ((sm = SCAN_RE.exec(group)) !== null) {
+        const token = sm[0];
+        // Skip chord symbols, decorations, inline fields
+        if (token.startsWith('"') || token.startsWith('!') || token.startsWith('[')) continue;
+        // Extract duration suffix
+        // Strip leading accidentals and note letter+octave, or rest letter
+        const durMatch = token.match(/^(?:[_^=]*[a-gA-G][',]*|[zxZ])((?:\d+\/\d+|\d+\/|\/\d+|\/|\d+)?)-?$/);
+        if (durMatch) {
+          noteRests.push({ durTok: durMatch[1] });
+        }
+      }
+
+      const count = noteRests.length;
+
+      // Skip if fewer than 2 or more than 3
+      if (count < 2 || count > 3) {
+        result += group;
+        continue;
+      }
+
+      // Sum durations
+      let totalNum = 0, totalDen = 1;
+      for (const nr of noteRests) {
+        const d = parseDuration(nr.durTok);
+        // Add d.num/d.den to totalNum/totalDen
+        totalNum = totalNum * d.den + d.num * totalDen;
+        totalDen = totalDen * d.den;
+        // Simplify
+        const g = gcd(Math.abs(totalNum), totalDen);
+        totalNum /= g; totalDen /= g;
+      }
+
+      // Check if total is a valid triplet duration
+      if (!isTripletDuration(totalNum, totalDen)) {
+        result += group;
+        continue;
+      }
+
+      // Add prefix
+      if (count === 3) {
+        result += '(3' + group;
+      } else {
+        // count === 2
+        result += '(3::2' + group;
+      }
+    }
+
+    // Apply the result
+    pushUndo();
+    const before = val.slice(0, s);
+    const after  = val.slice(e);
+    ta.value   = before + result + after;
+    savedStart = s;
+    savedEnd   = s + result.length;
+    if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
+    updateClearBtn();
+    schedulePreview();
+  }
+
   function respellEnharmonic() {
     closeMenu();
   }
@@ -2287,7 +2465,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
 
   const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
 
