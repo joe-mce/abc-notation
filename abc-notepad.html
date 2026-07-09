@@ -816,6 +816,20 @@
   }
   .row-small .key { height: 36px; font-size: clamp(0.7rem, 2.6vw, 0.9rem); color: var(--text-dim); }
 
+  /* Note-duration icon keys */
+  .key-duration { color: var(--text-dim); }
+  .key-duration svg.dur-icon { width: 20px; height: 26px; display: block; margin: 0 auto; overflow: visible; }
+  svg.dur-icon * { vector-effect: non-scaling-stroke; }
+
+  /* Note-duration icon shown inside the gesture badge */
+  #gesture-badge svg.dur-icon {
+    width: 30px;
+    height: 40px;
+    display: inline-block;
+    vertical-align: middle;
+    overflow: visible;
+  }
+
   /* Gesture system — note key press/release animation */
   @keyframes keyshrink {
     0%   { transform: scale(1.18); }
@@ -860,6 +874,10 @@
     pointer-events: none;
   }
   #gesture-wheel.visible { display: block; }
+  /* Duration-dot gesture only ever swipes right, so hide the other three chevrons entirely */
+  #gesture-wheel.duration-mode #chev-up-g,
+  #gesture-wheel.duration-mode #chev-down-g,
+  #gesture-wheel.duration-mode #chev-left-g { display: none; }
 
   .chev-path {
     fill: none;
@@ -1067,18 +1085,13 @@
   <button class="key key-z" data-insert="z">z</button>
 </div>
 
-<!-- Row 3: 0-9 -->
-<div class="key-row row-small" id="row-numbers">
-  <button class="key" data-insert="0">0</button>
-  <button class="key" data-insert="1">1</button>
-  <button class="key" data-insert="2">2</button>
-  <button class="key" data-insert="3">3</button>
-  <button class="key" data-insert="4">4</button>
-  <button class="key" data-insert="5">5</button>
-  <button class="key" data-insert="6">6</button>
-  <button class="key" data-insert="7">7</button>
-  <button class="key" data-insert="8">8</button>
-  <button class="key" data-insert="9">9</button>
+<!-- Row 3: note-duration icons (semiquaver, quaver, crotchet, minim, semibreve) -->
+<div class="key-row row-small row-notes-pad" id="row-numbers">
+  <button class="key key-duration" data-dur="1/16" title="Semiquaver"></button>
+  <button class="key key-duration" data-dur="1/8"  title="Quaver"></button>
+  <button class="key key-duration" data-dur="1/4"  title="Crotchet"></button>
+  <button class="key key-duration" data-dur="1/2"  title="Minim"></button>
+  <button class="key key-duration" data-dur="1"    title="Semibreve"></button>
 </div>
 
 <!-- Row 4: ← → / - SPACE | ↵ -->
@@ -1730,6 +1743,68 @@
     }
   }
 
+  // ---- Note-duration buttons: fraction helpers ----
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { [a, b] = [b, a % b]; } return a || 1; }
+  function reduceFrac(f) {
+    const g = gcd(f[0], f[1]);
+    return [f[0] / g, f[1] / g];
+  }
+  function mulFrac(a, b) { return reduceFrac([a[0] * b[0], a[1] * b[1]]); }
+  function parseFrac(str) {
+    const m = /^(\d+)(?:\/(\d+))?$/.exec(str.trim());
+    if (!m) return [1, 8];
+    return [parseInt(m[1], 10), m[2] ? parseInt(m[2], 10) : 1];
+  }
+
+  // Find the last "L:<num>[/<den>]" before the cursor; default to 1/8
+  function getCurrentLValue() {
+    const textBefore = ta.value.slice(0, savedStart);
+    const re = /L:\s*(\d+)(?:\/(\d+))?/g;
+    let match, last = null;
+    while ((match = re.exec(textBefore)) !== null) last = match;
+    if (!last) return [1, 8];
+    return [parseInt(last[1], 10), last[2] ? parseInt(last[2], 10) : 1];
+  }
+
+  // duration and L are both [num, den] fractions. Returns the ABC text to insert.
+  function formatDurationInsert(durFrac, LFrac) {
+    const ratio = reduceFrac([durFrac[0] * LFrac[1], durFrac[1] * LFrac[0]]);
+    const [n, d] = ratio;
+    if (d === 1) return String(n);
+    if (n === 1) return d === 2 ? '/' : '/' + d;
+    return n + '/' + d;
+  }
+
+  // ---- Note-duration button icons ----
+  function noteheadSVG(filled, tilted) {
+    const rot = tilted ? ' transform="rotate(-20 14 46)"' : '';
+    return filled
+      ? `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="currentColor"/>`
+      : `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="none" stroke="currentColor" stroke-width="4"/>`;
+  }
+  const DUR_STEM  = `<line x1="22.5" y1="8" x2="22.5" y2="42" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_FLAG1 = `<path d="M22.5,8 C33,12 33,24 23,30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_FLAG2 = `<path d="M22.5,16 C33,20 33,32 23,38" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_DOT   = `<circle cx="32" cy="44" r="2.6" fill="currentColor"/>`;
+
+  function durationIconSVG(dur, dotted) {
+    let inner;
+    switch (dur) {
+      case '1':    inner = noteheadSVG(false, false); break;                      // semibreve
+      case '1/2':  inner = noteheadSVG(false, true) + DUR_STEM; break;             // minim
+      case '1/4':  inner = noteheadSVG(true, true) + DUR_STEM; break;              // crotchet
+      case '1/8':  inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1; break;  // quaver
+      case '1/16': inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1 + DUR_FLAG2; break; // semiquaver
+      default:     inner = '';
+    }
+    if (dotted) inner += DUR_DOT;
+    return `<svg viewBox="0 0 46 60" width="46" height="60" class="dur-icon" aria-hidden="true">${inner}</svg>`;
+  }
+
+  document.querySelectorAll('.key-duration').forEach(btn => {
+    btn.innerHTML = durationIconSVG(btn.dataset.dur, false);
+  });
+
   function bksp() {
     pushUndo();
     const wasActive = taFocused;
@@ -2023,8 +2098,6 @@
     updateClearBtn();
     schedulePreview();
   }
-
-  // Apply a transform only to the parts of `sel` outside quoted strings "..."
   // Splits into quoted/unquoted segments, applies fn only to unquoted ones.
   function transformSkippingQuotes(sel, fn) {
     return sel.replace(/"[^"]*"|[^"]*/g, token => {
@@ -2834,11 +2907,111 @@
     gesture = null;
   }
 
+  // ---- Note-duration buttons: swipe-right-for-dot gesture ----
+  function isDurationKey(btn) {
+    return btn && btn.dataset.dur !== undefined;
+  }
+
+  function updateDurationBadge(dur, dotted, x, y) {
+    badge.innerHTML = durationIconSVG(dur, dotted);
+    badge.style.left = x + 'px';
+    badge.style.top  = y + 'px';
+  }
+
+  let durGesture = null;
+
+  function startDurGesture(btn, startX, startY) {
+    pushUndo();
+    const dur       = btn.dataset.dur;
+    const L         = getCurrentLValue();
+    const insertPos = savedStart;
+    const insertEnd = savedEnd;
+    const text      = formatDurationInsert(parseFrac(dur), L);
+
+    ta.value   = ta.value.slice(0, insertPos) + text + ta.value.slice(insertEnd);
+    savedStart = insertPos + text.length;
+    savedEnd   = savedStart;
+    if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+    else syncDisplayIfUnfocused();
+    updateClearBtn();
+    schedulePreview();
+
+    btn.classList.add('pressed');
+
+    const rect  = btn.getBoundingClientRect();
+    const btnCX = rect.left + rect.width  / 2;
+    const btnCY = rect.top  + rect.height / 2;
+
+    const wheelTimer = setTimeout(() => {
+      if (!durGesture) return;
+      wheel.classList.add('duration-mode');
+      showWheel(btnCX, btnCY);
+      if (durGesture.dotted) {
+        setChevState(chevGrps.right, true);
+        badge.classList.add('visible');
+        updateDurationBadge(durGesture.dur, true, btnCX, btnCY);
+      }
+    }, WHEEL_DELAY);
+
+    durGesture = { btn, dur, L, insertPos, startX, startY, lastText: text, dotted: false, wheelTimer };
+  }
+
+  function updateDurGesture(currentX, currentY) {
+    if (!durGesture) return;
+    const dx     = currentX - durGesture.startX;
+    const dotted = dx >= H_THRESHOLD;
+
+    if (dotted !== durGesture.dotted) {
+      const baseFrac  = parseFrac(durGesture.dur);
+      const finalFrac = dotted ? mulFrac(baseFrac, [3, 2]) : baseFrac;
+      const text  = formatDurationInsert(finalFrac, durGesture.L);
+      const start = durGesture.insertPos;
+      const end   = start + durGesture.lastText.length;
+      ta.value   = ta.value.slice(0, start) + text + ta.value.slice(end);
+      savedStart = start + text.length;
+      savedEnd   = savedStart;
+      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+      else syncDisplayIfUnfocused();
+      durGesture.lastText = text;
+      durGesture.dotted = dotted;
+      updateClearBtn();
+      schedulePreview();
+
+      if (wheel.classList.contains('visible')) {
+        setChevState(chevGrps.right, dotted);
+        if (dotted) nudgeChev(chevGrps.right);
+        badge.classList.add('visible');
+      }
+    }
+
+    if (badge.classList.contains('visible')) {
+      updateDurationBadge(durGesture.dur, durGesture.dotted, currentX, currentY);
+    }
+  }
+
+  function endDurGesture() {
+    if (!durGesture) return;
+    clearTimeout(durGesture.wheelTimer);
+    wheel.classList.remove('duration-mode');
+    hideWheel();
+    const btn = durGesture.btn;
+    btn.classList.remove('pressed', 'shrink');
+    void btn.offsetWidth;
+    btn.classList.add('shrink');
+    durGesture = null;
+  }
+
   // Touch move — new listener needed for gesture dragging
   document.addEventListener('touchmove', e => {
-    if (!gesture) return;
-    e.preventDefault();
-    updateGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    if (gesture) {
+      e.preventDefault();
+      updateGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+    if (durGesture) {
+      e.preventDefault();
+      updateDurGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }
   }, { passive: false });
 
   // Touch handling — press on touchstart, fire on touchend
@@ -2851,6 +3024,13 @@
       e.preventDefault();
       activeBtn = null; // gesture system takes over
       startGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+
+    if (isDurationKey(btn)) {
+      e.preventDefault();
+      activeBtn = null; // gesture system takes over
+      startDurGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
     }
 
@@ -2872,6 +3052,11 @@
       e.preventDefault();
       return;
     }
+    if (durGesture) {
+      endDurGesture();
+      e.preventDefault();
+      return;
+    }
     if (!activeBtn) return;
     const touch = e.changedTouches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -2882,6 +3067,7 @@
 
   document.addEventListener('touchcancel', e => {
     if (gesture) { endGesture(); return; }
+    if (durGesture) { endDurGesture(); return; }
     activeBtn = null;
   }, { passive: true });
 
@@ -2899,6 +3085,13 @@
       return;
     }
 
+    if (isDurationKey(btn)) {
+      e.preventDefault();
+      activeMouseBtn = null;
+      startDurGesture(btn, e.clientX, e.clientY);
+      return;
+    }
+
     if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
       e.preventDefault();
     }
@@ -2912,12 +3105,13 @@
   });
 
   document.addEventListener('mousemove', e => {
-    if (!gesture) return;
-    updateGesture(e.clientX, e.clientY);
+    if (gesture) { updateGesture(e.clientX, e.clientY); return; }
+    if (durGesture) { updateDurGesture(e.clientX, e.clientY); return; }
   });
 
   document.addEventListener('mouseup', e => {
     if (gesture) { endGesture(); return; }
+    if (durGesture) { endDurGesture(); return; }
     if (!activeMouseBtn) return;
     const btn = activeMouseBtn;
     activeMouseBtn = null;
