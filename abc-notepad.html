@@ -197,6 +197,12 @@
     min-height: 56px;
   }
   .modal-textarea:focus { outline: none; border-color: var(--accent); }
+  .modal-setting-desc {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.4;
+  }
 
   .logo {
     font-family: 'IBM Plex Mono', monospace;
@@ -954,6 +960,16 @@
         <textarea class="modal-textarea" id="wrapAfter" rows="1">```</textarea>
       </div>
     </div>
+    <div class="modal-setting">
+      <div class="modal-setting-header">
+        <span class="modal-setting-label">Automatic Barlines</span>
+        <label class="modal-toggle">
+          <input type="checkbox" id="autoBarlineToggle" checked>
+          On
+        </label>
+      </div>
+      <div class="modal-setting-desc">Automatically add a barline on space when a bar is complete.</div>
+    </div>
   </div>
 </div>
 
@@ -1670,6 +1686,11 @@
       hideTieTooltip();
       return;
     }
+    if (e.key === ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      doInsert(spaceOrBarline(), true);
+      return;
+    }
     // Push before any character-modifying key
     const modifying = e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete';
     if (modifying && !e.ctrlKey && !e.metaKey && !e.altKey) pushUndo();
@@ -1770,6 +1791,24 @@
     return [parseInt(last[1], 10), last[2] ? parseInt(last[2], 10) : 1];
   }
 
+  // Find the last "M:<value>" before the cursor; default to 4/4.
+  // Handles "C" (common time), "C|" (cut time), "none" (no fixed bar length),
+  // and plain "N/D" fractions.
+  function getCurrentMValue() {
+    const textBefore = ta.value.slice(0, savedStart);
+    const re = /M:\s*([^\s\n]+)/g;
+    let match, last = null;
+    while ((match = re.exec(textBefore)) !== null) last = match;
+    if (!last) return [4, 4];
+    const v = last[1].trim();
+    if (v === 'C') return [4, 4];
+    if (v === 'C|') return [2, 2];
+    if (/^none$/i.test(v)) return null; // no fixed bar length — auto-barline disabled
+    const fm = /^(\d+)\/(\d+)/.exec(v);
+    if (fm) return [parseInt(fm[1], 10), parseInt(fm[2], 10)];
+    return [4, 4];
+  }
+
   // duration and L are both [num, den] fractions. Returns the ABC text to insert.
   function formatDurationInsert(durFrac, LFrac) {
     const ratio = reduceFrac([durFrac[0] * LFrac[1], durFrac[1] * LFrac[0]]);
@@ -1777,6 +1816,178 @@
     if (d === 1) return String(n);
     if (n === 1) return d === 2 ? '/' : '/' + d;
     return n + '/' + d;
+  }
+
+  // ---- Auto barline insertion ----
+  function fracAdd(a, b) {
+    return reduceFrac([a[0] * b[1] + b[0] * a[1], a[1] * b[1]]);
+  }
+  function fracEq(a, b) {
+    return a[0] * b[1] === b[0] * a[1];
+  }
+
+  // Parses a note/chord duration suffix ("", "2", "/2", "/", "3/2", "3/") into a [num, den] fraction.
+  // Bare "/" = 1/2. Leading-slash "/N" = 1/N. "N/" (missing denominator) = N/2, per ABC spec.
+  function parseDurationSuffix(str) {
+    if (!str) return [1, 1];
+    if (str === '/') return [1, 2];
+    if (str.startsWith('/')) return [1, parseInt(str.slice(1), 10) || 2];
+    if (str.includes('/')) {
+      const parts = str.split('/');
+      const n = parts[0] === '' ? 1 : parseInt(parts[0], 10);
+      const d = parts[1] === '' ? 2 : parseInt(parts[1], 10);
+      return [n, d];
+    }
+    return [parseInt(str, 10), 1];
+  }
+
+  // Matches a duration suffix starting at text[pos]. Returns the matched string ('' if none).
+  function matchDurationSuffix(text, pos, endPos) {
+    const m = /^(\d+\/\d+|\/\d+|\d+|\/)/.exec(text.slice(pos, endPos));
+    return m ? m[0] : '';
+  }
+
+  // Parses a tuplet spec "(X", "(X:Y", "(X:Y:Z", "(X::Z" starting at text[idx] (the '(').
+  // Returns { factor: [Y,X] reduced, remaining: Z, end: index just past the spec }.
+  function parseTupletAt(text, idx) {
+    let i = idx + 1;
+    if (!/[2-9]/.test(text[i] || '')) return null;
+    const X = parseInt(text[i], 10); i++;
+    let Y = null, Z = null;
+    if (text[i] === ':') {
+      i++;
+      if (/[0-9]/.test(text[i] || '')) { Y = parseInt(text[i], 10); i++; }
+      if (text[i] === ':') {
+        i++;
+        if (/[0-9]/.test(text[i] || '')) { Z = parseInt(text[i], 10); i++; }
+      }
+    }
+    if (Y === null) Y = X - 1;
+    if (Z === null) Z = X;
+    return { factor: reduceFrac([Y, X]), remaining: Z, end: i };
+  }
+
+  // Finds the start of the current bar: the position right after the nearest
+  // '|' before `pos`, within the current line, or the start of the line if
+  // none is found (bars are not tracked across line breaks). Every barline
+  // variant (|, ||, |:, :|, :||:, [|, |]) contains at least one '|', so this
+  // is sufficient; any leftover ':' or ']' immediately after it is harmless —
+  // computeBarDuration already skips stray barline/colon characters.
+  function getBarStartPos(text, lineStart, pos) {
+    const segment = text.slice(lineStart, pos);
+    const idx = segment.lastIndexOf('|');
+    return idx === -1 ? lineStart : lineStart + idx + 1;
+  }
+
+  // Sums note/rest/chord durations (in L-units) from `startPos` to `endPos`,
+  // handling chords, grace notes, ties, accidentals, quoted text, decorations,
+  // inline fields, and tuplets. Broken rhythm (>/<) is ignored (net duration
+  // over the pair is unaffected). `fullBarLen` (in L-units) is needed to
+  // interpret multi-measure rests (capital Z/X + a bar count).
+  function computeBarDuration(text, startPos, endPos, LFrac, fullBarLen) {
+    let i = startPos;
+    let total = [0, 1];
+    let tuplet = null; // { factor:[Y,X], remaining }
+
+    function addContrib(frac, allowTuplet) {
+      let c = frac;
+      if (allowTuplet && tuplet && tuplet.remaining > 0) {
+        c = reduceFrac([c[0] * tuplet.factor[0], c[1] * tuplet.factor[1]]);
+        tuplet.remaining--;
+        if (tuplet.remaining === 0) tuplet = null;
+      }
+      total = fracAdd(total, c);
+    }
+
+    while (i < endPos) {
+      const ch = text[i];
+
+      if (ch === ' ' || ch === '\t') { i++; continue; }
+
+      if (ch === '"') { // quoted chord symbol / annotation
+        const end = text.indexOf('"', i + 1);
+        i = (end === -1 || end >= endPos) ? endPos : end + 1;
+        continue;
+      }
+      if (ch === '!') { // decoration
+        const end = text.indexOf('!', i + 1);
+        i = (end === -1 || end >= endPos) ? endPos : end + 1;
+        continue;
+      }
+      if (ch === '{') { // grace notes — zero duration
+        const end = text.indexOf('}', i + 1);
+        i = (end === -1 || end >= endPos) ? endPos : end + 1;
+        continue;
+      }
+      if (ch === '[') {
+        // Inline field like [K:C] [M:3/4] — letter immediately followed by ':'
+        if (/[A-Za-z]/.test(text[i + 1] || '') && text[i + 2] === ':') {
+          const end = text.indexOf(']', i + 1);
+          i = (end === -1 || end >= endPos) ? endPos : end + 1;
+          continue;
+        }
+        // Chord — counts once as a single duration unit
+        const end = text.indexOf(']', i + 1);
+        const closeIdx = (end === -1 || end >= endPos) ? endPos : end;
+        const j = closeIdx + 1;
+        const durStr = matchDurationSuffix(text, j, endPos);
+        const chordDur = parseDurationSuffix(durStr);
+        addContrib(reduceFrac([chordDur[0] * LFrac[0], chordDur[1] * LFrac[1]]), true);
+        i = j + durStr.length;
+        continue;
+      }
+      if (ch === '(' && /[2-9]/.test(text[i + 1] || '')) { // tuplet start
+        const t = parseTupletAt(text, i);
+        tuplet = { factor: t.factor, remaining: t.remaining };
+        i = t.end;
+        continue;
+      }
+      if (ch === '(' || ch === ')') { i++; continue; } // plain slur
+      if (ch === '-') { i++; continue; } // tie
+      if (ch === '>' || ch === '<') { i++; continue; } // broken rhythm — ignored
+      if (ch === '|' || ch === ':') { i++; continue; } // stray barline chars (shouldn't occur)
+      if (ch === '^' || ch === '_' || ch === '=') { i++; continue; } // accidental
+      if (ch === '.') { i++; continue; } // staccato dot (not a duration dot)
+
+      if (/[a-gA-GzZxX]/.test(ch)) {
+        const isMultiMeasure = (ch === 'Z' || ch === 'X');
+        let j = i + 1;
+        while (j < endPos && (text[j] === "'" || text[j] === ',')) j++; // octave marks
+        const durStr = matchDurationSuffix(text, j, endPos);
+        if (isMultiMeasure) {
+          const n = (durStr && /^\d+$/.test(durStr)) ? parseInt(durStr, 10) : 1;
+          total = fracAdd(total, reduceFrac([fullBarLen[0] * n, fullBarLen[1]]));
+        } else {
+          const durFrac = parseDurationSuffix(durStr);
+          addContrib(reduceFrac([durFrac[0] * LFrac[0], durFrac[1] * LFrac[1]]), true);
+        }
+        i = j + durStr.length;
+        continue;
+      }
+
+      i++; // anything else — skip
+    }
+    return total;
+  }
+
+  // Decides whether the space about to be inserted should instead become " | ".
+  let autoBarlineEnabled = true;
+  document.getElementById('autoBarlineToggle').addEventListener('change', e => {
+    autoBarlineEnabled = e.target.checked;
+  });
+  function spaceOrBarline() {
+    if (!autoBarlineEnabled) return ' ';
+    if (savedStart !== savedEnd) return ' '; // replacing a selection — just insert a plain space
+    const pos = savedStart;
+    const M = getCurrentMValue();
+    if (!M) return ' '; // M:none — no fixed bar length, feature disabled
+    const L = getCurrentLValue();
+    const text = ta.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    const barStart = getBarStartPos(text, lineStart, pos);
+    const fullBarLen = reduceFrac([M[0], M[1]]);
+    const total = computeBarDuration(text, barStart, pos, L, fullBarLen);
+    return fracEq(total, fullBarLen) ? ' | ' : ' ';
   }
 
   // ---- Note-duration button icons ----
@@ -2879,7 +3090,8 @@
         closeTmplOverlay();
         doInsert(btn.dataset.insert, taFocused);
       } else {
-        doInsert(btn.dataset.insert, isKey && taFocused);
+        const insertText = (btn.dataset.insert === ' ') ? spaceOrBarline() : btn.dataset.insert;
+        doInsert(insertText, isKey && taFocused);
       }
     }
   }
