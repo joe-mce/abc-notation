@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ABC Notepad</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.4.4/abcjs-basic-min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.7.0/dist/svg2pdf.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
@@ -1013,6 +1015,8 @@
         <button class="btn-copy-arrow action-btn" id="copyArrow" data-action="toggleCopyDropdown">▾</button>
         <div class="copy-dropdown" id="copyDropdown">
           <button class="copy-dropdown-item action-btn" data-action="copyTextRaw">Copy without wrapping</button>
+          <button class="copy-dropdown-item action-btn" data-action="exportAbcFile">Export ABC file</button>
+          <button class="copy-dropdown-item action-btn" data-action="exportPdf">Export PDF</button>
         </div>
       </div>
     </div>
@@ -1970,6 +1974,154 @@
     document.getElementById('copyDropdown').classList.remove('open');
   }
 
+  // ---- Export: shared share-sheet / download helper ----
+  function isMobileDevice() {
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+      return navigator.userAgentData.mobile;
+    }
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  async function shareOrDownloadFile(blob, filename, mimeType) {
+    if (isMobileDevice()) {
+      try {
+        const file = new File([blob], filename, { type: mimeType });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] });
+          return true;
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return false; // user cancelled the share sheet
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return true;
+  }
+
+  function getTuneFilename() {
+    const m = /^T:\s*(.+)$/m.exec(ta.value);
+    const raw = (m ? m[1] : 'tune').trim();
+    const clean = raw.replace(/[^a-z0-9\- ]/gi, '').trim().replace(/\s+/g, '-').slice(0, 60);
+    return clean || 'tune';
+  }
+
+  function exportAbcFile() {
+    closeCopyDropdown();
+    if (!ta.value.trim()) { showToast('Nothing to export'); return; }
+    const blob = new Blob([ta.value], { type: 'text/plain' });
+    shareOrDownloadFile(blob, getTuneFilename() + '.abc', 'text/plain');
+  }
+
+  // Render the current abcjs preview SVG to a black-on-white PDF page
+  async function renderPreviewToPdfBlob() {
+    const raw = ta.value.trim();
+    if (!raw) return null;
+
+    const PAGE_PT_WIDTH = 595.28; // A4, pt
+    const MARGIN_PT = 36;
+    const usablePt = PAGE_PT_WIDTH - MARGIN_PT * 2;
+
+    const exportHost = document.createElement('div');
+    exportHost.id = 'pdf-export-host';
+    exportHost.style.cssText = 'position:fixed; left:-99999px; top:0;';
+    document.body.appendChild(exportHost);
+
+    // Reuse the exact same small ruleset that already correctly renders the on-screen
+    // preview (see the #preview svg rules above) — just with the theme variable swapped
+    // for hardcoded black. This is far simpler and safer than recomputing visibility
+    // per element in JS, and avoids stray elements being mis-colored.
+    const exportStyle = document.createElement('style');
+    exportStyle.textContent = `
+      #pdf-export-host svg path, #pdf-export-host svg rect, #pdf-export-host svg ellipse,
+      #pdf-export-host svg polygon, #pdf-export-host svg line, #pdf-export-host svg polyline {
+        fill: #000000; stroke: #000000;
+      }
+      #pdf-export-host svg [fill="none"] { fill: none; }
+      #pdf-export-host svg [stroke="none"] { stroke: none; }
+    `;
+    document.head.appendChild(exportStyle);
+
+    try {
+      // Render at a pixel width matching the PDF's usable print width (1 render px ≈ 1pt),
+      // independent of the on-screen zoom level, which has nothing to do with print size.
+      const renderWidthPx = Math.round(usablePt);
+      ABCJS.renderAbc(exportHost, raw, {
+        staffwidth: renderWidthPx,
+        add_classes: true,
+        paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8
+      });
+
+      const svg = exportHost.querySelector('svg');
+      if (!svg) return null;
+
+      // Anything relying on inherited currentColor rather than the rules above (rare,
+      // e.g. augmentation dots) should also fall back to solid black.
+      svg.setAttribute('fill', '#000000');
+      svg.setAttribute('stroke', '#000000');
+
+      // abcjs's own width/height attributes occasionally under-report the true painted
+      // extent (e.g. a final barline or accidental poking a couple of px past it), which
+      // was clipping the right edge. Measure the actual rendered bounding box and use
+      // whichever is larger, plus a small safety pad.
+      const attrWidth  = parseFloat(svg.getAttribute('width'))  || renderWidthPx;
+      const attrHeight = parseFloat(svg.getAttribute('height')) || 200;
+      let svgWidth = attrWidth, svgHeight = attrHeight;
+      try {
+        const bbox = svg.getBBox();
+        svgWidth  = Math.max(attrWidth,  bbox.x + bbox.width  + 4);
+        svgHeight = Math.max(attrHeight, bbox.y + bbox.height + 4);
+      } catch (e) { /* getBBox can throw if unsupported/unrendered; fall back to attrs */ }
+
+      // svg2pdf's width/height options only define an *initial viewport* (like an <img>),
+      // and without a viewBox there's nothing for it to actually scale the content
+      // against — so it was effectively ignoring our requested box. Giving the SVG an
+      // explicit viewBox is what makes that scaling real.
+      svg.setAttribute('width', svgWidth);
+      svg.setAttribute('height', svgHeight);
+      svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pageWidth  = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const maxW = pageWidth  - MARGIN_PT * 2;
+      const maxH = pageHeight - MARGIN_PT * 2;
+      const SAFETY = 0.95; // deliberate slack — the one thing we fully control, regardless of how svg2pdf measures the source
+      const ratio = svgWidth / svgHeight;
+      let drawW = maxW * SAFETY, drawH = drawW / ratio;
+      if (drawH > maxH * SAFETY) { drawH = maxH * SAFETY; drawW = drawH * ratio; }
+      const x = (pageWidth - drawW) / 2;
+
+      // Vector embed — no rasterization, so file size stays tiny regardless of how
+      // many systems of music are on the page.
+      await pdf.svg(svg, { x, y: MARGIN_PT, width: drawW, height: drawH });
+      return pdf.output('blob');
+    } finally {
+      exportHost.remove();
+      exportStyle.remove();
+    }
+  }
+
+  async function exportPdf() {
+    closeCopyDropdown();
+    if (!previewDiv.querySelector('svg')) { showToast('Nothing to export'); return; }
+    showToast('Generating PDF…');
+    try {
+      const blob = await renderPreviewToPdfBlob();
+      if (!blob) { showToast('Nothing to export'); return; }
+      await shareOrDownloadFile(blob, getTuneFilename() + '.pdf', 'application/pdf');
+    } catch (err) {
+      showToast('PDF export failed');
+    }
+  }
+
   document.addEventListener('mousedown', e => {
     if (!e.target.closest('.copy-split')) closeCopyDropdown();
   });
@@ -1977,7 +2129,8 @@
     if (!e.target.closest('.copy-split')) closeCopyDropdown();
   }, { passive: true });
 
-  function showToast() {
+  function showToast(msg) {
+    toast.textContent = msg || 'Copied ✓';
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 1800);
   }
@@ -2704,9 +2857,9 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
 
-  const releaseActions = new Set(['copyText', 'copyTextRaw', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'exportAbcFile', 'exportPdf', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
