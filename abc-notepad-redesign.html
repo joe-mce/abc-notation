@@ -200,6 +200,10 @@
       padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
     }
     .modal-title { font-size: 1.2rem; }
+    /* iOS Safari auto-zooms the page when focusing a text input with a
+       computed font-size under 16px. Bump it here (mobile only) so
+       focusing these fields doesn't trigger that zoom. */
+    .modal-textarea { font-size: 16px; }
     .modal-close { width: 36px; height: 36px; font-size: 1.05rem; }
   }
   .settings-section { display: flex; flex-direction: column; gap: 10px; }
@@ -3898,7 +3902,11 @@
     document.addEventListener('mouseup', endDrag);
 
     divider.addEventListener('touchstart', startDrag, { passive: false });
-    document.addEventListener('touchmove', e => { onMove(e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+    document.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      onMove(e.touches[0].clientY);
+      e.preventDefault();
+    }, { passive: false });
     document.addEventListener('touchend', endDrag);
   })();
 
