@@ -329,7 +329,7 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1rem;
     line-height: 1.6;
-    padding: 10px 60px 10px 14px;
+    padding: 10px 60px 70px 14px;
     box-sizing: border-box;
     white-space: pre-wrap;
     overflow-wrap: break-word;
@@ -457,25 +457,21 @@
   }
   .v-divider.active .v-divider-handle { background: var(--accent); }
 
-  /* Middle: action-scroll + editor */
-  .middle-wrap {
-    flex: 1;
-    min-height: 70px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
+  /* Quick-insert row: floats over the bottom of the editor, doesn't participate in flex layout */
   .action-scroll {
-    flex-shrink: 0;
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
     display: flex;
     gap: 8px;
     overflow-x: auto;
     padding: 4px 16px;
     scrollbar-width: none;
-    margin: auto 10px 10px;
     background: var(--surface);
     border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    z-index: 8;
   }
   .action-scroll::-webkit-scrollbar { display: none; }
 
@@ -617,7 +613,7 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1rem;
     line-height: 1.6;
-    padding: 10px 60px 10px 14px;
+    padding: 10px 60px 70px 14px;
     resize: none;
     caret-color: var(--accent);
     overflow-y: auto;
@@ -1306,28 +1302,26 @@
   <div class="v-divider-handle"></div>
 </div>
 
-<div class="middle-wrap">
-
-  <div class="editor-wrap">
-    <!-- Tie autocomplete tooltip -->
-    <div id="tie-tooltip" role="tooltip" aria-live="polite">
-      <span id="tie-tooltip-text"></span>
-      <button id="tie-tooltip-close" aria-label="Dismiss suggestion">✕</button>
-    </div>
-    <div id="notation-display" aria-hidden="true"></div>
-    <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
-      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-    <div class="float-pills">
-      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
+<div class="editor-wrap">
+  <!-- Tie autocomplete tooltip -->
+  <div id="tie-tooltip" role="tooltip" aria-live="polite">
+    <span id="tie-tooltip-text"></span>
+    <button id="tie-tooltip-close" aria-label="Dismiss suggestion">✕</button>
+  </div>
+  <div id="notation-display" aria-hidden="true"></div>
+  <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
+    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+  <div class="float-pills">
+    <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
 
-  <!-- Quick-insert row. Not wired to actions yet — still deciding what lives here. -->
+  <!-- Quick-insert row. Floats over the bottom of the input area rather than
+       being a flex neighbour, so its position never depends on the divider. -->
   <div class="action-scroll">
     <button class="action-btn action-pill" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
     <button class="action-btn action-pill" data-action="openTextPopupAbove" data-keepfocus="1">T&#9650;</button>
@@ -1336,7 +1330,6 @@
     <button class="key action-pill" data-insert=":|">:|</button>
     <button class="key action-pill" data-insert="(3">(3</button>
   </div>
-
 </div>
 
 <!-- Template insert overlay -->
@@ -1936,42 +1929,51 @@
   }, { passive: false });
 
   const buttonArea = document.querySelector('.button-area');
-  const actionScroll = document.querySelector('.action-scroll');
-  const editorWrap = document.querySelector('.editor-wrap');
+  const previewWrap = document.getElementById('preview-wrap');
+  const vDivider = document.getElementById('vDivider');
   const vv = window.visualViewport;
 
-  function pinActionScrollAboveKeyboard() {
-    const rect = document.body.getBoundingClientRect();
-    let keyboardHeight = 0;
-    if (vv) keyboardHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    actionScroll.style.position = 'fixed';
-    actionScroll.style.left = rect.left + 'px';
-    actionScroll.style.width = rect.width + 'px';
-    actionScroll.style.bottom = keyboardHeight + 'px';
-    actionScroll.style.margin = '0';
-    actionScroll.style.zIndex = '20';
-    editorWrap.style.paddingBottom = actionScroll.offsetHeight + 'px';
+  // Pin the preview area's height to a literal px value from the very start.
+  // Left as the CSS default (flex-basis: 33%), it would recompute relative to
+  // body's height every time body's height changes — including when we lock
+  // body to the shrunken visualViewport height for the keyboard — causing the
+  // divider to jump on the very first keyboard open, before any manual drag
+  // had already converted it to a fixed px value as a side effect.
+  previewWrap.style.flexBasis = previewWrap.getBoundingClientRect().height + 'px';
+
+  function lockViewportForKeyboard() {
+    if (!vv) return;
+    document.documentElement.style.height = vv.height + 'px';
+    document.body.style.height = vv.height + 'px';
+    window.scrollTo(0, 0);
   }
 
-  function releaseActionScroll() {
-    actionScroll.style.position = '';
-    actionScroll.style.left = '';
-    actionScroll.style.width = '';
-    actionScroll.style.bottom = '';
-    actionScroll.style.margin = '';
-    actionScroll.style.zIndex = '';
-    editorWrap.style.paddingBottom = '';
+  function unlockViewport() {
+    document.documentElement.style.height = '';
+    document.body.style.height = '';
+    window.scrollTo(0, 0);
   }
 
+  // The preview area's height (previewWrap's flexBasis, a literal px value set
+  // by the divider drag) is deliberately left untouched here in both directions.
+  // Since it's a fixed px rather than a ratio, it just stays put as the keyboard
+  // opens/closes — the editor area (flex: 1) absorbs all the size change instead.
+  // The quick-insert row no longer needs any JS positioning at all: it's a plain
+  // CSS overlay pinned to the bottom of editor-wrap, and editor-wrap's own
+  // bottom edge already lands right above the keyboard once body is locked to
+  // visualViewport's height and the button-area is hidden.
   function setTypingRows(focused) {
     document.body.classList.toggle('typing', focused);
-    if (focused) pinActionScrollAboveKeyboard();
-    else releaseActionScroll();
+    if (focused) lockViewportForKeyboard();
+    else unlockViewport();
   }
 
   if (vv) {
     vv.addEventListener('resize', () => {
-      if (document.body.classList.contains('typing')) pinActionScrollAboveKeyboard();
+      if (document.body.classList.contains('typing')) lockViewportForKeyboard();
+    });
+    vv.addEventListener('scroll', () => {
+      if (document.body.classList.contains('typing')) window.scrollTo(0, 0);
     });
   }
 
@@ -3831,7 +3833,9 @@
       if (!dragging) return;
       const rect = document.body.getBoundingClientRect();
       let newHeight = clientY - rect.top;
-      const min = 70, max = rect.height - 260;
+      const typing = document.body.classList.contains('typing');
+      const reservedBottom = (typing ? 0 : buttonArea.offsetHeight) + divider.offsetHeight + 60;
+      const min = 70, max = rect.height - reservedBottom;
       if (newHeight < min) newHeight = min;
       if (newHeight > max) newHeight = max;
       previewWrap.style.flexBasis = newHeight + 'px';
