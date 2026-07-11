@@ -561,10 +561,10 @@
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
-    gap: 15px;
-    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+    padding: 8px 10px calc(18px + env(safe-area-inset-bottom, 0px));
     background: var(--surface);
-    border-radius: 20px 0 0 0;
+    border-radius: 20px 20px 0 0;
   }
   body.typing .button-area { display: none; }
 
@@ -1085,16 +1085,17 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.35);
   }
   .key-bksp {
-    flex: 0 0 32px !important;
-    width: 32px;
-    height: 32px;
+    flex: 0 0 52px !important;
+    width: 52px;
+    height: 40px;
     background: var(--surface3) !important;
     color: var(--text) !important;
-    font-size: 0.85rem !important;
+    font-size: 1.15rem !important;
   }
-  .row-notes .key { flex: 0 0 32px; width: 32px; height: 32px; font-size: 0.85rem; }
+  .row-notes .key { flex: 1 1 0; max-width: 40px; width: auto; aspect-ratio: 1 / 1; height: auto; font-size: 0.85rem; }
+  .row-notes { gap: 3px; }
   .row-notes-pad { padding: 0 clamp(8px, 4vw, 20px); }
-  .key-z { background: var(--surface3) !important; color: var(--text-dim) !important; }
+  .key-z { background: var(--surface3) !important; color: var(--text) !important; font-size: 1.2rem !important; }
   .key-space {
     flex: 1 1 auto !important;
     border-radius: 19px;
@@ -1103,14 +1104,16 @@
     color: var(--text-dim) !important;
   }
   .key-nl {
-    flex: 0 0 38px !important;
-    width: 38px;
+    flex: 0 0 50px !important;
+    width: 50px;
     height: 38px;
-    font-size: 0.95rem !important;
+    font-size: 1.25rem !important;
     color: var(--text) !important;
     font-family: 'IBM Plex Mono', monospace;
   }
-  .row-small .key { flex: 1 1 0; max-width: 38px; width: auto; aspect-ratio: 1 / 1; height: auto; color: var(--text-dim); }
+  .row-small .key { flex: 1 1 0; max-width: 46px; width: auto; aspect-ratio: 1 / 1; height: auto; color: var(--text-dim); }
+  .row-small .key[data-insert="-"] { font-size: 1.5rem; color: var(--text); }
+  .row-small { gap: 3px; }
   .row-nav .key { flex: 0 0 38px; width: 38px; height: 38px; font-size: 0.95rem; }
 
   /* Note-duration icon keys */
@@ -2469,7 +2472,7 @@
     const rot = tilted ? ' transform="rotate(-20 14 46)"' : '';
     return filled
       ? `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="currentColor"/>`
-      : `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="none" stroke="currentColor" stroke-width="4"/>`;
+      : `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="none" stroke="currentColor" stroke-width="1.9"/>`;
   }
   const DUR_STEM  = `<line x1="22.5" y1="8" x2="22.5" y2="42" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
   const DUR_FLAG1 = `<path d="M22.5,8 C33,12 33,24 23,30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
@@ -2477,16 +2480,17 @@
   const DUR_DOT   = `<circle cx="32" cy="44" r="2.6" fill="currentColor"/>`;
 
   function durationIconSVG(dur, dotted) {
-    let inner;
+    let inner, dx = 0;
     switch (dur) {
-      case '1':    inner = noteheadSVG(false, false); break;                      // semibreve
-      case '1/2':  inner = noteheadSVG(false, true) + DUR_STEM; break;             // minim
-      case '1/4':  inner = noteheadSVG(true, true) + DUR_STEM; break;              // crotchet
-      case '1/8':  inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1; break;  // quaver
-      case '1/16': inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1 + DUR_FLAG2; break; // semiquaver
+      case '1':    inner = noteheadSVG(false, false); dx = 8; break;                 // semibreve — no stem to balance it
+      case '1/2':  inner = noteheadSVG(false, true) + DUR_STEM; dx = 6; break;        // minim — notehead + bare stem
+      case '1/4':  inner = noteheadSVG(true, true) + DUR_STEM; dx = 6; break;         // crotchet — same composition as minim
+      case '1/8':  inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1; dx = 4; break;    // quaver — flag extends further right already
+      case '1/16': inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1 + DUR_FLAG2; dx = 4; break; // semiquaver — same as quaver
       default:     inner = '';
     }
     if (dotted) inner += DUR_DOT;
+    if (dx) inner = `<g transform="translate(${dx},0)">${inner}</g>`;
     return `<svg viewBox="0 0 46 60" width="46" height="60" class="dur-icon" aria-hidden="true">${inner}</svg>`;
   }
 
