@@ -457,12 +457,23 @@
   }
   .v-divider.active .v-divider-handle { background: var(--accent); }
 
-  /* Quick-insert row: floats over the bottom of the editor, doesn't participate in flex layout */
-  .action-scroll {
+  /* Toolbar: floats over the bottom of the editor, doesn't participate in flex layout.
+     Holds the scrollable quick-insert row plus a static open-keyboard button. */
+  .editor-toolbar {
     position: absolute;
     left: 10px;
     right: 10px;
     bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 8;
+  }
+  body.typing .editor-toolbar { display: none; }
+
+  .action-scroll {
+    flex: 1;
+    min-width: 0;
     display: flex;
     gap: 8px;
     overflow-x: auto;
@@ -471,9 +482,24 @@
     background: var(--surface);
     border-radius: 20px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-    z-index: 8;
   }
   .action-scroll::-webkit-scrollbar { display: none; }
+
+  .editor-toolbar .keyboard-toggle-btn {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .keyboard-toggle-btn svg { width: 26px; height: 26px; }
+  @media (max-width: 600px) {
+    .editor-toolbar .keyboard-toggle-btn { display: flex; }
+  }
 
   .action-scroll .action-pill {
     flex: 0 0 auto;
@@ -1320,15 +1346,31 @@
     </button>
   </div>
 
-  <!-- Quick-insert row. Floats over the bottom of the input area rather than
-       being a flex neighbour, so its position never depends on the divider. -->
-  <div class="action-scroll">
-    <button class="action-btn action-pill" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
-    <button class="action-btn action-pill" data-action="openTextPopupAbove" data-keepfocus="1">T&#9650;</button>
-    <button class="action-btn action-pill" data-action="openTextPopupBelow" data-keepfocus="1">T&#9660;</button>
-    <button class="key action-pill" data-insert="|:">|:</button>
-    <button class="key action-pill" data-insert=":|">:|</button>
-    <button class="key action-pill" data-insert="(3">(3</button>
+  <!-- Quick-insert row + open-keyboard button. Floats over the bottom of the
+       input area rather than being a flex neighbour, so its position never
+       depends on the divider. Hidden entirely while the native keyboard is
+       open (see body.typing rule). -->
+  <div class="editor-toolbar">
+    <div class="action-scroll">
+      <button class="action-btn action-pill" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
+      <button class="action-btn action-pill" data-action="openTextPopupAbove" data-keepfocus="1">T&#9650;</button>
+      <button class="action-btn action-pill" data-action="openTextPopupBelow" data-keepfocus="1">T&#9660;</button>
+      <button class="key action-pill" data-insert="|:">|:</button>
+      <button class="key action-pill" data-insert=":|">:|</button>
+      <button class="key action-pill" data-insert="(3">(3</button>
+    </div>
+    <button class="action-btn keyboard-toggle-btn" data-action="openNativeKeyboard" data-keepfocus="1" aria-label="Open keyboard">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="10" width="20" height="11" rx="2" stroke="white" stroke-width="1.6"/>
+        <line x1="5.5" y1="13.3" x2="5.5" y2="13.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="9"   y1="13.3" x2="9"   y2="13.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="12.5" y1="13.3" x2="12.5" y2="13.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="16"  y1="13.3" x2="16"  y2="13.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="19"  y1="13.3" x2="19"  y2="13.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="6" y1="17.3" x2="18" y2="17.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M9 5.5 L12 1.5 L15 5.5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -2354,6 +2396,12 @@
   document.querySelectorAll('.key-duration').forEach(btn => {
     btn.innerHTML = durationIconSVG(btn.dataset.dur, false);
   });
+
+  function openNativeKeyboard() {
+    hideStaticDisplay();
+    ta.focus();
+    ta.setSelectionRange(savedStart, savedEnd);
+  }
 
   function bksp() {
     pushUndo();
@@ -3403,7 +3451,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard };
 
   const releaseActions = new Set(['copyText', 'copyTextRaw', 'exportAbcFile', 'exportPdf', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
 
