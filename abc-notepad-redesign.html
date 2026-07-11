@@ -1,0 +1,3882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ABC Notepad</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.4.4/abcjs-basic-min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.7.0/dist/svg2pdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --surface3: #333333;
+    --border: #333;
+    --accent: #e8c84a;
+    --accent2: #4ae8b4;
+    --text: #f0ede6;
+    --text-dim: #888;
+    --btn-bg: #222;
+    --btn-bg-lg: #2a2a1a;
+    --btn-border: #3a3a3a;
+    --btn-border-lg: #5a5020;
+    --radius: 8px;
+    --radius-sm: 5px;
+    /* Syntax highlighting */
+    --hl-note:       #e8c84a; /* accent - note letters A-G */
+    --hl-modifier:   #e8964a; /* orange  - accidentals ^ _ = , ' and dot */
+    --hl-rest:       #4ae8b4; /* accent2 - z x Z */
+    --hl-duration:   #7ab8e8; /* blue    - digits and / */
+    --hl-barline:    #666;    /* dim     - | barlines */
+    --hl-chord:      #b48ae8; /* purple  - "chord symbols" */
+    --hl-decoration: #e8a84a; /* amber   - !decoration! */
+    --hl-header:     #888;    /* dim     - header field keys T: K: M: etc */
+    --hl-directive:  #555;    /* dimmer  - %% directives */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* Legacy header (title/zoom/settings) — kept functional in code, no longer shown.
+     Zoom and the old Settings trigger will get a new home later. */
+  header { display: none; }
+
+  .btn-settings {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+  }
+  .btn-settings.active { border-color: var(--accent); color: var(--accent); }
+  .header-btns { display: flex; gap: 6px; }
+
+  /* Zoom panel */
+  #zoom-panel {
+    display: none;
+    position: absolute;
+    top: 32px;
+    right: 10px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2px 10px 10px;
+    z-index: 50;
+    width: 160px;
+  }
+  #zoom-panel.open { display: block; }
+  #zoom-slider {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 4px;
+  }
+
+  /* Settings modal */
+  #settings-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #settings-overlay.open { display: flex; }
+  #modal-box {
+    background: #000;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .modal-title {
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .modal-close {
+    background: var(--surface2);
+    border: none;
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    flex-shrink: 0;
+    touch-action: manipulation;
+  }
+  .modal-close:active { background: var(--surface3); }
+
+  .confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .confirm-card {
+    background: var(--surface2);
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .confirm-title {
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+  }
+  .confirm-actions { display: flex; gap: 8px; }
+  .action-btn.confirm-btn {
+    flex: 1;
+    background: var(--surface3);
+    color: var(--text);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 0;
+    text-align: center;
+  }
+  .confirm-btn-danger { color: #ff6b6b; }
+
+  /* Fullscreen sheet on mobile */
+  @media (max-width: 600px) {
+    #settings-overlay { padding: 0; background: #000; }
+    #modal-box {
+      max-width: none;
+      max-height: none;
+      height: 100dvh;
+      border-radius: 0;
+      border: none;
+      padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+    .modal-title { font-size: 1.2rem; }
+    .modal-close { width: 36px; height: 36px; font-size: 1.05rem; }
+  }
+  .settings-section { display: flex; flex-direction: column; gap: 10px; }
+  .settings-section-label {
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding-left: 4px;
+  }
+  .settings-card {
+    background: var(--surface2);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .modal-setting {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .modal-setting-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .modal-setting-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-setting-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+  }
+  .ios-switch { position: relative; display: inline-block; width: 46px; height: 27px; flex-shrink: 0; cursor: pointer; }
+  .ios-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .ios-switch-track {
+    position: absolute; inset: 0;
+    background: var(--surface3);
+    border-radius: 999px;
+    transition: background 0.15s;
+  }
+  .ios-switch-track::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 23px; height: 23px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: transform 0.15s;
+  }
+  .ios-switch input:checked + .ios-switch-track { background: var(--accent); }
+  .ios-switch input:checked + .ios-switch-track::after { transform: translateX(19px); }
+  .modal-wrap-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .modal-wrap-fields.disabled { opacity: 0.4; pointer-events: none; }
+  .modal-field-label {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-weight: 500;
+  }
+  .modal-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    padding: 8px 10px;
+    resize: vertical;
+    min-height: 56px;
+  }
+  .modal-textarea:focus { outline: none; border-color: var(--accent); }
+  .modal-setting-desc {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    line-height: 1.4;
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  .logo { text-decoration: none; }
+  .logo span { color: var(--text-dim); font-weight: 400; }
+
+  /* Static cursor in editor display view */
+  .editor-cursor {
+    position: absolute;
+    top: 0.07em;
+    right: -2px;
+    width: 2px;
+    height: 1.15em;
+    background: #fff;
+    border-radius: 1px;
+    pointer-events: none;
+  }
+
+  /* Static editor display (shown when textarea is unfocused) */
+  #notation-display {
+    display: none;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    line-height: 1.6;
+    padding: 10px 60px 10px 14px;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    overflow-y: auto;
+    cursor: text;
+    border-radius: 0;
+  }
+  #notation-display.active { display: block; }
+  #notation-display .display-placeholder { color: var(--text-dim); }
+  #notation-display .hl-sel {
+    background: rgba(232, 200, 74, 0.28);
+    border-radius: 2px;
+  }
+  #notation-display .hl-mod   { color: var(--hl-modifier); }
+  #notation-display .hl-rest  { color: var(--hl-rest); }
+  #notation-display .hl-dur   { color: var(--hl-duration); }
+  #notation-display .hl-bar   { color: var(--hl-barline); }
+  #notation-display .hl-chord { color: var(--hl-chord); }
+  #notation-display .hl-deco  { color: var(--hl-decoration); }
+  #notation-display .hl-hkey  { color: var(--hl-header); }
+  #notation-display .hl-hval  { color: var(--text-dim); }
+  #notation-display .hl-dir   { color: var(--hl-directive); }
+  #notation-display .hl-header{ color: var(--hl-header); }
+  #notation.hidden { display: none; }
+
+  .btn-undo { opacity: 1; transition: opacity 0.15s; }
+  .btn-undo:disabled { opacity: 0.25; cursor: default; }
+  .btn-undo svg { display: block; }
+  .btn-copy-icon svg { display: block; }
+  #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
+  #preview svg { display: block; }
+  #preview svg path, #preview svg rect, #preview svg ellipse,
+  #preview svg polygon, #preview svg line, #preview svg polyline {
+    fill: var(--text); stroke: var(--text);
+  }
+  #preview svg [fill="none"] { fill: none; }
+  #preview svg [stroke="none"] { stroke: none; }
+  #preview svg .mark path,
+  #preview svg .mark rect,
+  #preview svg .mark ellipse,
+  #preview svg .mark polygon,
+  #preview svg .mark line {
+    fill: var(--accent) !important;
+    stroke: var(--accent) !important;
+  }
+
+  /* ---------- New shell layout ---------- */
+  #preview-wrap {
+    flex-basis: 33%;
+    min-height: 90px;
+    position: relative;
+    overflow-y: auto;
+    padding: 50px 16px 10px;
+  }
+
+  .preview-pill {
+    position: fixed;
+    top: 12px;
+    right: 14px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--surface2);
+    border-radius: 999px;
+    padding: 4px;
+    z-index: 15;
+  }
+  .preview-pill .menu-wrap { position: relative; }
+  .preview-pill button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .preview-pill button:active { background: var(--surface3); }
+  .preview-pill svg { width: 16px; height: 16px; }
+
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--surface2);
+    border-radius: 14px;
+    padding: 6px;
+    min-width: 140px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    z-index: 30;
+  }
+  .dropdown-menu.open { display: block; }
+  .action-btn.dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    padding: 9px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .dropdown-item.danger { color: #ff6b6b; }
+  .dropdown-item:active { background: var(--surface3); }
+
+  /* Divider between preview and editor */
+  .v-divider {
+    flex-shrink: 0;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: row-resize;
+    touch-action: none;
+  }
+  .v-divider-handle {
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--surface3);
+  }
+  .v-divider.active .v-divider-handle { background: var(--accent); }
+
+  /* Middle: action-scroll + editor */
+  .middle-wrap {
+    flex: 1;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .action-scroll {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 16px;
+    scrollbar-width: none;
+    margin: auto 10px 10px;
+    background: var(--surface);
+    border-radius: 20px;
+  }
+  .action-scroll::-webkit-scrollbar { display: none; }
+
+  .action-scroll .action-pill {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: none;
+    color: var(--text);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  /* Quick-insert pills that reuse the on-screen-key insert mechanism */
+  .action-scroll .key.action-pill {
+    height: auto;
+    font-weight: 500;
+  }
+
+  .float-pills {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    display: flex;
+    gap: 4px;
+    background: var(--surface2);
+    border-radius: 999px;
+    padding: 4px;
+    z-index: 5;
+  }
+  .float-pills button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .float-pills button:active { background: var(--surface3); }
+  .float-pills svg { width: 16px; height: 16px; }
+
+  /* Bottom on-screen keys */
+  .button-area {
+    min-height: 190px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    gap: 15px;
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-radius: 20px 0 0 0;
+  }
+  body.typing .button-area { display: none; }
+
+
+  /* Editor (now the borderless, full-width textarea area) */
+  .editor-wrap {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    position: relative;
+    flex: 1;
+    min-height: 40px;
+    overflow: hidden;
+  }
+
+  /* Tie autocomplete tooltip */
+  #tie-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: none;
+    border-radius: 999px;
+    padding: 6px 8px 6px 14px;
+    align-items: center;
+    gap: 10px;
+    z-index: 60;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  #tie-tooltip.visible { display: flex; }
+  #tie-tooltip-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  #tie-tooltip-close {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    touch-action: manipulation;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  #tie-tooltip-close:hover { color: var(--text); }
+  /* Downward-pointing arrow */
+  #tie-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 7px solid var(--surface2);
+  }
+  #notation {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    outline: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    line-height: 1.6;
+    padding: 10px 60px 10px 14px;
+    resize: none;
+    caret-color: var(--accent);
+    overflow-y: auto;
+  }
+  #notation::placeholder { color: var(--text-dim); }
+
+  .editor-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    gap: 6px;
+  }
+  .footer-left { display: flex; gap: 6px; }
+  .footer-right { display: flex; gap: 6px; }
+
+  .action-btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: background 0.08s, transform 0.08s;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+  }
+  .btn-copy { background: var(--accent); color: #111; }
+  .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-templates { background: transparent; color: var(--text); border: 1px solid var(--border); font-size: 1.1rem; padding: 4px 9px; }
+  .btn-templates.active { background: var(--surface2); border-color: var(--text-dim); }
+
+  .arrow-btns { display: flex; gap: 3px; }
+  .btn-arrow {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius-sm);
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1;
+  }
+
+  /* Arrow key row — below keyboard, left-aligned */
+  .row-arrows {
+    justify-content: flex-start;
+    gap: 4px;
+  }
+  .row-arrows .key {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 36px;
+    font-size: 1rem;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* Chord + text insert buttons */
+  .btn-chord {
+    background: transparent;
+    color: var(--text);
+    border: none;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0;
+    padding: 4px 8px;
+    line-height: 1;
+  }
+  .btn-chord sup {
+    font-size: 0.6em;
+    font-style: normal;
+    vertical-align: super;
+    font-weight: 600;
+  }
+  .btn-addtext {
+    background: transparent;
+    color: var(--text);
+    border: none;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    line-height: 1;
+  }
+  .btn-addtext .t-arrow {
+    font-style: normal;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.52em;
+    font-weight: 400;
+    position: relative;
+    margin-left: 1px;
+    color: var(--text);
+  }
+  .btn-addtext .t-arrow-up   { top: -0.2em; }
+
+  /* Insert popups */
+  .insert-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .insert-overlay.open { display: flex; }
+  .insert-box {
+    background: var(--surface2);
+    border: none;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 340px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .insert-title {
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+  }
+  .insert-input {
+    width: 100%;
+    background: var(--bg);
+    border: none;
+    border-radius: 999px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    padding: 11px 16px;
+    outline: none;
+    caret-color: var(--accent);
+    text-align: center;
+  }
+  .insert-footer {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+  .insert-footer .action-btn { flex: 1; border-radius: 999px; padding: 10px 0; text-align: center; }
+
+  /* Context menu (hamburger) */
+  .menu-wrap {
+    position: relative;
+  }
+  .menu-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: visible;
+    z-index: 50;
+    white-space: nowrap;
+    min-width: 170px;
+  }
+  .menu-dropdown.open { display: block; }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+    box-sizing: border-box;
+  }
+  .menu-item:hover { background: var(--surface2); }
+  .menu-item.danger { color: #e06060; }
+  .menu-item-arrow { opacity: 0.5; font-size: 0.7rem; margin-left: 12px; }
+  .menu-divider { height: 1px; background: var(--border); margin: 3px 0; }
+
+  /* Tools submenu */
+  .menu-submenu-wrap {
+    position: relative;
+  }
+  .menu-submenu {
+    display: none;
+    position: absolute;
+    top: -2px;
+    left: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    z-index: 51;
+    white-space: nowrap;
+    min-width: 190px;
+  }
+  .menu-submenu.open { display: block; }
+  .submenu-sel-preview {
+    padding: 7px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .submenu-sel-preview.has-sel { color: var(--accent2); }
+  .submenu-sel-preview.no-sel  { font-style: italic; }
+  .submenu-item {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+  }
+  .submenu-item:hover { background: var(--surface2); }
+
+  /* Template popover overlay */
+  #tmpl-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #tmpl-overlay.open { display: flex; }
+  #tmpl-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 400px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  #tmpl-box .insert-title { margin-bottom: 2px; }
+  .tmpl-overlay-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  /* Split copy button */
+  .copy-split {
+    display: flex;
+    position: relative;
+  }
+  .copy-split .btn-copy-main {
+    background: var(--accent);
+    color: #111;
+    border: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    padding: 5px 12px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .copy-split-divider {
+    width: 1px;
+    background: rgba(0,0,0,0.25);
+    flex-shrink: 0;
+  }
+  .copy-split .btn-copy-arrow {
+    background: var(--accent);
+    color: #111;
+    border: none;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 5px 7px;
+    font-size: 0.6rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+  }
+  .copy-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    z-index: 50;
+    white-space: nowrap;
+    min-width: 100%;
+  }
+  .copy-dropdown.open { display: block; }
+  .copy-dropdown-item {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+  }
+  .copy-dropdown-item:hover { background: var(--surface2); }
+
+  /* Template panel - removed (now a popover overlay) */
+  .tmpl-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(0.65rem, 2.4vw, 0.8rem);
+    font-weight: 600;
+    background: var(--btn-bg);
+    color: var(--accent2);
+    border: 1.5px solid #2a5a4a;
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: background 0.08s, transform 0.08s;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .copy-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-60px);
+    background: var(--surface2);
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 8px 20px;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .copy-toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Key rows — Apple-style circles/squircles */
+  .key-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    width: 100%;
+  }
+  .key {
+    font-family: -apple-system, 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    border: none;
+    background: var(--surface2);
+    color: var(--text);
+    border-radius: 30%;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.08s, transform 0.08s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  @keyframes keyflash {
+    0%   { background: var(--surface3); transform: scale(0.88); }
+    100% { background: var(--surface2); transform: scale(1); }
+  }
+  @keyframes keyflash-primary {
+    0%   { background: var(--surface3); transform: scale(0.88); }
+    100% { background: var(--surface2); transform: scale(1); }
+  }
+  @keyframes keyflash-bksp {
+    0%   { background: #4a2a2a; transform: scale(0.88); }
+    100% { background: var(--surface3); transform: scale(1); }
+  }
+  @keyframes btnflash {
+    0%   { opacity: 0.6; transform: scale(0.94); }
+    100% { opacity: 1;   transform: scale(1); }
+  }
+  @keyframes tmplflash {
+    0%   { background: #0d3d2a; transform: scale(0.92); }
+    100% { background: var(--btn-bg); transform: scale(1); }
+  }
+  .key.flash               { animation: keyflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
+  .row-primary .key.flash  { animation: keyflash-primary 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
+  .key-bksp.flash          { animation: keyflash-bksp 0.25s cubic-bezier(0.2, 0, 0.4, 1) !important; }
+  .tmpl-btn.flash          { animation: tmplflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
+  .action-btn.flash        { animation: btnflash 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+
+  .row-primary .key {
+    flex: 1 1 0;
+    max-width: 48px;
+    width: auto;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    font-size: 1.15rem;
+    font-weight: 700;
+    background: var(--surface3);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  }
+  .key-bksp {
+    flex: 0 0 32px !important;
+    width: 32px;
+    height: 32px;
+    background: var(--surface3) !important;
+    color: var(--text) !important;
+    font-size: 0.85rem !important;
+  }
+  .row-notes .key { flex: 0 0 32px; width: 32px; height: 32px; font-size: 0.85rem; }
+  .row-notes-pad { padding: 0 clamp(8px, 4vw, 20px); }
+  .key-z { background: var(--surface3) !important; color: var(--text-dim) !important; }
+  .key-space {
+    flex: 1 1 auto !important;
+    border-radius: 19px;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.06em;
+    color: var(--text-dim) !important;
+  }
+  .key-nl {
+    flex: 0 0 38px !important;
+    width: 38px;
+    height: 38px;
+    font-size: 0.95rem !important;
+    color: var(--text) !important;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .row-small .key { flex: 1 1 0; max-width: 38px; width: auto; aspect-ratio: 1 / 1; height: auto; color: var(--text-dim); }
+  .row-nav .key { flex: 0 0 38px; width: 38px; height: 38px; font-size: 0.95rem; }
+
+  /* Note-duration icon keys */
+  .key-duration { color: var(--text-dim); }
+  .key-duration svg.dur-icon { width: 20px; height: 26px; display: block; margin: 0 auto; overflow: visible; }
+  svg.dur-icon * { vector-effect: non-scaling-stroke; }
+
+  /* Note-duration icon shown inside the gesture badge */
+  #gesture-badge svg.dur-icon {
+    width: 30px;
+    height: 40px;
+    display: inline-block;
+    vertical-align: middle;
+    overflow: visible;
+  }
+
+  /* Gesture system — note key press/release animation */
+  @keyframes keyshrink {
+    0%   { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .key.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
+  .key.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+
+  /* Gesture note badge */
+  #gesture-badge {
+    display: none;
+    position: fixed;
+    transform: translate(-50%, -100%);
+    margin-top: -14px;
+    background: rgba(30, 30, 36, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-sm);
+    padding: 8px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 102;
+  }
+  #gesture-badge.visible { display: block; }
+  @media (pointer: coarse) {
+    #gesture-badge { margin-top: -48px; }
+  }
+
+  /* Gesture chevron wheel */
+  #gesture-wheel {
+    display: none;
+    position: fixed;
+    width: 160px;
+    height: 160px;
+    transform: translate(-50%, -50%);
+    z-index: 101;
+    pointer-events: none;
+  }
+  #gesture-wheel.visible { display: block; }
+  /* Duration-dot gesture only ever swipes right, so hide the other three chevrons entirely */
+  #gesture-wheel.duration-mode #chev-up-g,
+  #gesture-wheel.duration-mode #chev-down-g,
+  #gesture-wheel.duration-mode #chev-left-g { display: none; }
+
+  .chev-path {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .chev-path.dim    { stroke: rgba(255,255,255,0.2); }
+  .chev-path.bright { stroke: rgba(255,255,255,0.82); }
+
+  @keyframes nudge-up        { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-down      { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-left      { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-right     { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-up-rev    { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-down-rev  { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+  @keyframes nudge-left-rev  { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
+  @keyframes nudge-right-rev { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
+
+  #chev-up-g.nudge        { animation: nudge-up        0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-down-g.nudge      { animation: nudge-down      0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-left-g.nudge      { animation: nudge-left      0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-right-g.nudge     { animation: nudge-right     0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-up-g.nudge-rev    { animation: nudge-up-rev    0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-down-g.nudge-rev  { animation: nudge-down-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-left-g.nudge-rev  { animation: nudge-left-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
+  #chev-right-g.nudge-rev { animation: nudge-right-rev 0.32s cubic-bezier(0.2,0,0.4,1); }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="#" class="logo">ABC <span>Notepad</span></a>
+  <div class="header-btns">
+    <button class="btn-settings action-btn" id="zoomToggle" data-action="toggleZoom">Zoom</button>
+    <button class="btn-settings action-btn" id="modalSettingsBtn" data-action="openSettings">Settings</button>
+  </div>
+  <div id="zoom-panel">
+    <input type="range" id="zoom-slider" min="0" max="1" step="0.01" value="0.5">
+  </div>
+</header>
+
+<!-- Clear confirm modal -->
+<div id="clear-overlay" class="confirm-overlay" style="display:none;">
+  <div class="confirm-card">
+    <div class="confirm-title">Clear all text?</div>
+    <div class="confirm-actions">
+      <button class="action-btn confirm-btn" data-action="clearCancel">Cancel</button>
+      <button class="action-btn confirm-btn confirm-btn-danger" data-action="clearStep2">Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-overlay">
+  <div id="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Settings</span>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Export</div>
+      <div class="settings-card">
+        <div class="modal-setting">
+          <div class="modal-setting-header">
+            <span class="modal-setting-label">Wrap output</span>
+          </div>
+          <div class="modal-setting-desc">Text added before and after your ABC code whenever you copy or export it.</div>
+          <div class="modal-wrap-fields" id="wrapFields">
+            <span class="modal-field-label">Before</span>
+            <textarea class="modal-textarea" id="wrapBefore" rows="3">```abc
+{"staffwidth": 500}
+---
+%%MIDI gchord "none"</textarea>
+            <span class="modal-field-label">After</span>
+            <textarea class="modal-textarea" id="wrapAfter" rows="1">```</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Editing</div>
+      <div class="settings-card">
+        <div class="modal-setting modal-setting-row">
+          <div>
+            <div class="modal-setting-label">Automatic barlines</div>
+            <div class="modal-setting-desc">Automatically add a barline on space when a bar is complete.</div>
+          </div>
+          <label class="ios-switch">
+            <input type="checkbox" id="autoBarlineToggle" checked>
+            <span class="ios-switch-track"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Legacy menu: Insert-template + Tools submenu + kept here so the functionality
+     stays wired up (toggleMenu/openTmplOverlay/transposeUp/etc still reference these
+     ids). Hidden until we give it a new home in the redesign. -->
+<div style="display:none" aria-hidden="true">
+  <div class="menu-wrap">
+    <button class="action-btn btn-templates" id="menuBtn" data-action="toggleMenu">&#9776;</button>
+    <div class="menu-dropdown" id="menuDropdown">
+      <button class="menu-item action-btn" data-action="openTmplOverlay" data-keepfocus="1">Insert template…</button>
+      <div class="menu-divider"></div>
+      <div class="menu-submenu-wrap" id="toolsSubmenuWrap">
+        <button class="menu-item" id="toolsMenuItem" data-keepfocus="1">Tools <span class="menu-item-arrow">▶</span></button>
+        <div class="menu-submenu" id="toolsSubmenu">
+          <div class="submenu-sel-preview" id="toolsSelPreview">No selection</div>
+          <button class="submenu-item action-btn" data-action="transposeUp" data-keepfocus="1">Octave up</button>
+          <button class="submenu-item action-btn" data-action="transposeDown" data-keepfocus="1">Octave down</button>
+          <button class="submenu-item action-btn" data-action="doubleLength" data-keepfocus="1">Double lengths</button>
+          <button class="submenu-item action-btn" data-action="halveLength" data-keepfocus="1">Halve lengths</button>
+          <button class="submenu-item action-btn" data-action="removeText" data-keepfocus="1">Remove text</button>
+          <button class="submenu-item action-btn" data-action="removeAccidentals" data-keepfocus="1">Remove accidentals</button>
+          <button class="submenu-item action-btn" data-action="respellEnharmonic" data-keepfocus="1">Respell enharmonic</button>
+          <button class="submenu-item action-btn" data-action="wrapRepeats" data-keepfocus="1">Wrap in repeats</button>
+          <button class="submenu-item action-btn" data-action="markNotes" data-keepfocus="1">Mark notes</button>
+          <button class="submenu-item action-btn" data-action="addTriplets" data-keepfocus="1">Add triplets</button>
+          <button class="submenu-item action-btn" data-action="removeRedundantAccidentals" data-keepfocus="1">Remove redundant accidentals</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="copy-dropdown" id="copyDropdown"></div>
+</div>
+
+<div id="preview-wrap">
+  <div class="preview-pill">
+    <div class="menu-wrap">
+      <button id="shareBtn" aria-label="Share">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12" stroke="#f5f5f7" stroke-width="2" stroke-linecap="round"/><path d="M7 8l5-5 5 5" stroke="#f5f5f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="#f5f5f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="dropdown-menu" id="shareMenu">
+        <button class="dropdown-item action-btn" data-action="copyText">Copy ABC code</button>
+        <button class="dropdown-item action-btn" data-action="exportPdf">Export PDF file</button>
+        <button class="dropdown-item action-btn" data-action="exportAbcFile">Export ABC file</button>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button id="hamburgerBtn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="#f5f5f7" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="dropdown-menu" id="hamburgerMenu">
+        <button class="dropdown-item action-btn" data-action="openSettings">Settings</button>
+        <button class="dropdown-item action-btn danger" data-action="resetStep1">Reset</button>
+      </div>
+    </div>
+  </div>
+  <div id="preview"></div>
+</div>
+
+<div class="v-divider" id="vDivider">
+  <div class="v-divider-handle"></div>
+</div>
+
+<div class="middle-wrap">
+
+  <div class="editor-wrap">
+    <!-- Tie autocomplete tooltip -->
+    <div id="tie-tooltip" role="tooltip" aria-live="polite">
+      <span id="tie-tooltip-text"></span>
+      <button id="tie-tooltip-close" aria-label="Dismiss suggestion">✕</button>
+    </div>
+    <div id="notation-display" aria-hidden="true"></div>
+    <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="float-pills">
+      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick-insert row. Not wired to actions yet — still deciding what lives here. -->
+  <div class="action-scroll">
+    <button class="action-btn action-pill" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
+    <button class="action-btn action-pill" data-action="openTextPopupAbove" data-keepfocus="1">T&#9650;</button>
+    <button class="action-btn action-pill" data-action="openTextPopupBelow" data-keepfocus="1">T&#9660;</button>
+    <button class="key action-pill" data-insert="|:">|:</button>
+    <button class="key action-pill" data-insert=":|">:|</button>
+    <button class="key action-pill" data-insert="(3">(3</button>
+  </div>
+
+</div>
+
+<!-- Template insert overlay -->
+<div class="insert-overlay" id="tmpl-overlay">
+  <div class="insert-box" id="tmpl-box">
+    <div class="insert-title">Insert template</div>
+    <div class="tmpl-overlay-grid">
+      <!-- %% directives -->
+      <button class="tmpl-btn" data-insert="%%score ">%%score</button>
+      <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
+      <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
+      <button class="tmpl-btn" data-insert="%%staffSep 60">%%staffSep 60</button>
+      <button class="tmpl-btn" data-insert="%%printTempo false">%%printTempo false</button>
+      <!-- Header fields -->
+      <button class="tmpl-btn" data-insert="T:">T:</button>
+      <button class="tmpl-btn" data-insert="Q:1/4=">Q:1/4=</button>
+      <button class="tmpl-btn" data-insert="L:1/16">L:1/16</button>
+      <button class="tmpl-btn" data-insert="L:1/4">L:1/4</button>
+      <button class="tmpl-btn" data-insert="L:1/2">L:1/2</button>
+      <button class="tmpl-btn" data-insert="L:1">L:1</button>
+      <!-- Inline fields -->
+      <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
+      <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
+      <!-- Barlines -->
+      <button class="tmpl-btn" data-insert="|:">|:</button>
+      <button class="tmpl-btn" data-insert=":|">:|</button>
+      <button class="tmpl-btn" data-insert=":||:">:||:</button>
+      <!-- Note prefixes -->
+      <button class="tmpl-btn" data-insert="(3">(3</button>
+      <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
+      <button class="tmpl-btn" data-insert="!>!">!&gt;!</button>
+      <button class="tmpl-btn" data-insert="!style=x!">!style=x!</button>
+      <button class="tmpl-btn" data-insert="!style=rhythm!">!style=rhythm!</button>
+      <!-- Complex -->
+      <button class="tmpl-btn" data-insert="%%score {1 | 2}&#10;V:1 clef=treble&#10;V:2 clef=bass&#10;[V:1]&#10;[V:2]">Grand Staff</button>
+    </div>
+    <div class="insert-footer">
+      <button class="action-btn btn-clear" data-action="closeTmplOverlay">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="button-area">
+
+  <!-- Row 1: C D E F G A B z -->
+  <div class="key-row row-primary row-notes-pad" id="row-letters">
+    <button class="key" data-insert="C">C</button>
+    <button class="key" data-insert="D">D</button>
+    <button class="key" data-insert="E">E</button>
+    <button class="key" data-insert="F">F</button>
+    <button class="key" data-insert="G">G</button>
+    <button class="key" data-insert="A">A</button>
+    <button class="key" data-insert="B">B</button>
+  </div>
+
+  <!-- Row 2: note-duration icons (semiquaver, quaver, crotchet, minim, semibreve) + dash + rest -->
+  <div class="key-row row-small row-notes-pad" id="row-numbers">
+    <button class="key key-duration" data-dur="1/16" title="Semiquaver"></button>
+    <button class="key key-duration" data-dur="1/8"  title="Quaver"></button>
+    <button class="key key-duration" data-dur="1/4"  title="Crotchet"></button>
+    <button class="key key-duration" data-dur="1/2"  title="Minim"></button>
+    <button class="key key-duration" data-dur="1"    title="Semibreve"></button>
+    <button class="key" data-insert="-">-</button>
+    <button class="key key-z" data-insert="z">z</button>
+  </div>
+
+  <!-- Row 3: . [ ] _ ^ = , ' ⌫  ("  removed — chord/text popups now cover quoting) -->
+  <div class="key-row row-notes">
+    <button class="key" data-insert=".">.</button>
+    <button class="key" data-insert="[">&#91;</button>
+    <button class="key" data-insert="]">&#93;</button>
+    <button class="key" data-insert="_">_</button>
+    <button class="key" data-insert="^">^</button>
+    <button class="key" data-insert="=">=</button>
+    <button class="key" data-insert=",">,</button>
+    <button class="key" data-insert="'">'</button>
+    <button class="key key-bksp" data-action="bksp">⌫</button>
+  </div>
+
+  <!-- Row 4: ← → SPACE | ↵  (/ removed) -->
+  <div class="key-row row-nav">
+    <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
+    <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
+    <button class="key key-space" data-insert=" ">SPACE</button>
+    <button class="key" data-insert="|">|</button>
+    <button class="key key-nl" data-insert="&#10;">↵</button>
+  </div>
+
+</div>
+
+<!-- Chord insert popup -->
+<div class="insert-overlay" id="chordOverlay">
+  <div class="insert-box">
+    <div class="insert-title">Add chord symbol</div>
+    <input class="insert-input" id="chordInput" type="text" placeholder="e.g. C7#9" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
+    <div class="insert-footer">
+      <button class="action-btn btn-clear" data-action="closeChordPopup">Cancel</button>
+      <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" id="chordDone" data-action="doneChordPopup">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Text insert popup -->
+<div class="insert-overlay" id="textOverlay">
+  <div class="insert-box">
+    <div class="insert-title" id="textPopupTitle">Add text</div>
+    <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
+    <div class="insert-footer">
+      <button class="action-btn btn-clear" data-action="closeTextPopup">Cancel</button>
+      <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" id="textDone" data-action="doneTextPopup">Done</button>
+    </div>
+  </div>
+</div>
+
+<div id="gesture-badge"></div>
+
+<div id="gesture-wheel">
+  <svg viewBox="0 0 200 200" width="160" height="160" overflow="visible">
+    <g id="chev-up-g">    <polyline class="chev-path dim" points="76,40 100,28 124,40"/></g>
+    <g id="chev-down-g">  <polyline class="chev-path dim" points="76,160 100,172 124,160"/></g>
+    <g id="chev-left-g">  <polyline class="chev-path dim" points="40,76 28,100 40,124"/></g>
+    <g id="chev-right-g"> <polyline class="chev-path dim" points="160,76 172,100 160,124"/></g>
+  </svg>
+</div>
+
+<div class="copy-toast" id="toast">Copied ✓</div>
+
+<script>
+  const ta = document.getElementById('notation');
+  const toast = document.getElementById('toast');
+  const previewDiv = document.getElementById('preview');
+
+  let taFocused = false;
+  let savedStart = 0, savedEnd = 0;
+
+  // --- Tie autocomplete tooltip ---
+  let tieTooltipActive = false;
+  let tieTooltipSuggestion = '';
+  const tieTooltipEl    = document.getElementById('tie-tooltip');
+  const tieTooltipText  = document.getElementById('tie-tooltip-text');
+  const tieTooltipClose = document.getElementById('tie-tooltip-close');
+
+  function showTieTooltip(suggestion) {
+    tieTooltipSuggestion = suggestion;
+    tieTooltipActive = true;
+    tieTooltipText.textContent = suggestion;
+    tieTooltipEl.classList.add('visible');
+  }
+
+  function hideTieTooltip() {
+    if (!tieTooltipActive) return;
+    tieTooltipActive = false;
+    tieTooltipSuggestion = '';
+    tieTooltipEl.classList.remove('visible');
+  }
+
+  // Parse backwards from savedStart to find a tie autocomplete suggestion.
+  // Returns the suggestion string, or null if context is invalid.
+  function getTieSuggestion() {
+    // No suggestion if there's a selection
+    if (savedStart !== savedEnd) return null;
+
+    const val = ta.value;
+    const pos = savedStart;
+
+    // Use full text up to cursor — ties can span system breaks (newlines),
+    // and the stripping loop handles \n as whitespace.
+    let s = val.slice(0, pos);
+
+    // Iteratively strip allowed gap characters from the right:
+    // whitespace (including \n), barlines, complete quoted strings "...",
+    // unclosed/partial quoted strings (e.g. user mid-typing "G7),
+    // and decorations !...!
+    let progress = true;
+    while (progress) {
+      progress = false;
+      // Trailing whitespace (including newlines)
+      if (/\s$/.test(s)) {
+        s = s.replace(/\s+$/, '');
+        progress = true; continue;
+      }
+      // Trailing complete quoted string "..."
+      if (/"[^"]*"$/.test(s)) {
+        s = s.replace(/"[^"]*"$/, '');
+        progress = true; continue;
+      }
+      // Trailing unclosed/partial quoted string — only when inside an open quote
+      // (odd number of " means one is unclosed; even means all are closed)
+      if ((s.match(/"/g) || []).length % 2 === 1) {
+        s = s.replace(/"[^"]*$/, '');
+        progress = true; continue;
+      }
+      // Trailing complete decoration !...!
+      if (/![^!\n]+!$/.test(s)) {
+        s = s.replace(/![^!\n]+!$/, '');
+        progress = true; continue;
+      }
+      // Trailing unclosed/partial decoration — only when inside an open decoration
+      if ((s.match(/!/g) || []).length % 2 === 1) {
+        s = s.replace(/![^!]*$/, '');
+        progress = true; continue;
+      }
+      // Trailing barlines (various forms, longest match first)
+      if (/(:\|::|::\|:|:\|\|:|:\|\||\|\|:|\|\||::\||::\||\[\|\||:\||:\]|\|\]|\[?\||\|:|:])$/.test(s)) {
+        s = s.replace(/(:\|::|::\|:|:\|\|:|:\|\||\|\|:|\|\||::\||::\||\[\|\||:\||:\]|\|\]|\[?\||\|:|:])$/, '');
+        progress = true; continue;
+      }
+    }
+
+    // Must end with a hyphen
+    if (!s.endsWith('-')) return null;
+    s = s.slice(0, -1);
+
+    // Try to match a chord at end of s:
+    // Optional . prefix, [ not followed by inline field (letter:), note chars, ], optional duration
+    const chordMatch = s.match(/\.?\[(?![A-Za-z]:)([^\]\n]+)\](?:[0-9]+\/[0-9]*|\/[0-9]*|[0-9]+|\/)*$/);
+    if (chordMatch) {
+      const stripped = chordMatch[1].replace(/[_^=]/g, '');
+      if (!stripped || !/[a-gA-G]/.test(stripped)) return null;
+      return '[' + stripped + ']';
+    }
+
+    // Try to match a single note at end of s:
+    // Optional . prefix, optional accidentals, note letter, optional octave markers, optional duration
+    const noteMatch = s.match(/\.?[_^=]*([a-gA-G])([',]*)(?:[0-9]+\/[0-9]*|\/[0-9]*|[0-9]+|\/)*$/);
+    if (noteMatch) {
+      return noteMatch[1] + noteMatch[2];
+    }
+
+    return null;
+  }
+
+  function tryShowTieTooltip() {
+    const suggestion = getTieSuggestion();
+    if (suggestion) showTieTooltip(suggestion);
+  }
+
+  function checkTieTooltipValidity() {
+    if (!tieTooltipActive) return;
+    const suggestion = getTieSuggestion();
+    if (!suggestion) {
+      hideTieTooltip();
+    } else if (suggestion !== tieTooltipSuggestion) {
+      // Cursor moved to a different valid tie context — update suggestion
+      tieTooltipSuggestion = suggestion;
+      tieTooltipText.textContent = suggestion;
+    }
+  }
+
+  function acceptTieSuggestion() {
+    if (!tieTooltipActive || !tieTooltipSuggestion) return;
+    const suggestion = tieTooltipSuggestion;
+    hideTieTooltip();
+    doInsert(suggestion, taFocused); // separate undo step (doInsert calls pushUndo)
+  }
+
+  // Tooltip body tap/click → accept; X → dismiss
+  tieTooltipEl.addEventListener('mousedown', e => {
+    e.preventDefault(); // prevent textarea blur
+    if (e.target.closest('#tie-tooltip-close')) {
+      hideTieTooltip();
+    } else {
+      acceptTieSuggestion();
+    }
+  });
+  tieTooltipEl.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (e.target.closest('#tie-tooltip-close')) {
+      hideTieTooltip();
+    } else {
+      acceptTieSuggestion();
+    }
+  }, { passive: false });
+
+  // --- Undo ---
+  const MAX_UNDO = 100;
+  const undoStack = [];
+  const undoBtn = document.getElementById('undoBtn');
+
+  function pushUndo() {
+    undoStack.push({ value: ta.value, selStart: savedStart, selEnd: savedEnd });
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    undoBtn.disabled = false;
+  }
+
+  function undo() {
+    if (!undoStack.length) return;
+    const state = undoStack.pop();
+    ta.value = state.value;
+    savedStart = state.selStart;
+    savedEnd   = state.selEnd;
+    if (taFocused) {
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else {
+      syncDisplayIfUnfocused();
+    }
+    updateClearBtn();
+    schedulePreview();
+    undoBtn.disabled = undoStack.length === 0;
+    checkTieTooltipValidity();
+  }
+  let debounceTimer = null;
+
+  const taDisplay = document.getElementById('notation-display');
+
+  // ---- ABC syntax highlighting tokeniser ----
+  // Returns array of {type, text} objects covering every character in val.
+  function tokeniseABC(val) {
+    const tokens = [];
+    // Line-scoped pass: identify header lines and directive lines first,
+    // then fall through to the character-level regex for body content.
+    const lines = val.split('\n');
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+      const nl = li < lines.length - 1 ? '\n' : '';
+
+      // Header field: letter followed by colon at start of line (e.g. T:, K:, M:)
+      const headerMatch = line.match(/^([A-Za-z]:)(.*)/);
+      // %% directive line
+      const directiveMatch = !headerMatch && line.match(/^(%%)(.*)/);
+      // % comment line
+      const commentMatch = !headerMatch && !directiveMatch && line.match(/^(%)(.*)/);
+
+      if (headerMatch) {
+        tokens.push({ type: 'header-key',   text: headerMatch[1] });
+        if (headerMatch[2]) tokens.push({ type: 'header-val', text: headerMatch[2] });
+        if (nl) tokens.push({ type: 'plain', text: nl });
+        continue;
+      }
+      if (directiveMatch) {
+        tokens.push({ type: 'directive', text: '%%' + directiveMatch[2] });
+        if (nl) tokens.push({ type: 'plain', text: nl });
+        continue;
+      }
+      if (commentMatch) {
+        tokens.push({ type: 'directive', text: '%' + commentMatch[2] });
+        if (nl) tokens.push({ type: 'plain', text: nl });
+        continue;
+      }
+
+      // Body line: character-level tokenisation
+      // Order matters — longer/more-specific patterns first.
+      const bodyRe = new RegExp(
+        '"[^"]*"'          + '|' +  // chord symbols "Gm7"
+        '![^!\\n]+!'       + '|' +  // decorations !trill!
+        '\\[\\s*[A-Za-z]:' +         // inline fields [K:C] [V:1]
+          '[^\\]]*\\]'     + '|' +
+        '\\|\\||\\|:|:\\|' + '|' +  // double/repeat barlines
+        '\\[\\|\\||\\[\\|' + '|' +  // thick-thin barlines
+        '\\|\\]|::'        + '|' +  // thin-thick, double-repeat
+        '\\|'              + '|' +  // single barline
+        '[a-gA-G]'         + '|' +  // note letters
+        '[zxZ]'            + '|' +  // rests
+        '[\\^_=]'          + '|' +  // accidentals
+        "[\\',]"           + '|' +  // octave markers
+        '\\.'              + '|' +  // augmentation dot
+        '[0-9]+\\/[0-9]*'  + '|' +  // fractional durations 3/2 1/
+        '\\/[0-9]*'        + '|' +  // leading-slash durations /2 /
+        '[0-9]+'           + '|' +  // plain numbers
+        '[-]'              + '|' +  // tie
+        '[><]'             + '|' +  // broken rhythm
+        '[()]'             + '|' +  // slur
+        '[\\s\\S]',                  // catch-all (one char)
+        'g'
+      );
+
+      let m;
+      while ((m = bodyRe.exec(line)) !== null) {
+        const t = m[0];
+        let type = 'plain';
+        if (t.startsWith('"'))                          type = 'chord';
+        else if (t.startsWith('!'))                     type = 'decoration';
+        else if (t.startsWith('[') && t.includes(':'))  type = 'inline-field';
+        else if (/^(\|\||:\||\|:|:\:|\\[\\|\\||\[\\|\|\\]|::)/.test(t)) type = 'barline';
+        else if (t === '|')                             type = 'barline';
+        else if (/^[a-gA-G]$/.test(t))                 type = 'note';
+        else if (/^[zxZ]$/.test(t))                    type = 'rest';
+        else if (/^[\^_=]$/.test(t))                   type = 'modifier';
+        else if (/^[',]$/.test(t))                     type = 'modifier';
+        else if (t === '.')                             type = 'modifier';
+        else if (/^[0-9]/.test(t) || t.startsWith('/'))type = 'duration';
+        else if (t === '-')                             type = 'tie';
+        else if (/^[><()]$/.test(t))                   type = 'duration';
+        tokens.push({ type, text: t });
+      }
+      if (nl) tokens.push({ type: 'plain', text: nl });
+    }
+    return tokens;
+  }
+
+  const TYPE_CLASS = {
+    'note':         'hl-note',
+    'modifier':     'hl-mod',
+    'rest':         'hl-rest',
+    'duration':     'hl-dur',
+    'tie':          'hl-dur',
+    'barline':      'hl-bar',
+    'chord':        'hl-chord',
+    'decoration':   'hl-deco',
+    'inline-field': 'hl-header',
+    'header-key':   'hl-hkey',
+    'header-val':   'hl-hval',
+    'directive':    'hl-dir',
+    'plain':        '',
+  };
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function tokensToHTML(tokens, selStart, selEnd) {
+    const hasSel = selEnd > selStart;
+    const cursorSpan = '<span class="editor-cursor"></span>';
+
+    function charWithCursor(ch) {
+      return `<span style="position:relative;display:inline">${esc(ch)}${cursorSpan}</span>`;
+    }
+
+    // Render a fragment of token text, optionally wrapped in a class span,
+    // optionally wrapped in a selection highlight span.
+    function renderFragment(text, cls, inSel) {
+      if (!text) return '';
+      let inner = cls ? `<span class="${cls}">${esc(text)}</span>` : esc(text);
+      if (inSel) inner = `<span class="hl-sel">${inner}</span>`;
+      return inner;
+    }
+
+    // Split a token at up to two boundary points (selStart, selEnd) and
+    // render each piece with correct highlighting.
+    function renderToken(tok, charCount) {
+      const cls  = TYPE_CLASS[tok.type] || '';
+      const text = tok.text;
+      const len  = text.length;
+      const tokStart = charCount;
+      const tokEnd   = charCount + len;
+
+      if (!hasSel) {
+        // No selection — normal render (cursor handled separately below)
+        return cls ? `<span class="${cls}">${esc(text)}</span>` : esc(text);
+      }
+
+      // Clamp selection to this token's range
+      const sA = Math.max(selStart, tokStart) - tokStart; // start offset within token
+      const sB = Math.min(selEnd,   tokEnd)   - tokStart; // end offset within token
+
+      if (sA >= sB) {
+        // Token entirely outside selection
+        return renderFragment(text, cls, false);
+      }
+      if (sA === 0 && sB === len) {
+        // Token entirely inside selection
+        return renderFragment(text, cls, true);
+      }
+      // Token straddles a boundary — split into up to 3 pieces
+      let html = '';
+      if (sA > 0)   html += renderFragment(text.slice(0, sA), cls, false);
+                    html += renderFragment(text.slice(sA, sB), cls, true);
+      if (sB < len) html += renderFragment(text.slice(sB), cls, false);
+      return html;
+    }
+
+    if (hasSel) {
+      // Selection mode — no cursor, just highlighted ranges
+      let html = '';
+      let charCount = 0;
+      for (const tok of tokens) {
+        html += renderToken(tok, charCount);
+        charCount += tok.text.length;
+      }
+      return html;
+    }
+
+    // Cursor mode — single insertion point
+    const cursorPos = selStart;
+    let html = '';
+    let charCount = 0;
+    let cursorInserted = false;
+
+    for (let ti = 0; ti < tokens.length; ti++) {
+      const tok = tokens[ti];
+      const cls = TYPE_CLASS[tok.type] || '';
+      const len = tok.text.length;
+      const tokStart = charCount;
+      const tokEnd   = charCount + len;
+
+      if (!cursorInserted && cursorPos >= tokStart && cursorPos < tokEnd) {
+        const split = cursorPos - tokStart;
+        if (split === 0) {
+          const firstChar = tok.text[0] || '';
+          const rest = tok.text.slice(1);
+          const anchor = `<span style="position:relative;display:inline">${esc(firstChar)}<span class="editor-cursor" style="right:auto;left:-2px"></span></span>`;
+          html += cls ? `<span class="${cls}">${anchor}${esc(rest)}</span>` : anchor + esc(rest);
+        } else {
+          const pre      = tok.text.slice(0, split);
+          const post     = tok.text.slice(split);
+          const preRest  = pre.slice(0, -1);
+          const anchorCh = pre.slice(-1);
+          const anchor   = charWithCursor(anchorCh);
+          if (cls) {
+            html += `<span class="${cls}">${esc(preRest)}${anchor}</span>`;
+            if (post) html += `<span class="${cls}">${esc(post)}</span>`;
+          } else {
+            html += esc(preRest) + anchor + esc(post);
+          }
+        }
+        cursorInserted = true;
+      } else {
+        html += cls ? `<span class="${cls}">${esc(tok.text)}</span>` : esc(tok.text);
+      }
+      charCount = tokEnd;
+    }
+    if (!cursorInserted) {
+      html += `<span style="position:relative;display:inline">&#8203;${cursorSpan}</span>`;
+    }
+    return html;
+  }
+
+  function renderStaticDisplay() {
+    const val = ta.value;
+    if (!val) {
+      taDisplay.innerHTML = '<span class="display-placeholder">' + esc(ta.placeholder) + '</span>';
+    } else {
+      const tokens = tokeniseABC(val);
+      taDisplay.innerHTML = tokensToHTML(tokens, savedStart, savedEnd);
+    }
+  }
+
+  function scrollCursorIntoView() {
+    const cursor = taDisplay.querySelector('.editor-cursor');
+    if (!cursor) return;
+    const cursorRect  = cursor.getBoundingClientRect();
+    const displayRect = taDisplay.getBoundingClientRect();
+    const offsetTop   = cursorRect.top - displayRect.top + taDisplay.scrollTop;
+    const cursorH     = cursorRect.height || 16;
+    const divH        = taDisplay.clientHeight;
+    const pad         = 8;
+    const scroll      = taDisplay.scrollTop;
+    if (offsetTop - pad < scroll) {
+      taDisplay.scrollTop = Math.max(0, offsetTop - pad);
+    } else if (offsetTop + cursorH + pad > scroll + divH) {
+      taDisplay.scrollTop = offsetTop + cursorH + pad - divH;
+    }
+  }
+
+  // Show/hide static display — capture scroll at the moment of transition, apply after swap
+  function syncDisplayIfUnfocused() {
+    if (!taFocused) {
+      if (!taDisplay.classList.contains('active')) {
+        renderStaticDisplay();
+        taDisplay.scrollTop = ta.scrollTop;
+        ta.classList.add('hidden');
+        taDisplay.classList.add('active');
+      } else {
+        renderStaticDisplay();
+        scrollCursorIntoView();
+      }
+    }
+  }
+
+  function showStaticDisplay() {
+    const scroll = ta.scrollTop;
+    renderStaticDisplay();
+    ta.classList.add('hidden');
+    taDisplay.classList.add('active');
+    requestAnimationFrame(() => { taDisplay.scrollTop = scroll; });
+  }
+
+  function hideStaticDisplay() {
+    if (!taDisplay.classList.contains('active')) return;
+    const scroll = taDisplay.scrollTop;
+    taDisplay.classList.remove('active');
+    ta.classList.remove('hidden');
+    requestAnimationFrame(() => { ta.scrollTop = scroll; });
+  }
+
+  // Tapping the display div refocuses the textarea.
+  // Mouse: on mousedown (instant). Touch: on touchend so the div is
+  // scrollable on mobile without accidentally triggering focus.
+  taDisplay.addEventListener('mousedown', e => {
+    e.preventDefault();
+    hideStaticDisplay();
+    ta.focus();
+    ta.setSelectionRange(savedStart, savedEnd);
+  });
+
+  let touchStartY = 0;
+  taDisplay.addEventListener('touchstart', e => {
+    touchStartY = e.changedTouches[0].clientY;
+  }, { passive: true });
+  taDisplay.addEventListener('touchend', e => {
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+    if (dy > 8) return;
+    e.preventDefault();
+    hideStaticDisplay();
+    ta.focus();
+    ta.setSelectionRange(savedStart, savedEnd);
+  }, { passive: false });
+
+  const buttonArea = document.querySelector('.button-area');
+  const actionScroll = document.querySelector('.action-scroll');
+  const editorWrap = document.querySelector('.editor-wrap');
+  const vv = window.visualViewport;
+
+  function pinActionScrollAboveKeyboard() {
+    const rect = document.body.getBoundingClientRect();
+    let keyboardHeight = 0;
+    if (vv) keyboardHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    actionScroll.style.position = 'fixed';
+    actionScroll.style.left = rect.left + 'px';
+    actionScroll.style.width = rect.width + 'px';
+    actionScroll.style.bottom = keyboardHeight + 'px';
+    actionScroll.style.margin = '0';
+    actionScroll.style.zIndex = '20';
+    editorWrap.style.paddingBottom = actionScroll.offsetHeight + 'px';
+  }
+
+  function releaseActionScroll() {
+    actionScroll.style.position = '';
+    actionScroll.style.left = '';
+    actionScroll.style.width = '';
+    actionScroll.style.bottom = '';
+    actionScroll.style.margin = '';
+    actionScroll.style.zIndex = '';
+    editorWrap.style.paddingBottom = '';
+  }
+
+  function setTypingRows(focused) {
+    document.body.classList.toggle('typing', focused);
+    if (focused) pinActionScrollAboveKeyboard();
+    else releaseActionScroll();
+  }
+
+  if (vv) {
+    vv.addEventListener('resize', () => {
+      if (document.body.classList.contains('typing')) pinActionScrollAboveKeyboard();
+    });
+  }
+
+  ta.addEventListener('focus', () => { taFocused = true; hideStaticDisplay(); setTypingRows(true); });
+  ta.addEventListener('blur', () => {
+    taFocused = false;
+    savedStart = ta.selectionStart;
+    savedEnd = ta.selectionEnd;
+    if (!popupOpen) {
+      showStaticDisplay();
+      setTypingRows(false);
+    }
+  });
+  ta.addEventListener('keyup', () => {
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+  });
+  ta.addEventListener('click', () => {
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+  });
+  ta.addEventListener('mouseup', () => {
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+  });
+  document.addEventListener('selectionchange', () => {
+    if (taFocused) {
+      savedStart = ta.selectionStart;
+      savedEnd = ta.selectionEnd;
+      checkTieTooltipValidity();
+    }
+  });
+  function updateClearBtn() {
+    // Reset menu item greyed out when empty
+    // (no clearBtn DOM element anymore — just keep for callers)
+  }
+  updateClearBtn();
+  syncDisplayIfUnfocused();
+  setTypingRows(false);
+
+  ta.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      undo();
+      return;
+    }
+    if (e.key === 'Escape' && tieTooltipActive) {
+      hideTieTooltip();
+      return;
+    }
+    if (e.key === ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      doInsert(spaceOrBarline(), true);
+      return;
+    }
+    // Push before any character-modifying key
+    const modifying = e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete';
+    if (modifying && !e.ctrlKey && !e.metaKey && !e.altKey) pushUndo();
+  });
+  ta.addEventListener('input', e => {
+    savedStart = ta.selectionStart;
+    savedEnd   = ta.selectionEnd;
+    schedulePreview();
+    if (e.inputType === 'insertText' && e.data === '-') {
+      tryShowTieTooltip();
+    } else {
+      checkTieTooltipValidity();
+    }
+  });
+
+  const zoomSlider = document.getElementById('zoom-slider');
+  let zoomLevel = 0.5;
+
+  const BASE_MULTIPLIER = 1.45;
+  const SCALING_FACTOR = 1.4;
+
+  function getStaffwidth() {
+    const containerWidth = previewDiv.offsetWidth || 320;
+    const multiplier = BASE_MULTIPLIER - (zoomLevel - 0.5) * SCALING_FACTOR;
+    return Math.round(containerWidth * multiplier);
+  }
+
+  zoomSlider.addEventListener('input', () => {
+    zoomLevel = parseFloat(zoomSlider.value);
+    renderPreview();
+  });
+
+  function schedulePreview() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(renderPreview, 900);
+  }
+
+  function renderPreview() {
+    const raw = ta.value.trim();
+    if (!raw) { previewDiv.innerHTML = ''; return; }
+    try {
+      ABCJS.renderAbc('preview', raw, {
+        responsive: 'resize',
+        staffwidth: getStaffwidth(),
+        add_classes: true,
+        paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8,
+        jazzchords: false,
+        format: { gchordfont: 'Helvetica 12' }
+      });
+    } catch(e) {}
+  }
+
+  // Core insert — used by both key buttons and template buttons
+  function doInsert(text, refocus) {
+    pushUndo();
+    const s = savedStart;
+    const e = savedEnd;
+    const atEnd = e === ta.value.length;
+    ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+    savedStart = s + text.length;
+    savedEnd = savedStart;
+    if (refocus) {
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else if (!taFocused) {
+      syncDisplayIfUnfocused();
+    }
+    if (atEnd) ta.scrollTop = ta.scrollHeight;
+    updateClearBtn();
+    schedulePreview();
+    if (text === '-') {
+      tryShowTieTooltip();
+    } else {
+      checkTieTooltipValidity();
+    }
+  }
+
+  // ---- Note-duration buttons: fraction helpers ----
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { [a, b] = [b, a % b]; } return a || 1; }
+  function reduceFrac(f) {
+    const g = gcd(f[0], f[1]);
+    return [f[0] / g, f[1] / g];
+  }
+  function mulFrac(a, b) { return reduceFrac([a[0] * b[0], a[1] * b[1]]); }
+  function parseFrac(str) {
+    const m = /^(\d+)(?:\/(\d+))?$/.exec(str.trim());
+    if (!m) return [1, 8];
+    return [parseInt(m[1], 10), m[2] ? parseInt(m[2], 10) : 1];
+  }
+
+  // Find the last "L:<num>[/<den>]" before the cursor; default to 1/8
+  function getCurrentLValue() {
+    const textBefore = ta.value.slice(0, savedStart);
+    const re = /L:\s*(\d+)(?:\/(\d+))?/g;
+    let match, last = null;
+    while ((match = re.exec(textBefore)) !== null) last = match;
+    if (!last) return [1, 8];
+    return [parseInt(last[1], 10), last[2] ? parseInt(last[2], 10) : 1];
+  }
+
+  // Find the last "M:<value>" before the cursor; default to 4/4.
+  // Handles "C" (common time), "C|" (cut time), "none" (no fixed bar length),
+  // and plain "N/D" fractions.
+  function getCurrentMValue() {
+    const textBefore = ta.value.slice(0, savedStart);
+    const re = /M:\s*([^\s\n]+)/g;
+    let match, last = null;
+    while ((match = re.exec(textBefore)) !== null) last = match;
+    if (!last) return [4, 4];
+    const v = last[1].trim();
+    if (v === 'C') return [4, 4];
+    if (v === 'C|') return [2, 2];
+    if (/^none$/i.test(v)) return null; // no fixed bar length — auto-barline disabled
+    const fm = /^(\d+)\/(\d+)/.exec(v);
+    if (fm) return [parseInt(fm[1], 10), parseInt(fm[2], 10)];
+    return [4, 4];
+  }
+
+  // duration and L are both [num, den] fractions. Returns the ABC text to insert.
+  function formatDurationInsert(durFrac, LFrac) {
+    const ratio = reduceFrac([durFrac[0] * LFrac[1], durFrac[1] * LFrac[0]]);
+    const [n, d] = ratio;
+    if (d === 1) return String(n);
+    if (n === 1) return d === 2 ? '/' : '/' + d;
+    return n + '/' + d;
+  }
+
+  // ---- Auto barline insertion ----
+  function fracAdd(a, b) {
+    return reduceFrac([a[0] * b[1] + b[0] * a[1], a[1] * b[1]]);
+  }
+  function fracEq(a, b) {
+    return a[0] * b[1] === b[0] * a[1];
+  }
+
+  // Parses a note/chord duration suffix ("", "2", "/2", "/", "3/2", "3/") into a [num, den] fraction.
+  // Bare "/" = 1/2. Leading-slash "/N" = 1/N. "N/" (missing denominator) = N/2, per ABC spec.
+  function parseDurationSuffix(str) {
+    if (!str) return [1, 1];
+    if (str === '/') return [1, 2];
+    if (str.startsWith('/')) return [1, parseInt(str.slice(1), 10) || 2];
+    if (str.includes('/')) {
+      const parts = str.split('/');
+      const n = parts[0] === '' ? 1 : parseInt(parts[0], 10);
+      const d = parts[1] === '' ? 2 : parseInt(parts[1], 10);
+      return [n, d];
+    }
+    return [parseInt(str, 10), 1];
+  }
+
+  // Matches a duration suffix starting at text[pos]. Returns the matched string ('' if none).
+  function matchDurationSuffix(text, pos, endPos) {
+    const m = /^(\d+\/\d+|\/\d+|\d+|\/)/.exec(text.slice(pos, endPos));
+    return m ? m[0] : '';
+  }
+
+  // Parses a tuplet spec "(X", "(X:Y", "(X:Y:Z", "(X::Z" starting at text[idx] (the '(').
+  // Returns { factor: [Y,X] reduced, remaining: Z, end: index just past the spec }.
+  function parseTupletAt(text, idx) {
+    let i = idx + 1;
+    if (!/[2-9]/.test(text[i] || '')) return null;
+    const X = parseInt(text[i], 10); i++;
+    let Y = null, Z = null;
+    if (text[i] === ':') {
+      i++;
+      if (/[0-9]/.test(text[i] || '')) { Y = parseInt(text[i], 10); i++; }
+      if (text[i] === ':') {
+        i++;
+        if (/[0-9]/.test(text[i] || '')) { Z = parseInt(text[i], 10); i++; }
+      }
+    }
+    if (Y === null) Y = X - 1;
+    if (Z === null) Z = X;
+    return { factor: reduceFrac([Y, X]), remaining: Z, end: i };
+  }
+
+  // Finds the start of the current bar: the position right after the nearest
+  // '|' before `pos`, within the current line, or the start of the line if
+  // none is found (bars are not tracked across line breaks). Every barline
+  // variant (|, ||, |:, :|, :||:, [|, |]) contains at least one '|', so this
+  // is sufficient; any leftover ':' or ']' immediately after it is harmless —
+  // computeBarDuration already skips stray barline/colon characters.
+  function getBarStartPos(text, lineStart, pos) {
+    const segment = text.slice(lineStart, pos);
+    const idx = segment.lastIndexOf('|');
+    return idx === -1 ? lineStart : lineStart + idx + 1;
+  }
+
+  // Sums note/rest/chord durations (in L-units) from `startPos` to `endPos`,
+  // handling chords, grace notes, ties, accidentals, quoted text, decorations,
+  // inline fields, and tuplets. Broken rhythm (>/<) is ignored (net duration
+  // over the pair is unaffected). `fullBarLen` (in L-units) is needed to
+  // interpret multi-measure rests (capital Z/X + a bar count).
+  function computeBarDuration(text, startPos, endPos, LFrac, fullBarLen) {
+    let i = startPos;
+    let total = [0, 1];
+    let tuplet = null; // { factor:[Y,X], remaining }
+
+    function addContrib(frac, allowTuplet) {
+      let c = frac;
+      if (allowTuplet && tuplet && tuplet.remaining > 0) {
+        c = reduceFrac([c[0] * tuplet.factor[0], c[1] * tuplet.factor[1]]);
+        tuplet.remaining--;
+        if (tuplet.remaining === 0) tuplet = null;
+      }
+      total = fracAdd(total, c);
+    }
+
+    while (i < endPos) {
+      const ch = text[i];
+
+      if (ch === ' ' || ch === '\t') { i++; continue; }
+
+      if (ch === '"') { // quoted chord symbol / annotation
+        const end = text.indexOf('"', i + 1);
+        i = (end === -1 || end >= endPos) ? endPos : end + 1;
+        continue;
+      }
+      if (ch === '!') { // decoration
+        const end = text.indexOf('!', i + 1);
+        i = (end === -1 || end >= endPos) ? endPos : end + 1;
+        continue;
+      }
+      if (ch === '{') { // grace notes — zero duration
+        const end = text.indexOf('}', i + 1);
+        i = (end === -1 || end >= endPos) ? endPos : end + 1;
+        continue;
+      }
+      if (ch === '[') {
+        // Inline field like [K:C] [M:3/4] — letter immediately followed by ':'
+        if (/[A-Za-z]/.test(text[i + 1] || '') && text[i + 2] === ':') {
+          const end = text.indexOf(']', i + 1);
+          i = (end === -1 || end >= endPos) ? endPos : end + 1;
+          continue;
+        }
+        // Chord — counts once as a single duration unit
+        const end = text.indexOf(']', i + 1);
+        const closeIdx = (end === -1 || end >= endPos) ? endPos : end;
+        const j = closeIdx + 1;
+        const durStr = matchDurationSuffix(text, j, endPos);
+        const chordDur = parseDurationSuffix(durStr);
+        addContrib(reduceFrac([chordDur[0] * LFrac[0], chordDur[1] * LFrac[1]]), true);
+        i = j + durStr.length;
+        continue;
+      }
+      if (ch === '(' && /[2-9]/.test(text[i + 1] || '')) { // tuplet start
+        const t = parseTupletAt(text, i);
+        tuplet = { factor: t.factor, remaining: t.remaining };
+        i = t.end;
+        continue;
+      }
+      if (ch === '(' || ch === ')') { i++; continue; } // plain slur
+      if (ch === '-') { i++; continue; } // tie
+      if (ch === '>' || ch === '<') { i++; continue; } // broken rhythm — ignored
+      if (ch === '|' || ch === ':') { i++; continue; } // stray barline chars (shouldn't occur)
+      if (ch === '^' || ch === '_' || ch === '=') { i++; continue; } // accidental
+      if (ch === '.') { i++; continue; } // staccato dot (not a duration dot)
+
+      if (/[a-gA-GzZxX]/.test(ch)) {
+        const isMultiMeasure = (ch === 'Z' || ch === 'X');
+        let j = i + 1;
+        while (j < endPos && (text[j] === "'" || text[j] === ',')) j++; // octave marks
+        const durStr = matchDurationSuffix(text, j, endPos);
+        if (isMultiMeasure) {
+          const n = (durStr && /^\d+$/.test(durStr)) ? parseInt(durStr, 10) : 1;
+          total = fracAdd(total, reduceFrac([fullBarLen[0] * n, fullBarLen[1]]));
+        } else {
+          const durFrac = parseDurationSuffix(durStr);
+          addContrib(reduceFrac([durFrac[0] * LFrac[0], durFrac[1] * LFrac[1]]), true);
+        }
+        i = j + durStr.length;
+        continue;
+      }
+
+      i++; // anything else — skip
+    }
+    return total;
+  }
+
+  // Decides whether the space about to be inserted should instead become " | ".
+  let autoBarlineEnabled = true;
+  document.getElementById('autoBarlineToggle').addEventListener('change', e => {
+    autoBarlineEnabled = e.target.checked;
+  });
+  function spaceOrBarline() {
+    if (!autoBarlineEnabled) return ' ';
+    if (savedStart !== savedEnd) return ' '; // replacing a selection — just insert a plain space
+    const pos = savedStart;
+    const M = getCurrentMValue();
+    if (!M) return ' '; // M:none — no fixed bar length, feature disabled
+    const L = getCurrentLValue();
+    const text = ta.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    const barStart = getBarStartPos(text, lineStart, pos);
+    const fullBarLen = reduceFrac([M[0], M[1]]);
+    const total = computeBarDuration(text, barStart, pos, L, fullBarLen);
+    return fracEq(total, fullBarLen) ? ' | ' : ' ';
+  }
+
+  // ---- Note-duration button icons ----
+  function noteheadSVG(filled, tilted) {
+    const rot = tilted ? ' transform="rotate(-20 14 46)"' : '';
+    return filled
+      ? `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="currentColor"/>`
+      : `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="none" stroke="currentColor" stroke-width="4"/>`;
+  }
+  const DUR_STEM  = `<line x1="22.5" y1="8" x2="22.5" y2="42" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_FLAG1 = `<path d="M22.5,8 C33,12 33,24 23,30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_FLAG2 = `<path d="M22.5,16 C33,20 33,32 23,38" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_DOT   = `<circle cx="32" cy="44" r="2.6" fill="currentColor"/>`;
+
+  function durationIconSVG(dur, dotted) {
+    let inner;
+    switch (dur) {
+      case '1':    inner = noteheadSVG(false, false); break;                      // semibreve
+      case '1/2':  inner = noteheadSVG(false, true) + DUR_STEM; break;             // minim
+      case '1/4':  inner = noteheadSVG(true, true) + DUR_STEM; break;              // crotchet
+      case '1/8':  inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1; break;  // quaver
+      case '1/16': inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1 + DUR_FLAG2; break; // semiquaver
+      default:     inner = '';
+    }
+    if (dotted) inner += DUR_DOT;
+    return `<svg viewBox="0 0 46 60" width="46" height="60" class="dur-icon" aria-hidden="true">${inner}</svg>`;
+  }
+
+  document.querySelectorAll('.key-duration').forEach(btn => {
+    btn.innerHTML = durationIconSVG(btn.dataset.dur, false);
+  });
+
+  function bksp() {
+    pushUndo();
+    const wasActive = taFocused;
+    const atEnd = savedEnd === ta.value.length;
+    if (savedStart === savedEnd && savedStart > 0) {
+      ta.value = ta.value.slice(0, savedStart - 1) + ta.value.slice(savedEnd);
+      savedStart -= 1; savedEnd = savedStart;
+    } else if (savedStart !== savedEnd) {
+      ta.value = ta.value.slice(0, savedStart) + ta.value.slice(savedEnd);
+      savedEnd = savedStart;
+    }
+    if (wasActive) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
+    if (atEnd) ta.scrollTop = ta.scrollHeight;
+    updateClearBtn();
+    schedulePreview();
+    checkTieTooltipValidity();
+  }
+
+  function moveCursor(key) {
+    const wasFocused = taFocused;
+    const s = savedStart;
+    const val = ta.value;
+    let pos;
+    if (key === 'ArrowLeft') {
+      pos = s > 0 ? s - 1 : 0;
+    } else if (key === 'ArrowRight') {
+      pos = s < val.length ? s + 1 : val.length;
+    } else {
+      const lines = val.split('\n');
+      let line = 0, col = 0, count = 0;
+      for (let i = 0; i < lines.length; i++) {
+        if (count + lines[i].length >= s) { line = i; col = s - count; break; }
+        count += lines[i].length + 1;
+      }
+      if (key === 'ArrowUp') {
+        pos = line === 0 ? 0 : lines.slice(0, line - 1).reduce((a, l) => a + l.length + 1, 0) + Math.min(col, lines[line - 1].length);
+      } else {
+        pos = line === lines.length - 1 ? val.length : lines.slice(0, line + 1).reduce((a, l) => a + l.length + 1, 0) + Math.min(col, lines[line + 1].length);
+      }
+    }
+    savedStart = pos; savedEnd = pos;
+    if (wasFocused) ta.setSelectionRange(pos, pos);
+    else syncDisplayIfUnfocused();
+    checkTieTooltipValidity();
+  }
+
+  function arrowLeft()  { moveCursor('ArrowLeft');  }
+  function arrowRight() { moveCursor('ArrowRight'); }
+  function arrowUp()    { moveCursor('ArrowUp');    }
+  function arrowDown()  { moveCursor('ArrowDown');  }
+
+  // --- Context menu ---
+  function toggleMenu() {
+    document.getElementById('menuDropdown').classList.toggle('open');
+    if (taFocused) ta.blur();
+  }
+  function closeMenu() {
+    document.getElementById('menuDropdown').classList.remove('open');
+    closeToolsSubmenu();
+  }
+
+  // Tools submenu within context menu
+  function openToolsSubmenu() {
+    const preview = document.getElementById('toolsSelPreview');
+    const sel = ta.value.slice(savedStart, savedEnd);
+    if (sel) {
+      preview.textContent = sel;
+      preview.className = 'submenu-sel-preview has-sel';
+    } else {
+      preview.textContent = 'No selection';
+      preview.className = 'submenu-sel-preview no-sel';
+    }
+    document.getElementById('toolsSubmenu').classList.add('open');
+  }
+  function closeToolsSubmenu() {
+    document.getElementById('toolsSubmenu').classList.remove('open');
+  }
+
+  // Tools menu item opens/closes submenu
+  document.getElementById('toolsMenuItem').addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const submenu = document.getElementById('toolsSubmenu');
+    submenu.classList.contains('open') ? closeToolsSubmenu() : openToolsSubmenu();
+  });
+  document.getElementById('toolsMenuItem').addEventListener('touchstart', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const submenu = document.getElementById('toolsSubmenu');
+    submenu.classList.contains('open') ? closeToolsSubmenu() : openToolsSubmenu();
+  }, { passive: false });
+
+  // Hover to open/close submenu on desktop
+  document.getElementById('toolsSubmenuWrap').addEventListener('mouseenter', () => openToolsSubmenu());
+  document.getElementById('toolsSubmenuWrap').addEventListener('mouseleave', () => closeToolsSubmenu());
+
+  // Close menu on outside click/tap
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.menu-wrap')) closeMenu();
+  });
+  document.addEventListener('touchstart', e => {
+    if (!e.target.closest('.menu-wrap')) closeMenu();
+  }, { passive: true });
+
+  // Template overlay
+  let tmplPrevFocused = false;
+  function openTmplOverlay() {
+    closeMenu();
+    tmplPrevFocused = taFocused;
+    if (taFocused) {
+      savedStart = ta.selectionStart;
+      savedEnd = ta.selectionEnd;
+      ta.blur();
+    }
+    document.getElementById('tmpl-overlay').classList.add('open');
+  }
+  function closeTmplOverlay() {
+    document.getElementById('tmpl-overlay').classList.remove('open');
+    if (tmplPrevFocused) {
+      hideStaticDisplay();
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+    }
+  }
+  // Prevent overlay buttons from stealing focus on mousedown
+  document.getElementById('tmpl-overlay').addEventListener('mousedown', e => {
+    if (tmplPrevFocused) e.preventDefault();
+  });
+  document.getElementById('tmpl-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('tmpl-overlay')) closeTmplOverlay();
+  });
+  // Template buttons in overlay insert and close
+  document.getElementById('tmpl-box').addEventListener('click', e => {
+    const btn = e.target.closest('.tmpl-btn');
+    if (!btn) return;
+    closeTmplOverlay();
+    doInsert(btn.dataset.insert, tmplPrevFocused);
+  });
+
+  function copyText() {
+    closeCopyDropdown();
+    const before = document.getElementById('wrapBefore').value;
+    const after = document.getElementById('wrapAfter').value;
+    const text = before + '\n' + ta.value + '\n' + after;
+    navigator.clipboard.writeText(text).then(showToast).catch(() => {
+      try { document.execCommand('copy'); showToast(); } catch(e) {}
+    });
+  }
+
+  function copyTextRaw() {
+    navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
+      try { document.execCommand('copy'); showToast(); } catch(e) {}
+    });
+    closeCopyDropdown();
+  }
+
+  function toggleCopyDropdown() {
+    document.getElementById('copyDropdown').classList.toggle('open');
+  }
+
+  function closeCopyDropdown() {
+    document.getElementById('copyDropdown').classList.remove('open');
+  }
+
+  // ---- Export: shared share-sheet / download helper ----
+  function isMobileDevice() {
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+      return navigator.userAgentData.mobile;
+    }
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  async function shareOrDownloadFile(blob, filename, mimeType) {
+    if (isMobileDevice()) {
+      try {
+        const file = new File([blob], filename, { type: mimeType });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] });
+          return true;
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return false; // user cancelled the share sheet
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return true;
+  }
+
+  function getTuneFilename() {
+    const m = /^T:\s*(.+)$/m.exec(ta.value);
+    const raw = (m ? m[1] : 'tune').trim();
+    const clean = raw.replace(/[^a-z0-9\- ]/gi, '').trim().replace(/\s+/g, '-').slice(0, 60);
+    return clean || 'tune';
+  }
+
+  function exportAbcFile() {
+    closeCopyDropdown();
+    if (!ta.value.trim()) { showToast('Nothing to export'); return; }
+    const blob = new Blob([ta.value], { type: 'text/plain' });
+    shareOrDownloadFile(blob, getTuneFilename() + '.abc', 'text/plain');
+  }
+
+  // Render the current abcjs preview SVG to a black-on-white PDF page
+  async function renderPreviewToPdfBlob() {
+    const raw = ta.value.trim();
+    if (!raw) return null;
+
+    const PAGE_PT_WIDTH = 595.28; // A4, pt
+    const MARGIN_PT = 36;
+    const usablePt = PAGE_PT_WIDTH - MARGIN_PT * 2;
+
+    const exportHost = document.createElement('div');
+    exportHost.id = 'pdf-export-host';
+    exportHost.style.cssText = 'position:fixed; left:-99999px; top:0;';
+    document.body.appendChild(exportHost);
+
+    // Reuse the exact same small ruleset that already correctly renders the on-screen
+    // preview (see the #preview svg rules above) — just with the theme variable swapped
+    // for hardcoded black. This is far simpler and safer than recomputing visibility
+    // per element in JS, and avoids stray elements being mis-colored.
+    const exportStyle = document.createElement('style');
+    exportStyle.textContent = `
+      #pdf-export-host svg path, #pdf-export-host svg rect, #pdf-export-host svg ellipse,
+      #pdf-export-host svg polygon, #pdf-export-host svg line, #pdf-export-host svg polyline {
+        fill: #000000; stroke: #000000;
+      }
+      #pdf-export-host svg [fill="none"] { fill: none; }
+      #pdf-export-host svg [stroke="none"] { stroke: none; }
+    `;
+    document.head.appendChild(exportStyle);
+
+    try {
+      // Render at a pixel width matching the PDF's usable print width (1 render px ≈ 1pt),
+      // independent of the on-screen zoom level, which has nothing to do with print size.
+      const renderWidthPx = Math.round(usablePt);
+      ABCJS.renderAbc(exportHost, raw, {
+        staffwidth: renderWidthPx,
+        add_classes: true,
+        paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8
+      });
+
+      const svg = exportHost.querySelector('svg');
+      if (!svg) return null;
+
+      // Anything relying on inherited currentColor rather than the rules above (rare,
+      // e.g. augmentation dots) should also fall back to solid black.
+      svg.setAttribute('fill', '#000000');
+      svg.setAttribute('stroke', '#000000');
+
+      // abcjs's own width/height attributes occasionally under-report the true painted
+      // extent (e.g. a final barline or accidental poking a couple of px past it), which
+      // was clipping the right edge. Measure the actual rendered bounding box and use
+      // whichever is larger, plus a small safety pad.
+      const attrWidth  = parseFloat(svg.getAttribute('width'))  || renderWidthPx;
+      const attrHeight = parseFloat(svg.getAttribute('height')) || 200;
+      let svgWidth = attrWidth, svgHeight = attrHeight;
+      try {
+        const bbox = svg.getBBox();
+        svgWidth  = Math.max(attrWidth,  bbox.x + bbox.width  + 4);
+        svgHeight = Math.max(attrHeight, bbox.y + bbox.height + 4);
+      } catch (e) { /* getBBox can throw if unsupported/unrendered; fall back to attrs */ }
+
+      // svg2pdf's width/height options only define an *initial viewport* (like an <img>),
+      // and without a viewBox there's nothing for it to actually scale the content
+      // against — so it was effectively ignoring our requested box. Giving the SVG an
+      // explicit viewBox is what makes that scaling real.
+      svg.setAttribute('width', svgWidth);
+      svg.setAttribute('height', svgHeight);
+      svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pageWidth  = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const maxW = pageWidth  - MARGIN_PT * 2;
+      const maxH = pageHeight - MARGIN_PT * 2;
+      const SAFETY = 0.95; // deliberate slack — the one thing we fully control, regardless of how svg2pdf measures the source
+      const ratio = svgWidth / svgHeight;
+      let drawW = maxW * SAFETY, drawH = drawW / ratio;
+      if (drawH > maxH * SAFETY) { drawH = maxH * SAFETY; drawW = drawH * ratio; }
+      const x = (pageWidth - drawW) / 2;
+
+      // Vector embed — no rasterization, so file size stays tiny regardless of how
+      // many systems of music are on the page.
+      await pdf.svg(svg, { x, y: MARGIN_PT, width: drawW, height: drawH });
+      return pdf.output('blob');
+    } finally {
+      exportHost.remove();
+      exportStyle.remove();
+    }
+  }
+
+  async function exportPdf() {
+    closeCopyDropdown();
+    if (!previewDiv.querySelector('svg')) { showToast('Nothing to export'); return; }
+    showToast('Generating PDF…');
+    try {
+      const blob = await renderPreviewToPdfBlob();
+      if (!blob) { showToast('Nothing to export'); return; }
+      await shareOrDownloadFile(blob, getTuneFilename() + '.pdf', 'application/pdf');
+    } catch (err) {
+      showToast('PDF export failed');
+    }
+  }
+
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.copy-split')) closeCopyDropdown();
+  });
+  document.addEventListener('touchstart', e => {
+    if (!e.target.closest('.copy-split')) closeCopyDropdown();
+  }, { passive: true });
+
+  function showToast(msg) {
+    toast.textContent = msg || 'Copied ✓';
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  function resetStep1() {
+    closeMenu();
+    if (!ta.value) return;
+    activeBtn = null;
+    const overlay = document.getElementById('clear-overlay');
+    overlay.style.display = 'flex';
+    overlay.onclick = e => { if (e.target === overlay) clearCancel(); };
+  }
+
+  function clearStep2() {
+    pushUndo();
+    ta.value = ''; savedStart = 0; savedEnd = 0;
+    previewDiv.innerHTML = '';
+    previewDiv.removeAttribute('style');
+    clearTimeout(debounceTimer);
+    updateClearBtn();
+    syncDisplayIfUnfocused();
+    clearCancel();
+  }
+
+  function clearCancel() {
+    document.getElementById('clear-overlay').style.display = 'none';
+  }
+
+  function toggleZoom() {
+    const panel = document.getElementById('zoom-panel');
+    const btn = document.getElementById('zoomToggle');
+    const isOpen = panel.classList.toggle('open');
+    btn.classList.toggle('active', isOpen);
+  }
+
+  function openSettings() {
+    document.getElementById('settings-overlay').classList.add('open');
+  }
+
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+  }
+
+  // Modal close button and overlay click
+  document.getElementById('modalClose').addEventListener('click', closeSettings);
+  document.getElementById('settings-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('settings-overlay')) closeSettings();
+  });
+
+  // Close zoom panel when clicking outside
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('#zoom-panel') && !e.target.closest('#zoomToggle')) {
+      document.getElementById('zoom-panel').classList.remove('open');
+      document.getElementById('zoomToggle').classList.remove('active');
+    }
+  });
+  document.addEventListener('touchstart', e => {
+    if (!e.target.closest('#zoom-panel') && !e.target.closest('#zoomToggle')) {
+      document.getElementById('zoom-panel').classList.remove('open');
+      document.getElementById('zoomToggle').classList.remove('active');
+    }
+  }, { passive: true });
+
+  document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 500}\n---\n%%MIDI gchord \"none\"";
+  document.getElementById('wrapAfter').value = "```";
+
+  // Transpose a single note token one octave up or down.
+  // A note token is: optional accidental(s), note letter, optional octave markers (',+)
+  // Up:   C→c, c→c', c'→c'', C,→C, C,,→C, (bottom out at C/A-G uppercase with commas, shift up one)
+  // Down: c''→c', c'→c, c→C, C→C,
+  function transposeNoteUp(acc, letter, octs) {
+    // octs is the string of ' and , after the note letter
+    const commas = (octs.match(/,/g) || []).length;
+    const ticks  = (octs.match(/'/g) || []).length;
+    if (commas > 0) {
+      // e.g. C,, → C, → C
+      return acc + letter.toUpperCase() + ','.repeat(commas - 1);
+    } else if (letter === letter.toUpperCase()) {
+      // uppercase, no commas → go to lowercase
+      return acc + letter.toLowerCase() + "'".repeat(ticks);
+    } else {
+      // lowercase → add a tick
+      return acc + letter.toLowerCase() + "'".repeat(ticks + 1);
+    }
+  }
+
+  function transposeNoteDown(acc, letter, octs) {
+    const commas = (octs.match(/,/g) || []).length;
+    const ticks  = (octs.match(/'/g) || []).length;
+    if (ticks > 0) {
+      // remove one tick
+      return acc + letter.toLowerCase() + "'".repeat(ticks - 1);
+    } else if (letter === letter.toLowerCase()) {
+      // lowercase, no ticks → go to uppercase
+      return acc + letter.toUpperCase() + ','.repeat(commas);
+    } else {
+      // uppercase → add a comma
+      return acc + letter.toUpperCase() + ','.repeat(commas + 1);
+    }
+  }
+
+  // Regex: optional accidental(s), note letter, octave markers
+  const NOTE_RE = /([_^=]*)([a-gA-G])([',]*)/g;
+
+  function transformSelection(fn) {
+    const s = savedStart, e = savedEnd;
+    if (s === e) return;
+    pushUndo();
+    const before = ta.value.slice(0, s);
+    const sel    = ta.value.slice(s, e);
+    const after  = ta.value.slice(e);
+    const result = fn(sel);
+    ta.value   = before + result + after;
+    savedStart = s;
+    savedEnd   = s + result.length;
+    if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
+    updateClearBtn();
+    schedulePreview();
+  }
+  // Splits into quoted/unquoted segments, applies fn only to unquoted ones.
+  function transformSkippingQuotes(sel, fn) {
+    return sel.replace(/"[^"]*"|[^"]*/g, token => {
+      if (token.startsWith('"')) return token;
+      return fn(token);
+    });
+  }
+
+  function transposeUp() {
+    closeMenu();
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteUp(acc, letter, octs))));
+  }
+
+  function transposeDown() {
+    closeMenu();
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteDown(acc, letter, octs))));
+  }
+
+  // Note length token: optional multiplier digit(s) OR slash notation
+  // e.g. C2 → C4, C → C2, C/ → C, C3/2 → C3 (double: *2 numerator)
+  // Halve: C2 → C, C → C/, C/ → C/2 (but C/ means /2 so halving = /4 → use C/4? spec says C/)
+  // We handle: bare note, noteN, note/N, noteN/M
+  function scaleLengths(sel, multiply) {
+    // Match note letter + octave markers, then optional length suffix
+    // Length suffix patterns: number, /number, number/number, /  (bare slash = /2)
+    return sel.replace(/([a-gA-GzZ][',]*)(\d+\/\d+|\/\d+|\d+|\/)?/g, (match, notePart, len) => {
+      if (!len) {
+        // implied length 1
+        if (multiply) return notePart + '2';
+        else          return notePart + '/';
+      }
+      if (len === '/') {
+        // /2 shorthand
+        if (multiply) return notePart; // /2 * 2 = 1, back to bare
+        else          return notePart + '/2'; // /2 / 2 = /4... spec says use /2 for halving bare, so /2/2 = leave as /2? Use explicit /4
+        // Actually: / means /2. Halving /2 → /4
+        // But user said halving C → C/. So halving C/ → C/4 seems right.
+        // Re-reading: user said halving plain note = C/. So / = /2. Halving that = /4.
+      }
+      if (len.includes('/') && !len.startsWith('/')) {
+        // N/M form
+        const [num, den] = len.split('/').map(Number);
+        if (multiply) return notePart + (num * 2) + '/' + den;
+        else          return notePart + num + '/' + (den * 2);
+      }
+      if (len.startsWith('/')) {
+        // /N form
+        const den = parseInt(len.slice(1));
+        if (multiply) {
+          const newDen = den / 2;
+          return newDen === 1 ? notePart : notePart + '/' + newDen;
+        } else {
+          return notePart + '/' + (den * 2);
+        }
+      }
+      // Plain number
+      const n = parseInt(len);
+      if (multiply) return notePart + (n * 2);
+      else {
+        if (n === 1) return notePart + '/';
+        if (n % 2 === 0) return notePart + (n / 2 === 1 ? '' : n / 2);
+        // odd number: use fraction
+        return notePart + n + '/2';
+      }
+    });
+  }
+
+  function doubleLength() {
+    closeMenu();
+    transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, true)));
+  }
+
+  function halveLength() {
+    closeMenu();
+    transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, false)));
+  }
+
+  function removeText() {
+    closeMenu();
+    // Remove quoted strings (chord symbols / annotations): "..."
+    transformSelection(sel => sel.replace(/"[^"]*"/g, ''));
+  }
+
+  function removeAccidentals() {
+    closeMenu();
+    // Strip ^ _ = outside of quoted strings
+    transformSelection(sel => {
+      let result = '';
+      let inQuote = false;
+      for (let i = 0; i < sel.length; i++) {
+        const ch = sel[i];
+        if (ch === '"') { inQuote = !inQuote; result += ch; continue; }
+        if (!inQuote && (ch === '^' || ch === '_' || ch === '=')) continue;
+        result += ch;
+      }
+      return result;
+    });
+  }
+
+  // Enharmonic respelling.
+  // For a sharp note (^): step the note name one up; use flat (_) unless the new name
+  //   is F or C (already a semitone above E/B), in which case use natural (=).
+  // For a flat note (_): step the note name one down; use sharp (^) unless the new name
+  //   is E or B (already a semitone below F/C), in which case use natural (=).
+  // Unaccidentalled notes and naturals (=) are left unchanged.
+  // Octave boundary: stepping up from B enters the next octave (B→c, b→c'…).
+  //                  stepping down from C drops one (C→B,, c→B…).
+
+  const NOTE_NAMES = ['C','D','E','F','G','A','B'];
+
+  // Compute integer octave level: 0 = uppercase no markers, 1 = lowercase, etc.
+  function noteLevel(letter, octs) {
+    const base   = letter === letter.toUpperCase() ? 0 : 1;
+    const ticks  = (octs.match(/'/g) || []).length;
+    const commas = (octs.match(/,/g) || []).length;
+    return base + ticks - commas;
+  }
+
+  // Convert note-name index (0–6) + level back to ABC letter + octave markers.
+  function levelToAbc(nameIdx, level) {
+    const upper = NOTE_NAMES[nameIdx];
+    if (level < 1) {
+      return { letter: upper, octs: ','.repeat(-level) };
+    } else {
+      return { letter: upper.toLowerCase(), octs: "'".repeat(level - 1) };
+    }
+  }
+
+  function respellEnharmonicNote(acc, letter, octs) {
+    if (acc !== '^' && acc !== '_') return acc + letter + octs;
+
+    const nameIdx = NOTE_NAMES.indexOf(letter.toUpperCase());
+    const level   = noteLevel(letter, octs);
+
+    if (acc === '^') {
+      // Step note name one up; B→C crosses into the next octave
+      const newIdx   = (nameIdx + 1) % 7;
+      const newLevel = newIdx === 0 ? level + 1 : level;
+      const newUpper = NOTE_NAMES[newIdx];
+      // F and C are naturally a semitone above E and B — no accidental needed
+      const newAcc   = (newUpper === 'F' || newUpper === 'C') ? '=' : '_';
+      const { letter: nl, octs: no } = levelToAbc(newIdx, newLevel);
+      return newAcc + nl + no;
+    } else {
+      // Step note name one down; C→B drops an octave
+      const newIdx   = (nameIdx + 6) % 7;
+      const newLevel = newIdx === 6 ? level - 1 : level;
+      const newUpper = NOTE_NAMES[newIdx];
+      // E and B are naturally a semitone below F and C — no accidental needed
+      const newAcc   = (newUpper === 'E' || newUpper === 'B') ? '=' : '^';
+      const { letter: nl, octs: no } = levelToAbc(newIdx, newLevel);
+      return newAcc + nl + no;
+    }
+  }
+
+  function wrapRepeats() {
+    closeMenu();
+    const s = savedStart, e = savedEnd;
+    if (s === e) return;
+    pushUndo();
+    const before = ta.value.slice(0, s);
+    const sel    = ta.value.slice(s, e);
+    const after  = ta.value.slice(e);
+    const open = '|:', close = ':|';
+    ta.value = before + open + sel + close + after;
+    savedStart = s + open.length;
+    savedEnd   = s + open.length + sel.length;
+    if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    updateClearBtn();
+    schedulePreview();
+    syncDisplayIfUnfocused();
+  }
+  function markNotes() {
+    closeMenu();
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (match, acc, letter, octs) => '!mark!' + acc + letter + octs)));
+  }
+  // --- Add triplets tool ---
+  // Parse an ABC duration string into a rational number as {num, den}.
+  // A bare note (no duration token) has duration 1 (passed as undefined/empty).
+  // Rules:
+  //   undefined / ''  → 1/1
+  //   '/'             → 1/2
+  //   '/N'            → 1/N
+  //   'N'             → N/1
+  //   'N/'            → N/2
+  //   'N/M'           → N/M
+  function parseDuration(tok) {
+    if (!tok) return { num: 1, den: 1 };
+    if (tok === '/') return { num: 1, den: 2 };
+    if (tok.startsWith('/')) return { num: 1, den: parseInt(tok.slice(1), 10) };
+    const slashIdx = tok.indexOf('/');
+    if (slashIdx === -1) return { num: parseInt(tok, 10), den: 1 };
+    const num = parseInt(tok.slice(0, slashIdx), 10);
+    const denStr = tok.slice(slashIdx + 1);
+    const den = denStr === '' ? 2 : parseInt(denStr, 10);
+    return { num, den };
+  }
+
+  // Check if a value (num/den) equals 3 * 2^n for some integer n.
+  // Equivalently: (num/den) / 3 = 2^n, i.e. num == 3 * den * 2^k for some integer k,
+  // or after simplification num/den in lowest terms has num = 3 * 2^a, den = 2^b.
+  function isTripletDuration(num, den) {
+    // Simplify num/den
+    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+    const g = gcd(num, den);
+    let n = num / g, d = den / g;
+    // d must be a power of 2
+    while (d % 2 === 0) d /= 2;
+    if (d !== 1) return false;
+    // n must equal 3 * 2^a
+    if (n % 3 !== 0) return false;
+    let m = n / 3;
+    while (m % 2 === 0) m /= 2;
+    return m === 1;
+  }
+
+  // Split a selection into groups separated by spaces and/or barlines.
+  // Each group is a contiguous run of note/rest tokens (no spaces or barlines).
+  // Returns an array of {text: string, start: number, end: number} chunks,
+  // where text is the group content (or separator content for spaces/barlines).
+  // We process in two passes: first tokenise into notes/rests vs separators.
+  function addTriplets() {
+    closeMenu();
+    const s = savedStart, e = savedEnd;
+    if (s === e) return;
+    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+    const val = ta.value;
+    const sel = val.slice(s, e);
+
+    // Regex to tokenise ABC selection into meaningful chunks.
+    // We identify: barlines, spaces/newlines (separators), and note/rest tokens.
+    // A note/rest token: optional decorations, optional chord, optional accidentals,
+    //   note letter or rest letter, optional octave markers, optional duration, optional tie.
+    // For triplet purposes we mainly need: the note/rest letter + duration suffix.
+    // We use a simpler scan: split on spaces and barlines to get groups,
+    // then within each group find note/rest tokens.
+
+    const BARLINE_RE = /(?::\|::|::\|:|:\|\|:|:\|\||\|\|:|\|\||::\||::\||\[\|\||:\||:\]|\|\]|\[?\||\|:|::])/;
+
+    // Tokenise the selection into segments: 'sep' (spaces/newlines/barlines) or 'content' (other)
+    // We'll split by spaces, newlines, and barlines.
+    // Strategy: walk through and collect runs.
+    const SEP_RE = new RegExp(
+      '(' +
+      BARLINE_RE.source +
+      '|[ \\t\\n]+' +
+      ')', 'g'
+    );
+
+    // Build list of segments: {type:'sep'|'content', text, pos}
+    const segments = [];
+    let lastIdx = 0;
+    let m;
+    SEP_RE.lastIndex = 0;
+    while ((m = SEP_RE.exec(sel)) !== null) {
+      if (m.index > lastIdx) {
+        segments.push({ type: 'content', text: sel.slice(lastIdx, m.index), pos: lastIdx });
+      }
+      segments.push({ type: 'sep', text: m[0], pos: m.index });
+      lastIdx = m.index + m[0].length;
+    }
+    if (lastIdx < sel.length) {
+      segments.push({ type: 'content', text: sel.slice(lastIdx), pos: lastIdx });
+    }
+
+    // For each content segment, decide if it should get a triplet prefix.
+    // We need to reconstruct the result with possibly inserted prefixes.
+    let result = '';
+    for (const seg of segments) {
+      if (seg.type === 'sep') {
+        result += seg.text;
+        continue;
+      }
+
+      // Content group: find all note/rest tokens and their durations.
+      // Skip decorations, chord symbols, inline fields when counting.
+      const group = seg.text;
+
+      // Find note/rest tokens
+      // Each match is a note/rest possibly with duration
+      const SCAN_RE = new RegExp(
+        '"[^"]*"'               + '|' +  // chord symbol — skip
+        '![^!\\n]+!'            + '|' +  // decoration — skip
+        '\\[[A-Za-z]:[^\\]]*\\]' + '|' + // inline field — skip
+        "(?:[_^=]*)(?:[a-gA-G])[,\']*(?:\\d+\\/\\d+|\\d+\\/|\\/\\d+|\\/|\\d+)?-?" + '|' + // note
+        '[zxZ](?:\\d+\\/\\d+|\\d+\\/|\\/\\d+|\\/|\\d+)?-?',  // rest
+        'g'
+      );
+
+      const noteRests = [];
+      let sm;
+      SCAN_RE.lastIndex = 0;
+      while ((sm = SCAN_RE.exec(group)) !== null) {
+        const token = sm[0];
+        // Skip chord symbols, decorations, inline fields
+        if (token.startsWith('"') || token.startsWith('!') || token.startsWith('[')) continue;
+        // Extract duration suffix
+        // Strip leading accidentals and note letter+octave, or rest letter
+        const durMatch = token.match(/^(?:[_^=]*[a-gA-G][',]*|[zxZ])((?:\d+\/\d+|\d+\/|\/\d+|\/|\d+)?)-?$/);
+        if (durMatch) {
+          noteRests.push({ durTok: durMatch[1] });
+        }
+      }
+
+      const count = noteRests.length;
+
+      // Skip if fewer than 2 or more than 3
+      if (count < 2 || count > 3) {
+        result += group;
+        continue;
+      }
+
+      // Sum durations
+      let totalNum = 0, totalDen = 1;
+      for (const nr of noteRests) {
+        const d = parseDuration(nr.durTok);
+        // Add d.num/d.den to totalNum/totalDen
+        totalNum = totalNum * d.den + d.num * totalDen;
+        totalDen = totalDen * d.den;
+        // Simplify
+        const g = gcd(Math.abs(totalNum), totalDen);
+        totalNum /= g; totalDen /= g;
+      }
+
+      // Check if total is a valid triplet duration
+      if (!isTripletDuration(totalNum, totalDen)) {
+        result += group;
+        continue;
+      }
+
+      // Add prefix
+      if (count === 3) {
+        result += '(3' + group;
+      } else {
+        // count === 2
+        result += '(3::2' + group;
+      }
+    }
+
+    // Apply the result
+    pushUndo();
+    const before = val.slice(0, s);
+    const after  = val.slice(e);
+    ta.value   = before + result + after;
+    savedStart = s;
+    savedEnd   = s + result.length;
+    if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
+    updateClearBtn();
+    schedulePreview();
+  }
+
+  function respellEnharmonic() {
+    closeMenu();
+    // NOTE_RE captures (accidentals)(letter)(octave markers) — duration is untouched.
+    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (match, acc, letter, octs) =>
+        respellEnharmonicNote(acc, letter, octs)
+      )
+    ));
+  }
+
+  // --- Remove redundant accidentals ---
+  //
+  // An accidental is redundant if, looking back through the same bar, the most recent
+  // prior occurrence of the same note+octave that ITSELF carried an explicit accidental
+  // had the same accidental as the current one.
+  //
+  // Special case for natural (=): also redundant if there is NO prior accidentalled
+  // occurrence at all in the bar (the natural is not cancelling anything) — UNLESS the
+  // piece has a non-trivial key signature, in which case the natural might be cancelling
+  // a key-sig accidental and we leave it alone.
+  //
+  // We detect the key by scanning backwards from the selection for the last K: field.
+  // If the key is C / Am / none (zero sharps/flats), or no K: is found, naturals with
+  // no prior accidentalled note in the bar are considered redundant.
+
+  function keyHasAccidentals() {
+    // Returns true if the current key signature implies any sharps or flats.
+    // Scan backwards in the full textarea from savedStart for the last K: field.
+    const text = ta.value.slice(0, savedStart);
+
+    // Match both header lines (^K:...) and inline fields ([K:...])
+    const KEY_RE = /(?:^|\[)K:([^\]\n]*)/gm;
+    let lastKey = null;
+    let m;
+    KEY_RE.lastIndex = 0;
+    const matches = [...text.matchAll(/(?:^|\[)K:([^\]\n]*)/gm)];
+    if (matches.length === 0) return false; // no key found → assume C, naturals may be redundant
+    lastKey = matches[matches.length - 1][1].trim().toLowerCase();
+
+    // Keys with zero accidentals: C major and its relative/parallel minors declared as such
+    const ZERO_ACC = new Set(['c', 'am', 'cmaj', 'aminor', 'amin', 'none', 'c major', 'a minor', 'a min']);
+    return !ZERO_ACC.has(lastKey);
+  }
+
+  // Barline pattern — same variants as used in addTriplets
+  const BARLINE_RE_SRC = '(?:::?\\|::|::\\|:|:\\|\\|:|:\\|\\||\\|\\|:|::\\|\\||::\\|:|:\\||:\\]|\\[\\|\\||\\|\\||\\[\\||\\|\\]|\\||:\\|)';
+
+  function processBarForRedundantAccidentals(bar) {
+    // Scan the bar for all note occurrences, tracking positions.
+    // We skip content inside quoted strings (chord symbols "...").
+    // NOTE_RE: /([_^=]*)([a-gA-G])([',]*)/g
+
+    // Build list of all note hits with their positions in `bar`
+    const hits = []; // {index, accLen, acc, letter, octs, noteKey}
+
+    // We need to skip quoted strings. Build a set of ranges to ignore.
+    const quotedRanges = [];
+    const QUOTE_RE = /"[^"]*"/g;
+    let qm;
+    while ((qm = QUOTE_RE.exec(bar)) !== null) {
+      quotedRanges.push([qm.index, qm.index + qm[0].length]);
+    }
+    function inQuoted(idx) {
+      return quotedRanges.some(([a, b]) => idx >= a && idx < b);
+    }
+
+    const SCAN = /([_^=]*)([a-gA-G])([',]*)/g;
+    let sm;
+    while ((sm = SCAN.exec(bar)) !== null) {
+      if (inQuoted(sm.index)) continue;
+      const [, acc, letter, octs] = sm;
+      hits.push({
+        index:   sm.index,
+        accLen:  acc.length,
+        acc,
+        letter,
+        octs,
+        noteKey: letter + octs,  // includes case and octave markers
+      });
+    }
+
+    // Forward pass: for each hit, record the "last accidentalled state" for its noteKey
+    // at the time we reach it (i.e. from all prior hits in the bar).
+    // We also note whether any prior accidentalled occurrence exists at all for that key.
+    const stateMap = new Map(); // noteKey → acc string of most recent accidentalled occurrence
+
+    // We'll annotate each hit with {prevAcc, hasPrevAcc} then decide removals.
+    const annotated = hits.map(hit => {
+      const prevAcc    = stateMap.get(hit.noteKey); // undefined if none seen yet
+      const hasPrevAcc = prevAcc !== undefined;
+      // Update state if this hit has an accidental
+      if (hit.acc !== '') stateMap.set(hit.noteKey, hit.acc);
+      return { ...hit, prevAcc, hasPrevAcc };
+    });
+
+    // Determine which hits are redundant (working backwards so we can splice safely)
+    const toRemove = []; // indices into `bar` where we should remove the accidental prefix
+    const noKeyAcc = !keyHasAccidentals();
+
+    for (const h of annotated) {
+      if (h.acc === '') continue; // no accidental, nothing to do
+
+      let redundant = false;
+      if (h.acc === '=' ) {
+        // Natural: redundant if previous accidentalled occurrence was also '=',
+        // OR (if key has no accidentals) there was no prior accidentalled occurrence at all.
+        if (h.hasPrevAcc && h.prevAcc === '=') redundant = true;
+        else if (!h.hasPrevAcc && noKeyAcc)    redundant = true;
+      } else {
+        // Sharp or flat: redundant only if previous accidentalled occurrence was identical.
+        if (h.hasPrevAcc && h.prevAcc === h.acc) redundant = true;
+      }
+
+      if (redundant) toRemove.push({ index: h.index, accLen: h.accLen });
+    }
+
+    // Apply removals right-to-left so earlier positions aren't disturbed
+    toRemove.sort((a, b) => b.index - a.index);
+    let result = bar;
+    for (const { index, accLen } of toRemove) {
+      result = result.slice(0, index) + result.slice(index + accLen);
+    }
+    return result;
+  }
+
+  function removeRedundantAccidentals() {
+    closeMenu();
+    const BARLINE_RE = new RegExp(BARLINE_RE_SRC, 'g');
+
+    transformSelection(sel => {
+      // Split selection into bars (preserving barline tokens) and process each bar segment.
+      // We also skip header/field lines (e.g. "T:title\n") by passing them through.
+      const FIELD_LINE_RE = /^[A-Za-z]:[^\n]*\n?/gm;
+
+      // Build a list of segments: {type:'field'|'barline'|'music', text, start, end}
+      // Strategy: find all barlines and field lines, everything else is music content.
+      const splits = []; // {pos, len, type, text}
+
+      // Find field lines
+      let fm;
+      FIELD_LINE_RE.lastIndex = 0;
+      while ((fm = FIELD_LINE_RE.exec(sel)) !== null) {
+        splits.push({ pos: fm.index, len: fm[0].length, type: 'field', text: fm[0] });
+      }
+
+      // Find barlines
+      BARLINE_RE.lastIndex = 0;
+      let bm;
+      while ((bm = BARLINE_RE.exec(sel)) !== null) {
+        // Make sure this barline isn't inside a field line
+        const inField = splits.some(s => s.type === 'field' && bm.index >= s.pos && bm.index < s.pos + s.len);
+        if (!inField) {
+          splits.push({ pos: bm.index, len: bm[0].length, type: 'barline', text: bm[0] });
+        }
+      }
+
+      // Sort by position
+      splits.sort((a, b) => a.pos - b.pos);
+
+      // Walk through `sel`, collecting music segments between the splits
+      let result = '';
+      let cursor = 0;
+      for (const sp of splits) {
+        if (sp.pos > cursor) {
+          // Music content before this split — process it as a bar segment
+          result += processBarForRedundantAccidentals(sel.slice(cursor, sp.pos));
+        }
+        result += sp.text;
+        cursor = sp.pos + sp.len;
+      }
+      // Trailing music segment after last split
+      if (cursor < sel.length) {
+        result += processBarForRedundantAccidentals(sel.slice(cursor));
+      }
+      return result;
+    });
+  }
+
+  // --- Chord popup ---
+  let popupPrevFocused = false;
+  let popupOpen = false;
+
+  function openChordPopup() {
+    document.getElementById('chordInput').value = '';
+    document.getElementById('chordOverlay').classList.add('open');
+    document.getElementById('chordInput').focus();
+  }
+  function closeChordPopup() {
+    popupOpen = false;
+    document.getElementById('chordOverlay').classList.remove('open');
+    if (popupPrevFocused) {
+      hideStaticDisplay();
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else {
+      showStaticDisplay();
+    }
+  }
+  function doneChordPopup() {
+    const val = document.getElementById('chordInput').value;
+    closeChordPopup();
+    if (!val) return;
+    doInsert('"' + val + '"', popupPrevFocused);
+  }
+  document.getElementById('chordOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('chordOverlay')) closeChordPopup();
+  });
+  document.getElementById('chordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doneChordPopup(); }
+    if (e.key === 'Escape') closeChordPopup();
+  });
+
+  // --- Text popup ---
+  let textPopupPos = 'above';
+  function openTextPopup(pos) {
+    textPopupPos = pos;
+    document.getElementById('textInput').value = '';
+    document.getElementById('textPopupTitle').textContent = pos === 'above' ? 'Add text above staff' : 'Add text below staff';
+    document.getElementById('textOverlay').classList.add('open');
+    document.getElementById('textInput').focus();
+  }
+  function openTextPopupAbove() { openTextPopup('above'); }
+  function openTextPopupBelow() { openTextPopup('below'); }
+  function closeTextPopup() {
+    popupOpen = false;
+    document.getElementById('textOverlay').classList.remove('open');
+    if (popupPrevFocused) {
+      hideStaticDisplay();
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else {
+      showStaticDisplay();
+    }
+  }
+  function doneTextPopup() {
+    const val = document.getElementById('textInput').value;
+    closeTextPopup();
+    if (!val) return;
+    const prefix = textPopupPos === 'above' ? '^' : '_';
+    doInsert('"' + prefix + val + '"', popupPrevFocused);
+  }
+  document.getElementById('textOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('textOverlay')) closeTextPopup();
+  });
+  document.getElementById('textInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doneTextPopup(); }
+    if (e.key === 'Escape') closeTextPopup();
+  });
+
+  // Unified button interaction — works for both touch and mouse
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay };
+
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'exportAbcFile', 'exportPdf', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
+
+  function handleButtonPress(btn) {
+    // Release-action buttons animate on release, not press
+    if (!releaseActions.has(btn.dataset.action)) {
+      btn.classList.remove('flash');
+      void btn.offsetWidth;
+      btn.classList.add('flash');
+    }
+    if (releaseActions.has(btn.dataset.action)) return;
+    // Fire all other actions immediately on press
+    if (btn.dataset.action) {
+      const fn = actions[btn.dataset.action];
+      if (fn) fn();
+    } else if (btn.dataset.insert !== undefined) {
+      const isKey = btn.classList.contains('key');
+      if (btn.classList.contains('tmpl-btn')) {
+        closeTmplOverlay();
+        doInsert(btn.dataset.insert, taFocused);
+      } else {
+        const insertText = (btn.dataset.insert === ' ') ? spaceOrBarline() : btn.dataset.insert;
+        doInsert(insertText, isKey && taFocused);
+      }
+    }
+  }
+
+  function handleButtonRelease(btn) {
+    if (btn.dataset.action && releaseActions.has(btn.dataset.action)) {
+      btn.classList.remove('flash');
+      void btn.offsetWidth;
+      btn.classList.add('flash');
+      const fn = actions[btn.dataset.action];
+      if (fn) fn();
+    }
+  }
+
+  // ---- Gesture system for note-letter keys (A-G, a-g) ----
+  const OCTAVE_PX   = 40;
+  const MAX_OCTAVE  = 3;
+  const H_THRESHOLD = 40;
+  const WHEEL_DELAY = 180;
+
+  function isNoteKey(btn) {
+    return btn && btn.dataset.insert && /^[a-gA-G]$/.test(btn.dataset.insert);
+  }
+
+  const wheel  = document.getElementById('gesture-wheel');
+  const badge  = document.getElementById('gesture-badge');
+  const chevGrps = {
+    up:    document.getElementById('chev-up-g'),
+    down:  document.getElementById('chev-down-g'),
+    left:  document.getElementById('chev-left-g'),
+    right: document.getElementById('chev-right-g'),
+  };
+
+  function setChevState(grp, active) {
+    const path = grp.querySelector('.chev-path');
+    path.classList.toggle('dim',    !active);
+    path.classList.toggle('bright',  active);
+  }
+
+  function nudgeChev(grp, reverse) {
+    const cls = reverse ? 'nudge-rev' : 'nudge';
+    grp.classList.remove('nudge', 'nudge-rev');
+    void grp.getBoundingClientRect();
+    grp.classList.add(cls);
+    grp.addEventListener('animationend', () => grp.classList.remove(cls), { once: true });
+  }
+
+  Object.values(chevGrps).forEach(g => setChevState(g, false));
+
+  function showWheel(x, y) {
+    wheel.style.left = x + 'px';
+    wheel.style.top  = y + 'px';
+    wheel.classList.add('visible');
+    Object.values(chevGrps).forEach(g => setChevState(g, false));
+  }
+
+  function hideWheel() {
+    wheel.classList.remove('visible');
+    badge.classList.remove('visible');
+  }
+
+  function updateBadge(note, x, y) {
+    badge.textContent = note;
+    badge.style.left = x + 'px';
+    badge.style.top  = y + 'px';
+  }
+
+  let prevOctaveSteps = 0;
+  let prevHDir = 0;
+
+  function onNoteChange(dx, dy) {
+    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const goingUp    = dy < 0 && octaveSteps > 0;
+    const goingDown  = dy > 0 && octaveSteps > 0;
+    const goingLeft  = dx <= -H_THRESHOLD;
+    const goingRight = dx >= H_THRESHOLD;
+    const hDir = goingLeft ? -1 : goingRight ? 1 : 0;
+
+    setChevState(chevGrps.up,    goingUp);
+    setChevState(chevGrps.down,  goingDown);
+    setChevState(chevGrps.left,  goingLeft);
+    setChevState(chevGrps.right, goingRight);
+
+    if (octaveSteps !== prevOctaveSteps) {
+      const decreasing = octaveSteps < prevOctaveSteps;
+      if (octaveSteps > 0) nudgeChev(dy < 0 ? chevGrps.up : chevGrps.down, decreasing);
+      prevOctaveSteps = octaveSteps;
+    }
+    if (hDir !== prevHDir) {
+      if (hDir === -1) nudgeChev(chevGrps.left);
+      if (hDir ===  1) nudgeChev(chevGrps.right);
+      prevHDir = hDir;
+    }
+  }
+
+  function noteFromGesture(baseLetter, dx, dy) {
+    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const goingUp = dy < 0;
+    let note, octaveStr = '';
+    if (goingUp) {
+      note = octaveSteps === 0 ? baseLetter.toUpperCase() : baseLetter.toLowerCase();
+      octaveStr = octaveSteps > 1 ? "'".repeat(octaveSteps - 1) : '';
+    } else {
+      note = baseLetter.toUpperCase();
+      octaveStr = octaveSteps > 0 ? ','.repeat(octaveSteps) : '';
+    }
+    const accidental = dx >= H_THRESHOLD ? '^' : dx <= -H_THRESHOLD ? '_' : '';
+    return accidental + note + octaveStr;
+  }
+
+  let gesture = null;
+
+  function startGesture(btn, startX, startY) {
+    pushUndo();
+    const baseLetter = btn.dataset.insert;
+    const insertPos  = savedStart;
+    const insertEnd  = savedEnd;
+    const initial    = baseLetter.toUpperCase();
+
+    ta.value   = ta.value.slice(0, insertPos) + initial + ta.value.slice(insertEnd);
+    savedStart = insertPos + initial.length;
+    savedEnd   = savedStart;
+    if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+    else syncDisplayIfUnfocused();
+    updateClearBtn();
+    schedulePreview();
+
+    btn.classList.add('pressed');
+
+    const rect  = btn.getBoundingClientRect();
+    const btnCX = rect.left + rect.width  / 2;
+    const btnCY = rect.top  + rect.height / 2;
+
+    prevOctaveSteps = 0;
+    prevHDir = 0;
+
+    const wheelTimer = setTimeout(() => {
+      if (gesture) showWheel(btnCX, btnCY);
+    }, WHEEL_DELAY);
+
+    gesture = { btn, baseLetter, insertPos, startX, startY, lastNote: initial, wheelTimer, curX: startX, curY: startY };
+  }
+
+  function updateGesture(currentX, currentY) {
+    if (!gesture) return;
+    gesture.curX = currentX;
+    gesture.curY = currentY;
+    const dx   = currentX - gesture.startX;
+    const dy   = currentY - gesture.startY;
+    const note = noteFromGesture(gesture.baseLetter, dx, dy);
+    if (note !== gesture.lastNote) {
+      const start = gesture.insertPos;
+      const end   = start + gesture.lastNote.length;
+      ta.value   = ta.value.slice(0, start) + note + ta.value.slice(end);
+      savedStart = start + note.length;
+      savedEnd   = savedStart;
+      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+      else syncDisplayIfUnfocused();
+      gesture.lastNote = note;
+      updateClearBtn();
+      schedulePreview();
+      if (wheel.classList.contains('visible')) {
+        onNoteChange(dx, dy);
+        badge.classList.add('visible');
+      }
+    }
+    if (badge.classList.contains('visible')) updateBadge(gesture.lastNote, currentX, currentY);
+  }
+
+  function endGesture() {
+    if (!gesture) return;
+    clearTimeout(gesture.wheelTimer);
+    hideWheel();
+    const btn = gesture.btn;
+    btn.classList.remove('pressed', 'shrink');
+    void btn.offsetWidth;
+    btn.classList.add('shrink');
+    gesture = null;
+  }
+
+  // ---- Note-duration buttons: swipe-right-for-dot gesture ----
+  function isDurationKey(btn) {
+    return btn && btn.dataset.dur !== undefined;
+  }
+
+  function updateDurationBadge(dur, dotted, x, y) {
+    badge.innerHTML = durationIconSVG(dur, dotted);
+    badge.style.left = x + 'px';
+    badge.style.top  = y + 'px';
+  }
+
+  let durGesture = null;
+
+  function startDurGesture(btn, startX, startY) {
+    pushUndo();
+    const dur       = btn.dataset.dur;
+    const L         = getCurrentLValue();
+    const insertPos = savedStart;
+    const insertEnd = savedEnd;
+    const text      = formatDurationInsert(parseFrac(dur), L);
+
+    ta.value   = ta.value.slice(0, insertPos) + text + ta.value.slice(insertEnd);
+    savedStart = insertPos + text.length;
+    savedEnd   = savedStart;
+    if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+    else syncDisplayIfUnfocused();
+    updateClearBtn();
+    schedulePreview();
+
+    btn.classList.add('pressed');
+
+    const rect  = btn.getBoundingClientRect();
+    const btnCX = rect.left + rect.width  / 2;
+    const btnCY = rect.top  + rect.height / 2;
+
+    const wheelTimer = setTimeout(() => {
+      if (!durGesture) return;
+      wheel.classList.add('duration-mode');
+      showWheel(btnCX, btnCY);
+      if (durGesture.dotted) {
+        setChevState(chevGrps.right, true);
+        badge.classList.add('visible');
+        updateDurationBadge(durGesture.dur, true, btnCX, btnCY);
+      }
+    }, WHEEL_DELAY);
+
+    durGesture = { btn, dur, L, insertPos, startX, startY, lastText: text, dotted: false, wheelTimer };
+  }
+
+  function updateDurGesture(currentX, currentY) {
+    if (!durGesture) return;
+    const dx     = currentX - durGesture.startX;
+    const dotted = dx >= H_THRESHOLD;
+
+    if (dotted !== durGesture.dotted) {
+      const baseFrac  = parseFrac(durGesture.dur);
+      const finalFrac = dotted ? mulFrac(baseFrac, [3, 2]) : baseFrac;
+      const text  = formatDurationInsert(finalFrac, durGesture.L);
+      const start = durGesture.insertPos;
+      const end   = start + durGesture.lastText.length;
+      ta.value   = ta.value.slice(0, start) + text + ta.value.slice(end);
+      savedStart = start + text.length;
+      savedEnd   = savedStart;
+      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+      else syncDisplayIfUnfocused();
+      durGesture.lastText = text;
+      durGesture.dotted = dotted;
+      updateClearBtn();
+      schedulePreview();
+
+      if (wheel.classList.contains('visible')) {
+        setChevState(chevGrps.right, dotted);
+        if (dotted) nudgeChev(chevGrps.right);
+        badge.classList.add('visible');
+      }
+    }
+
+    if (badge.classList.contains('visible')) {
+      updateDurationBadge(durGesture.dur, durGesture.dotted, currentX, currentY);
+    }
+  }
+
+  function endDurGesture() {
+    if (!durGesture) return;
+    clearTimeout(durGesture.wheelTimer);
+    wheel.classList.remove('duration-mode');
+    hideWheel();
+    const btn = durGesture.btn;
+    btn.classList.remove('pressed', 'shrink');
+    void btn.offsetWidth;
+    btn.classList.add('shrink');
+    durGesture = null;
+  }
+
+  // Touch move — new listener needed for gesture dragging
+  document.addEventListener('touchmove', e => {
+    if (gesture) {
+      e.preventDefault();
+      updateGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+    if (durGesture) {
+      e.preventDefault();
+      updateDurGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }
+  }, { passive: false });
+
+  // Touch handling — press on touchstart, fire on touchend
+  let activeBtn = null;
+  document.addEventListener('touchstart', e => {
+    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    if (!btn) return;
+
+    if (isNoteKey(btn)) {
+      e.preventDefault();
+      activeBtn = null; // gesture system takes over
+      startGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+
+    if (isDurationKey(btn)) {
+      e.preventDefault();
+      activeBtn = null; // gesture system takes over
+      startDurGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+
+    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
+      e.preventDefault();
+    }
+    const action = btn.dataset.action;
+    if (action === 'openChordPopup' || action === 'openTextPopupAbove' || action === 'openTextPopupBelow') {
+      popupPrevFocused = taFocused;
+      popupOpen = true;
+    }
+    activeBtn = btn;
+    handleButtonPress(btn);
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    if (gesture) {
+      endGesture();
+      e.preventDefault();
+      return;
+    }
+    if (durGesture) {
+      endDurGesture();
+      e.preventDefault();
+      return;
+    }
+    if (!activeBtn) return;
+    const touch = e.changedTouches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (target && activeBtn.contains(target)) handleButtonRelease(activeBtn);
+    activeBtn = null;
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchcancel', e => {
+    if (gesture) { endGesture(); return; }
+    if (durGesture) { endDurGesture(); return; }
+    activeBtn = null;
+  }, { passive: true });
+
+  // Mouse handling
+  let activeMouseBtn = null;
+
+  document.addEventListener('mousedown', e => {
+    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    if (!btn) return;
+
+    if (isNoteKey(btn)) {
+      e.preventDefault();
+      activeMouseBtn = null;
+      startGesture(btn, e.clientX, e.clientY);
+      return;
+    }
+
+    if (isDurationKey(btn)) {
+      e.preventDefault();
+      activeMouseBtn = null;
+      startDurGesture(btn, e.clientX, e.clientY);
+      return;
+    }
+
+    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
+      e.preventDefault();
+    }
+    const action = btn.dataset.action;
+    if (action === 'openChordPopup' || action === 'openTextPopupAbove' || action === 'openTextPopupBelow') {
+      popupPrevFocused = taFocused;
+      popupOpen = true;
+    }
+    activeMouseBtn = btn;
+    handleButtonPress(btn);
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (gesture) { updateGesture(e.clientX, e.clientY); return; }
+    if (durGesture) { updateDurGesture(e.clientX, e.clientY); return; }
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (gesture) { endGesture(); return; }
+    if (durGesture) { endDurGesture(); return; }
+    if (!activeMouseBtn) return;
+    const btn = activeMouseBtn;
+    activeMouseBtn = null;
+    if (btn.contains(e.target)) handleButtonRelease(btn);
+  });
+
+  // ---- Draggable divider between preview and editor ----
+  (function () {
+    const divider = document.getElementById('vDivider');
+    const previewWrap = document.getElementById('preview-wrap');
+    let dragging = false;
+
+    function startDrag(e) {
+      dragging = true;
+      divider.classList.add('active');
+      e.preventDefault();
+    }
+    function onMove(clientY) {
+      if (!dragging) return;
+      const rect = document.body.getBoundingClientRect();
+      let newHeight = clientY - rect.top;
+      const min = 70, max = rect.height - 260;
+      if (newHeight < min) newHeight = min;
+      if (newHeight > max) newHeight = max;
+      previewWrap.style.flexBasis = newHeight + 'px';
+    }
+    function endDrag() {
+      dragging = false;
+      divider.classList.remove('active');
+    }
+
+    divider.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', e => onMove(e.clientY));
+    document.addEventListener('mouseup', endDrag);
+
+    divider.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('touchmove', e => { onMove(e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+    document.addEventListener('touchend', endDrag);
+  })();
+
+  // ---- Share / hamburger dropdowns in the preview pill ----
+  (function () {
+    const previewMenus = [
+      { btn: document.getElementById('shareBtn'), menu: document.getElementById('shareMenu') },
+      { btn: document.getElementById('hamburgerBtn'), menu: document.getElementById('hamburgerMenu') }
+    ];
+
+    function closeAllPreviewMenus() {
+      previewMenus.forEach(m => m.menu.classList.remove('open'));
+    }
+
+    previewMenus.forEach(m => {
+      m.btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = m.menu.classList.contains('open');
+        closeAllPreviewMenus();
+        if (!isOpen) m.menu.classList.add('open');
+      });
+      m.menu.querySelectorAll('.dropdown-item').forEach(item => {
+        item.addEventListener('click', () => closeAllPreviewMenus());
+      });
+    });
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.preview-pill')) closeAllPreviewMenus();
+    });
+  })();
+</script>
+</body>
+</html>
