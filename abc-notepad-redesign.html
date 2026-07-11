@@ -316,9 +316,14 @@
     right: -2px;
     width: 2px;
     height: 1.15em;
-    background: #fff;
+    background: var(--accent);
     border-radius: 1px;
     pointer-events: none;
+    animation: caret-blink 1s step-end infinite;
+  }
+  @keyframes caret-blink {
+    0%, 50% { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
   }
 
   /* Static editor display (shown when textarea is unfocused) */
@@ -340,6 +345,8 @@
     overflow-y: auto;
     cursor: text;
     border-radius: 0;
+    user-select: none;
+    -webkit-user-select: none;
   }
   #notation-display.active { display: block; }
   #notation-display .display-placeholder { color: var(--text-dim); }
@@ -496,14 +503,11 @@
     padding: 0;
     background: transparent;
     border: none;
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
   }
   .keyboard-toggle-btn svg { width: 26px; height: 26px; }
-  @media (max-width: 600px) {
-    .editor-toolbar .keyboard-toggle-btn { display: flex; }
-  }
 
   .action-scroll .action-pill {
     flex: 0 0 auto;
@@ -1896,7 +1900,11 @@
   function renderStaticDisplay() {
     const val = ta.value;
     if (!val) {
-      taDisplay.innerHTML = '<span class="display-placeholder">' + esc(ta.placeholder) + '</span>';
+      taDisplay.innerHTML =
+        '<span style="position:relative;display:inline">&#8203;' +
+          '<span class="editor-cursor" style="right:auto;left:-2px"></span>' +
+        '</span>' +
+        '<span class="display-placeholder">' + esc(ta.placeholder) + '</span>';
     } else {
       const tokens = tokeniseABC(val);
       taDisplay.innerHTML = tokensToHTML(tokens, savedStart, savedEnd);
@@ -1951,28 +1959,113 @@
     requestAnimationFrame(() => { ta.scrollTop = scroll; });
   }
 
-  // Tapping the display div refocuses the textarea.
-  // Mouse: on mousedown (instant). Touch: on touchend so the div is
-  // scrollable on mobile without accidentally triggering focus.
-  taDisplay.addEventListener('mousedown', e => {
-    e.preventDefault();
-    hideStaticDisplay();
-    ta.focus();
-    ta.setSelectionRange(savedStart, savedEnd);
+  // ---- Tap / double-tap on the static display ----
+  // Single tap or click: move the cursor to the tapped position.
+  // A touch that moves more than a few px is treated as a scroll, not a
+  // tap, and is left alone entirely so native scrolling still works.
+  // Mouse and touch are unified via Pointer Events so both behave identically.
+  //
+  // Double-tap-to-focus was removed (switching to textarea mode is now
+  // solely via the keyboard-toggle button) but the logic is kept below,
+  // commented out, in case we want to reinstate it later.
+
+  function charOffsetFromPoint(clientX, clientY) {
+    // If the tap lands in the padding above the first line or below the last
+    // line, clamp y to that line's vertical center first — otherwise the
+    // browser's hit-test treats "above all text" as "start of content" and
+    // ignores x entirely, snapping to the beginning of the first line
+    // regardless of which character you tapped above.
+    const rect = taDisplay.getBoundingClientRect();
+    const cs = getComputedStyle(taDisplay);
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const padBottom = parseFloat(cs.paddingBottom) || 0;
+    let lineHeight = parseFloat(cs.lineHeight);
+    if (isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
+    const minY = rect.top + padTop + lineHeight / 2;
+    const maxY = rect.bottom - padBottom - lineHeight / 2;
+    if (minY <= maxY) {
+      if (clientY < minY) clientY = minY;
+      if (clientY > maxY) clientY = maxY;
+    }
+
+    let range = null;
+    if (document.caretRangeFromPoint) {
+      range = document.caretRangeFromPoint(clientX, clientY);
+    } else if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(clientX, clientY);
+      if (pos && pos.offsetNode) {
+        range = document.createRange();
+        range.setStart(pos.offsetNode, pos.offset);
+      }
+    }
+    if (!range) return ta.value.length;
+    let node = range.startContainer;
+    let offset = range.startOffset;
+    if (node.nodeType !== Node.TEXT_NODE) {
+      if (node.childNodes.length && offset < node.childNodes.length) {
+        node = node.childNodes[offset];
+        offset = 0;
+      } else {
+        return ta.value.length;
+      }
+    }
+    let total = 0, found = false;
+    const walker = document.createTreeWalker(taDisplay, NodeFilter.SHOW_TEXT, null);
+    let n;
+    while ((n = walker.nextNode())) {
+      if (n === node) { total += offset; found = true; break; }
+      total += n.textContent.length;
+    }
+    if (!found) return ta.value.length;
+    return Math.max(0, Math.min(total, ta.value.length));
+  }
+
+  const TAP_MAX_DIST = 10;
+  let downX = 0, downY = 0;
+  /* Double-tap state — unused while double-tap-to-focus is disabled, kept for reinstatement:
+  const DOUBLE_TAP_MS = 350;
+  const DOUBLE_TAP_DIST = 25;
+  let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
+  let preTapStart = 0, preTapEnd = 0;
+  */
+
+  taDisplay.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    downX = e.clientX;
+    downY = e.clientY;
   });
 
-  let touchStartY = 0;
-  taDisplay.addEventListener('touchstart', e => {
-    touchStartY = e.changedTouches[0].clientY;
-  }, { passive: true });
-  taDisplay.addEventListener('touchend', e => {
-    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
-    if (dy > 8) return;
+  taDisplay.addEventListener('pointerup', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > TAP_MAX_DIST) return; // was a scroll, not a tap
     e.preventDefault();
-    hideStaticDisplay();
-    ta.focus();
-    ta.setSelectionRange(savedStart, savedEnd);
-  }, { passive: false });
+
+    /* Double-tap-to-focus — disabled, kept for reinstatement:
+    const now = Date.now();
+    const isDouble = (now - lastTapTime) < DOUBLE_TAP_MS &&
+      Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < DOUBLE_TAP_DIST;
+    lastTapX = e.clientX; lastTapY = e.clientY;
+
+    if (isDouble) {
+      lastTapTime = 0; // don't chain a third tap into another "double"
+      savedStart = preTapStart;
+      savedEnd = preTapEnd;
+      hideStaticDisplay();
+      ta.focus();
+      ta.setSelectionRange(savedStart, savedEnd);
+      return;
+    }
+
+    lastTapTime = now;
+    preTapStart = savedStart;
+    preTapEnd = savedEnd;
+    */
+
+    const off = charOffsetFromPoint(e.clientX, e.clientY);
+    savedStart = savedEnd = off;
+    renderStaticDisplay();
+    scrollCursorIntoView();
+  });
 
   const buttonArea = document.querySelector('.button-area');
   const previewWrap = document.getElementById('preview-wrap');
