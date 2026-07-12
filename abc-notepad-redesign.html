@@ -509,6 +509,19 @@
   }
   .keyboard-toggle-btn svg { width: 26px; height: 26px; }
 
+  .action-scroll .dur-action-btn {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: var(--surface2);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .action-scroll .action-pill {
     flex: 0 0 auto;
     display: flex;
@@ -580,61 +593,6 @@
     overflow: hidden;
   }
 
-  /* Tie autocomplete tooltip */
-  #tie-tooltip {
-    display: none;
-    position: absolute;
-    bottom: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--surface2);
-    border: none;
-    border-radius: 999px;
-    padding: 6px 8px 6px 14px;
-    align-items: center;
-    gap: 10px;
-    z-index: 60;
-    white-space: nowrap;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: manipulation;
-  }
-  #tie-tooltip.visible { display: flex; }
-  #tie-tooltip-text {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--accent);
-    letter-spacing: 0.04em;
-  }
-  #tie-tooltip-close {
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    font-size: 0.8rem;
-    cursor: pointer;
-    padding: 2px 4px;
-    line-height: 1;
-    touch-action: manipulation;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
-  #tie-tooltip-close:hover { color: var(--text); }
-  /* Downward-pointing arrow */
-  #tie-tooltip::after {
-    content: '';
-    position: absolute;
-    bottom: -7px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 7px solid transparent;
-    border-right: 7px solid transparent;
-    border-top: 7px solid var(--surface2);
-  }
   #notation {
     display: block;
     width: 100%;
@@ -1112,13 +1070,32 @@
     font-family: 'IBM Plex Mono', monospace;
   }
   .row-small .key { flex: 1 1 0; max-width: 46px; width: auto; aspect-ratio: 1 / 1; height: auto; color: var(--text-dim); }
+  .row-small .action-btn {
+    flex: 1 1 0;
+    max-width: 46px;
+    width: auto;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    padding: 0;
+    background: var(--surface2);
+    color: var(--text);
+    border: none;
+    border-radius: 30%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
   .row-small .key[data-insert="-"] { font-size: 1.5rem; color: var(--text); }
   .row-small { gap: 3px; }
   .row-nav .key { flex: 0 0 38px; width: 38px; height: 38px; font-size: 0.95rem; }
 
   /* Note-duration icon keys */
-  .key-duration { color: var(--text-dim); }
-  .key-duration svg.dur-icon { width: 20px; height: 26px; display: block; margin: 0 auto; overflow: visible; }
+  .dur-action-btn { color: var(--text); }
+  .dur-action-btn svg.dur-icon { width: 20px; height: 26px; display: block; margin: 0 auto; overflow: visible; }
+  .dur-action-btn.active { background: var(--accent); }
+  .dur-action-btn.active svg.dur-icon { color: #111; }
   svg.dur-icon * { vector-effect: non-scaling-stroke; }
 
   /* Note-duration icon shown inside the gesture badge */
@@ -1174,10 +1151,6 @@
     pointer-events: none;
   }
   #gesture-wheel.visible { display: block; }
-  /* Duration-dot gesture only ever swipes right, so hide the other three chevrons entirely */
-  #gesture-wheel.duration-mode #chev-up-g,
-  #gesture-wheel.duration-mode #chev-down-g,
-  #gesture-wheel.duration-mode #chev-left-g { display: none; }
 
   .chev-path {
     fill: none;
@@ -1273,6 +1246,16 @@
             <span class="ios-switch-track"></span>
           </label>
         </div>
+        <div class="modal-setting modal-setting-row">
+          <div>
+            <div class="modal-setting-label">Automatically complete ties</div>
+            <div class="modal-setting-desc">After a tie (-), repeat the tied note or chord automatically (accidentals removed), adding a barline first if one is due.</div>
+          </div>
+          <label class="ios-switch">
+            <input type="checkbox" id="autoCompleteTiesToggle" checked>
+            <span class="ios-switch-track"></span>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -1340,11 +1323,6 @@
 </div>
 
 <div class="editor-wrap">
-  <!-- Tie autocomplete tooltip -->
-  <div id="tie-tooltip" role="tooltip" aria-live="polite">
-    <span id="tie-tooltip-text"></span>
-    <button id="tie-tooltip-close" aria-label="Dismiss suggestion">✕</button>
-  </div>
   <div id="notation-display" aria-hidden="true"></div>
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
@@ -1360,16 +1338,11 @@
   <!-- Quick-insert row + open-keyboard button. Floats over the bottom of the
        input area rather than being a flex neighbour, so its position never
        depends on the divider. Hidden entirely while the native keyboard is
-       open (see body.typing rule). -->
+       open (see body.typing rule). Populated dynamically with duration
+       icons when the cursor is touching a note/rest/chord's duration;
+       otherwise left empty. -->
   <div class="editor-toolbar">
-    <div class="action-scroll">
-      <button class="action-btn action-pill" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
-      <button class="action-btn action-pill" data-action="openTextPopupAbove" data-keepfocus="1">T&#9650;</button>
-      <button class="action-btn action-pill" data-action="openTextPopupBelow" data-keepfocus="1">T&#9660;</button>
-      <button class="key action-pill" data-insert="|:">|:</button>
-      <button class="key action-pill" data-insert=":|">:|</button>
-      <button class="key action-pill" data-insert="(3">(3</button>
-    </div>
+    <div class="action-scroll" id="actionScroll"></div>
     <button class="action-btn keyboard-toggle-btn" data-action="openNativeKeyboard" data-keepfocus="1" aria-label="Open keyboard">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="10" width="20" height="11" rx="2" stroke="white" stroke-width="1.6"/>
@@ -1438,13 +1411,14 @@
     <button class="key" data-insert="B">B</button>
   </div>
 
-  <!-- Row 2: note-duration icons (semiquaver, quaver, crotchet, minim, semibreve) + dash + rest -->
+  <!-- Row 2: relocated quick-insert buttons (chord/text popups, repeats, triplet) + dash + rest -->
   <div class="key-row row-small row-notes-pad" id="row-numbers">
-    <button class="key key-duration" data-dur="1/16" title="Semiquaver"></button>
-    <button class="key key-duration" data-dur="1/8"  title="Quaver"></button>
-    <button class="key key-duration" data-dur="1/4"  title="Crotchet"></button>
-    <button class="key key-duration" data-dur="1/2"  title="Minim"></button>
-    <button class="key key-duration" data-dur="1"    title="Semibreve"></button>
+    <button class="action-btn" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
+    <button class="action-btn" data-action="openTextPopupAbove" data-keepfocus="1">T&#9650;</button>
+    <button class="action-btn" data-action="openTextPopupBelow" data-keepfocus="1">T&#9660;</button>
+    <button class="key" data-insert="|:">|:</button>
+    <button class="key" data-insert=":|">:|</button>
+    <button class="key" data-insert="(3">(3</button>
     <button class="key" data-insert="-">-</button>
     <button class="key key-z" data-insert="z">z</button>
   </div>
@@ -1517,30 +1491,22 @@
 
   let taFocused = false;
   let savedStart = 0, savedEnd = 0;
+  let currentDurationSlot = null; // { durStart, durEnd, durStr, cursorPos } — used by updateActionBar/setNoteDuration
+  const DURATION_ICONS = [
+    { dur: '1/16', dotted: false, frac: [1, 16], title: 'Semiquaver' },
+    { dur: '1/8',  dotted: false, frac: [1, 8],  title: 'Quaver' },
+    { dur: '1/8',  dotted: true,  frac: [3, 16], title: 'Dotted quaver' },
+    { dur: '1/4',  dotted: false, frac: [1, 4],  title: 'Crotchet' },
+    { dur: '1/4',  dotted: true,  frac: [3, 8],  title: 'Dotted crotchet' },
+    { dur: '1/2',  dotted: false, frac: [1, 2],  title: 'Minim' },
+    { dur: '1/2',  dotted: true,  frac: [3, 4],  title: 'Dotted minim' },
+    { dur: '1',    dotted: false, frac: [1, 1],  title: 'Semibreve' },
+  ]; // used by updateActionBar/setNoteDuration
 
-  // --- Tie autocomplete tooltip ---
-  let tieTooltipActive = false;
-  let tieTooltipSuggestion = '';
-  const tieTooltipEl    = document.getElementById('tie-tooltip');
-  const tieTooltipText  = document.getElementById('tie-tooltip-text');
-  const tieTooltipClose = document.getElementById('tie-tooltip-close');
-
-  function showTieTooltip(suggestion) {
-    tieTooltipSuggestion = suggestion;
-    tieTooltipActive = true;
-    tieTooltipText.textContent = suggestion;
-    tieTooltipEl.classList.add('visible');
-  }
-
-  function hideTieTooltip() {
-    if (!tieTooltipActive) return;
-    tieTooltipActive = false;
-    tieTooltipSuggestion = '';
-    tieTooltipEl.classList.remove('visible');
-  }
-
-  // Parse backwards from savedStart to find a tie autocomplete suggestion.
-  // Returns the suggestion string, or null if context is invalid.
+  // Parse backwards from savedStart to find a tie completion candidate.
+  // Returns the completion string (note/chord with accidentals stripped),
+  // or null if context is invalid. Used by the "Automatically complete
+  // ties" setting.
   function getTieSuggestion() {
     // No suggestion if there's a selection
     if (savedStart !== savedEnd) return null;
@@ -1615,48 +1581,6 @@
     return null;
   }
 
-  function tryShowTieTooltip() {
-    const suggestion = getTieSuggestion();
-    if (suggestion) showTieTooltip(suggestion);
-  }
-
-  function checkTieTooltipValidity() {
-    if (!tieTooltipActive) return;
-    const suggestion = getTieSuggestion();
-    if (!suggestion) {
-      hideTieTooltip();
-    } else if (suggestion !== tieTooltipSuggestion) {
-      // Cursor moved to a different valid tie context — update suggestion
-      tieTooltipSuggestion = suggestion;
-      tieTooltipText.textContent = suggestion;
-    }
-  }
-
-  function acceptTieSuggestion() {
-    if (!tieTooltipActive || !tieTooltipSuggestion) return;
-    const suggestion = tieTooltipSuggestion;
-    hideTieTooltip();
-    doInsert(suggestion, taFocused); // separate undo step (doInsert calls pushUndo)
-  }
-
-  // Tooltip body tap/click → accept; X → dismiss
-  tieTooltipEl.addEventListener('mousedown', e => {
-    e.preventDefault(); // prevent textarea blur
-    if (e.target.closest('#tie-tooltip-close')) {
-      hideTieTooltip();
-    } else {
-      acceptTieSuggestion();
-    }
-  });
-  tieTooltipEl.addEventListener('touchend', e => {
-    e.preventDefault();
-    if (e.target.closest('#tie-tooltip-close')) {
-      hideTieTooltip();
-    } else {
-      acceptTieSuggestion();
-    }
-  }, { passive: false });
-
   // --- Undo ---
   const MAX_UNDO = 100;
   const undoStack = [];
@@ -1682,11 +1606,11 @@
     updateClearBtn();
     schedulePreview();
     undoBtn.disabled = undoStack.length === 0;
-    checkTieTooltipValidity();
   }
   let debounceTimer = null;
 
   const taDisplay = document.getElementById('notation-display');
+  const actionScrollEl = document.getElementById('actionScroll');
 
   // ---- ABC syntax highlighting tokeniser ----
   // Returns array of {type, text} objects covering every character in val.
@@ -2068,6 +1992,7 @@
     savedStart = savedEnd = off;
     renderStaticDisplay();
     scrollCursorIntoView();
+    updateActionBar();
   });
 
   const buttonArea = document.querySelector('.button-area');
@@ -2119,7 +2044,7 @@
     });
   }
 
-  ta.addEventListener('focus', () => { taFocused = true; hideStaticDisplay(); setTypingRows(true); });
+  ta.addEventListener('focus', () => { taFocused = true; hideStaticDisplay(); setTypingRows(true); updateActionBar(); });
   ta.addEventListener('blur', () => {
     taFocused = false;
     savedStart = ta.selectionStart;
@@ -2128,21 +2053,22 @@
       showStaticDisplay();
       setTypingRows(false);
     }
+    updateActionBar();
   });
   ta.addEventListener('keyup', () => {
-    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; updateActionBar(); }
   });
   ta.addEventListener('click', () => {
-    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; updateActionBar(); }
   });
   ta.addEventListener('mouseup', () => {
-    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; }
+    if (taFocused) { savedStart = ta.selectionStart; savedEnd = ta.selectionEnd; updateActionBar(); }
   });
   document.addEventListener('selectionchange', () => {
     if (taFocused) {
       savedStart = ta.selectionStart;
       savedEnd = ta.selectionEnd;
-      checkTieTooltipValidity();
+      updateActionBar();
     }
   });
   function updateClearBtn() {
@@ -2152,15 +2078,12 @@
   updateClearBtn();
   syncDisplayIfUnfocused();
   setTypingRows(false);
+  updateActionBar();
 
   ta.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       e.preventDefault();
       undo();
-      return;
-    }
-    if (e.key === 'Escape' && tieTooltipActive) {
-      hideTieTooltip();
       return;
     }
     if (e.key === ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -2177,9 +2100,9 @@
     savedEnd   = ta.selectionEnd;
     schedulePreview();
     if (e.inputType === 'insertText' && e.data === '-') {
-      tryShowTieTooltip();
+      maybeAutoCompleteTie(); // this also calls updateActionBar() via its own doInsert()
     } else {
-      checkTieTooltipValidity();
+      updateActionBar();
     }
   });
 
@@ -2239,9 +2162,9 @@
     updateClearBtn();
     schedulePreview();
     if (text === '-') {
-      tryShowTieTooltip();
+      maybeAutoCompleteTie();
     } else {
-      checkTieTooltipValidity();
+      updateActionBar();
     }
   }
 
@@ -2447,24 +2370,44 @@
     return total;
   }
 
-  // Decides whether the space about to be inserted should instead become " | ".
+  // Shared bar-completion check, used by both "Automatic Barlines" and
+  // "Automatically complete ties" — true if the given position sits right
+  // after a fully-completed bar (per the current M:/L: values).
   let autoBarlineEnabled = true;
   document.getElementById('autoBarlineToggle').addEventListener('change', e => {
     autoBarlineEnabled = e.target.checked;
   });
-  function spaceOrBarline() {
-    if (!autoBarlineEnabled) return ' ';
-    if (savedStart !== savedEnd) return ' '; // replacing a selection — just insert a plain space
-    const pos = savedStart;
+  function isBarComplete(pos) {
+    if (!autoBarlineEnabled) return false;
+    if (savedStart !== savedEnd) return false; // replacing a selection — not a clean bar boundary
     const M = getCurrentMValue();
-    if (!M) return ' '; // M:none — no fixed bar length, feature disabled
+    if (!M) return false; // M:none — no fixed bar length, feature disabled
     const L = getCurrentLValue();
     const text = ta.value;
     const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
     const barStart = getBarStartPos(text, lineStart, pos);
     const fullBarLen = reduceFrac([M[0], M[1]]);
     const total = computeBarDuration(text, barStart, pos, L, fullBarLen);
-    return fracEq(total, fullBarLen) ? ' | ' : ' ';
+    return fracEq(total, fullBarLen);
+  }
+  function spaceOrBarline() {
+    return isBarComplete(savedStart) ? ' | ' : ' ';
+  }
+
+  // Automatically complete ties: when a dash is typed (either via the real
+  // keyboard or the on-screen key) right after a tie-able note or chord,
+  // insert the repeated note/chord (accidentals stripped) immediately —
+  // preceded by "| " if that dash also completes the current bar.
+  let autoCompleteTiesEnabled = true;
+  document.getElementById('autoCompleteTiesToggle').addEventListener('change', e => {
+    autoCompleteTiesEnabled = e.target.checked;
+  });
+  function maybeAutoCompleteTie() {
+    if (!autoCompleteTiesEnabled) return;
+    const suggestion = getTieSuggestion();
+    if (!suggestion) return;
+    const prefix = isBarComplete(savedStart) ? ' | ' : ' ';
+    doInsert(prefix + suggestion, taFocused);
   }
 
   // ---- Note-duration button icons ----
@@ -2494,9 +2437,100 @@
     return `<svg viewBox="0 0 46 60" width="46" height="60" class="dur-icon" aria-hidden="true">${inner}</svg>`;
   }
 
-  document.querySelectorAll('.key-duration').forEach(btn => {
-    btn.innerHTML = durationIconSVG(btn.dataset.dur, false);
-  });
+  // ---- Dynamic action bar: note/rest/chord duration picker ----
+  // The 8 duration buttons shown when the cursor is touching a duration.
+  // "frac" is the actual note-value as a fraction of a whole note — used to
+  // match against the note's real duration (explicit-string × L, or just L
+  // when implicit) regardless of which L: is currently in effect.
+  // Finds whether `pos` is touching the duration of a note, rest, or chord:
+  // anywhere from just before the duration string, within it, to just after
+  // it (inclusive) — or, if there's no explicit duration, exactly the point
+  // right after the note/rest/chord where one would start.
+  function findDurationSlotAtCursor(pos) {
+    const text = ta.value;
+    // 1. Walk back through a contiguous run of duration characters (digits, /).
+    let k = pos;
+    while (k > 0 && /[0-9\/]/.test(text[k - 1])) k--;
+
+    // 2a. Chord form: the character right before the duration run is "]".
+    if (k > 0 && text[k - 1] === ']') {
+      const durStr = matchDurationSuffix(text, k, text.length);
+      const durEnd = k + durStr.length;
+      if (pos >= k && pos <= durEnd) return { durStart: k, durEnd, durStr };
+      return null;
+    }
+
+    // 2b. Note/rest form: walk back through octave marks, then require a
+    // note/rest letter immediately before that.
+    let letterEnd = k;
+    while (letterEnd > 0 && /[',]/.test(text[letterEnd - 1])) letterEnd--;
+    if (letterEnd === 0 || !/[a-gA-GzZxX]/.test(text[letterEnd - 1])) return null;
+
+    const durStr = matchDurationSuffix(text, k, text.length);
+    const durEnd = k + durStr.length;
+    if (pos < k || pos > durEnd) return null;
+    return { durStart: k, durEnd, durStr };
+  }
+
+  function updateActionBar() {
+    const prevSlot = currentDurationSlot;
+    const slot = (savedStart === savedEnd) ? findDurationSlotAtCursor(savedStart) : null;
+
+    if (!slot) {
+      currentDurationSlot = null;
+      actionScrollEl.innerHTML = '';
+      return;
+    }
+    slot.cursorPos = savedStart;
+    currentDurationSlot = slot;
+    const sameNote = prevSlot && prevSlot.durStart === slot.durStart;
+
+    const L = getCurrentLValue();
+    const noteFrac = reduceFrac(mulFrac(parseDurationSuffix(slot.durStr), L));
+
+    actionScrollEl.innerHTML = DURATION_ICONS.map(icon => {
+      const active = fracEq(noteFrac, icon.frac);
+      return `<button class="action-btn dur-action-btn${active ? ' active' : ''}" ` +
+        `data-action="setNoteDuration" data-dur="${icon.dur}" data-dotted="${icon.dotted}" ` +
+        `data-keepfocus="1" title="${icon.title}">${durationIconSVG(icon.dur, icon.dotted)}</button>`;
+    }).join('');
+    if (!sameNote) actionScrollEl.scrollLeft = 0;
+  }
+
+  // Converts a target whole-note fraction to ABC duration text relative to
+  // the current L:, treating "matches L: exactly" as an empty string.
+  function durationSuffixForFraction(targetFrac, LFrac) {
+    const ratio = reduceFrac([targetFrac[0] * LFrac[1], targetFrac[1] * LFrac[0]]);
+    if (ratio[0] === 1 && ratio[1] === 1) return '';
+    return formatDurationInsert(targetFrac, LFrac);
+  }
+
+  function setNoteDuration(btn) {
+    if (!currentDurationSlot) return;
+    const icon = DURATION_ICONS.find(d => d.dur === btn.dataset.dur && String(d.dotted) === btn.dataset.dotted);
+    if (!icon) return;
+    pushUndo();
+
+    const slot = currentDurationSlot;
+    const L = getCurrentLValue();
+    const newDurStr = durationSuffixForFraction(icon.frac, L);
+
+    ta.value = ta.value.slice(0, slot.durStart) + newDurStr + ta.value.slice(slot.durEnd);
+
+    let newPos;
+    if (slot.durStr === '' || slot.cursorPos > slot.durStart) {
+      newPos = slot.durStart + newDurStr.length; // was amid/after, or had no duration — goes after
+    } else {
+      newPos = slot.durStart; // was right before the duration — stays before
+    }
+    savedStart = savedEnd = newPos;
+
+    if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
+    updateClearBtn();
+    schedulePreview();
+    updateActionBar();
+  }
 
   function openNativeKeyboard() {
     hideStaticDisplay();
@@ -2520,7 +2554,7 @@
     if (atEnd) ta.scrollTop = ta.scrollHeight;
     updateClearBtn();
     schedulePreview();
-    checkTieTooltipValidity();
+    updateActionBar();
   }
 
   function moveCursor(key) {
@@ -2548,7 +2582,7 @@
     savedStart = pos; savedEnd = pos;
     if (wasFocused) ta.setSelectionRange(pos, pos);
     else syncDisplayIfUnfocused();
-    checkTieTooltipValidity();
+    updateActionBar();
   }
 
   function arrowLeft()  { moveCursor('ArrowLeft');  }
@@ -3552,9 +3586,9 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration };
 
-  const releaseActions = new Set(['copyText', 'copyTextRaw', 'exportAbcFile', 'exportPdf', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo']);
+  const releaseActions = new Set(['copyText', 'copyTextRaw', 'exportAbcFile', 'exportPdf', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo', 'setNoteDuration']);
 
   function handleButtonPress(btn) {
     // Release-action buttons animate on release, not press
@@ -3567,7 +3601,7 @@
     // Fire all other actions immediately on press
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
-      if (fn) fn();
+      if (fn) fn(btn);
     } else if (btn.dataset.insert !== undefined) {
       const isKey = btn.classList.contains('key');
       if (btn.classList.contains('tmpl-btn')) {
@@ -3586,7 +3620,7 @@
       void btn.offsetWidth;
       btn.classList.add('flash');
       const fn = actions[btn.dataset.action];
-      if (fn) fn();
+      if (fn) fn(btn);
     }
   }
 
@@ -3702,6 +3736,7 @@
     else syncDisplayIfUnfocused();
     updateClearBtn();
     schedulePreview();
+    updateActionBar();
 
     btn.classList.add('pressed');
 
@@ -3737,6 +3772,7 @@
       gesture.lastNote = note;
       updateClearBtn();
       schedulePreview();
+      updateActionBar();
       if (wheel.classList.contains('visible')) {
         onNoteChange(dx, dy);
         badge.classList.add('visible');
@@ -3756,99 +3792,9 @@
     gesture = null;
   }
 
-  // ---- Note-duration buttons: swipe-right-for-dot gesture ----
-  function isDurationKey(btn) {
-    return btn && btn.dataset.dur !== undefined;
-  }
-
-  function updateDurationBadge(dur, dotted, x, y) {
-    badge.innerHTML = durationIconSVG(dur, dotted);
-    badge.style.left = x + 'px';
-    badge.style.top  = y + 'px';
-  }
-
-  let durGesture = null;
-
-  function startDurGesture(btn, startX, startY) {
-    pushUndo();
-    const dur       = btn.dataset.dur;
-    const L         = getCurrentLValue();
-    const insertPos = savedStart;
-    const insertEnd = savedEnd;
-    const text      = formatDurationInsert(parseFrac(dur), L);
-
-    ta.value   = ta.value.slice(0, insertPos) + text + ta.value.slice(insertEnd);
-    savedStart = insertPos + text.length;
-    savedEnd   = savedStart;
-    if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
-    else syncDisplayIfUnfocused();
-    updateClearBtn();
-    schedulePreview();
-
-    btn.classList.add('pressed');
-
-    const rect  = btn.getBoundingClientRect();
-    const btnCX = rect.left + rect.width  / 2;
-    const btnCY = rect.top  + rect.height / 2;
-
-    const wheelTimer = setTimeout(() => {
-      if (!durGesture) return;
-      wheel.classList.add('duration-mode');
-      showWheel(btnCX, btnCY);
-      if (durGesture.dotted) {
-        setChevState(chevGrps.right, true);
-        badge.classList.add('visible');
-        updateDurationBadge(durGesture.dur, true, btnCX, btnCY);
-      }
-    }, WHEEL_DELAY);
-
-    durGesture = { btn, dur, L, insertPos, startX, startY, lastText: text, dotted: false, wheelTimer };
-  }
-
-  function updateDurGesture(currentX, currentY) {
-    if (!durGesture) return;
-    const dx     = currentX - durGesture.startX;
-    const dotted = dx >= H_THRESHOLD;
-
-    if (dotted !== durGesture.dotted) {
-      const baseFrac  = parseFrac(durGesture.dur);
-      const finalFrac = dotted ? mulFrac(baseFrac, [3, 2]) : baseFrac;
-      const text  = formatDurationInsert(finalFrac, durGesture.L);
-      const start = durGesture.insertPos;
-      const end   = start + durGesture.lastText.length;
-      ta.value   = ta.value.slice(0, start) + text + ta.value.slice(end);
-      savedStart = start + text.length;
-      savedEnd   = savedStart;
-      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
-      else syncDisplayIfUnfocused();
-      durGesture.lastText = text;
-      durGesture.dotted = dotted;
-      updateClearBtn();
-      schedulePreview();
-
-      if (wheel.classList.contains('visible')) {
-        setChevState(chevGrps.right, dotted);
-        if (dotted) nudgeChev(chevGrps.right);
-        badge.classList.add('visible');
-      }
-    }
-
-    if (badge.classList.contains('visible')) {
-      updateDurationBadge(durGesture.dur, durGesture.dotted, currentX, currentY);
-    }
-  }
-
-  function endDurGesture() {
-    if (!durGesture) return;
-    clearTimeout(durGesture.wheelTimer);
-    wheel.classList.remove('duration-mode');
-    hideWheel();
-    const btn = durGesture.btn;
-    btn.classList.remove('pressed', 'shrink');
-    void btn.offsetWidth;
-    btn.classList.add('shrink');
-    durGesture = null;
-  }
+  // ---- Note-duration buttons ----
+  // Swipe-for-dot gesture removed — durations are now set by tapping a
+  // duration icon in the (dynamic) action bar; see setNoteDuration().
 
   // Touch move — new listener needed for gesture dragging
   document.addEventListener('touchmove', e => {
@@ -3856,10 +3802,6 @@
       e.preventDefault();
       updateGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
-    }
-    if (durGesture) {
-      e.preventDefault();
-      updateDurGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
     }
   }, { passive: false });
 
@@ -3876,33 +3818,15 @@
       return;
     }
 
-    if (isDurationKey(btn)) {
-      e.preventDefault();
-      activeBtn = null; // gesture system takes over
-      startDurGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-      return;
-    }
-
-    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
+    const inActionScroll = !!btn.closest('.action-scroll');
+    if (!inActionScroll && (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus)) {
       e.preventDefault();
     }
-    const action = btn.dataset.action;
-    if (action === 'openChordPopup' || action === 'openTextPopupAbove' || action === 'openTextPopupBelow') {
-      popupPrevFocused = taFocused;
-      popupOpen = true;
-    }
-    activeBtn = btn;
-    handleButtonPress(btn);
   }, { passive: false });
 
   document.addEventListener('touchend', e => {
     if (gesture) {
       endGesture();
-      e.preventDefault();
-      return;
-    }
-    if (durGesture) {
-      endDurGesture();
       e.preventDefault();
       return;
     }
@@ -3916,7 +3840,6 @@
 
   document.addEventListener('touchcancel', e => {
     if (gesture) { endGesture(); return; }
-    if (durGesture) { endDurGesture(); return; }
     activeBtn = null;
   }, { passive: true });
 
@@ -3934,13 +3857,6 @@
       return;
     }
 
-    if (isDurationKey(btn)) {
-      e.preventDefault();
-      activeMouseBtn = null;
-      startDurGesture(btn, e.clientX, e.clientY);
-      return;
-    }
-
     if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
       e.preventDefault();
     }
@@ -3955,12 +3871,10 @@
 
   document.addEventListener('mousemove', e => {
     if (gesture) { updateGesture(e.clientX, e.clientY); return; }
-    if (durGesture) { updateDurGesture(e.clientX, e.clientY); return; }
   });
 
   document.addEventListener('mouseup', e => {
     if (gesture) { endGesture(); return; }
-    if (durGesture) { endDurGesture(); return; }
     if (!activeMouseBtn) return;
     const btn = activeMouseBtn;
     activeMouseBtn = null;
