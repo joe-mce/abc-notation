@@ -475,8 +475,10 @@
     left: 10px;
     right: 10px;
     bottom: 10px;
+    height: 44px;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
     z-index: 8;
   }
@@ -485,10 +487,12 @@
   .action-scroll {
     flex: 1;
     min-width: 0;
+    min-height: 44px;
     display: flex;
+    align-items: center;
     gap: 8px;
     overflow-x: auto;
-    padding: 4px 16px;
+    padding: 0 16px;
     scrollbar-width: none;
     background: var(--surface);
     border-radius: 20px;
@@ -510,11 +514,11 @@
   .keyboard-toggle-btn svg { width: 26px; height: 26px; }
 
   .action-scroll .dur-action-btn {
-    flex: 0 0 44px;
-    width: 44px;
-    height: 44px;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
     padding: 0;
-    background: var(--surface2);
+    background: transparent;
     border: none;
     border-radius: 50%;
     display: flex;
@@ -1093,9 +1097,20 @@
 
   /* Note-duration icon keys */
   .dur-action-btn { color: var(--text); }
-  .dur-action-btn svg.dur-icon { width: 20px; height: 26px; display: block; margin: 0 auto; overflow: visible; }
-  .dur-action-btn.active { background: var(--accent); }
-  .dur-action-btn.active svg.dur-icon { color: #111; }
+  .dur-action-btn svg.dur-icon { width: 16px; height: 21px; display: block; margin: 0 auto; overflow: visible; }
+  .dur-action-btn.active { color: var(--accent); }
+  .dur-current-note {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 0 12px 0 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+  }
   svg.dur-icon * { vector-effect: non-scaling-stroke; }
 
   /* Note-duration icon shown inside the gesture badge */
@@ -2421,18 +2436,55 @@
   const DUR_FLAG1 = `<path d="M22.5,8 C33,12 33,24 23,30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
   const DUR_FLAG2 = `<path d="M22.5,16 C33,20 33,32 23,38" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
   const DUR_DOT   = `<circle cx="32" cy="44" r="2.6" fill="currentColor"/>`;
-
-  function durationIconSVG(dur, dotted) {
-    let inner, dx = 0;
+  function restDurDot(dur) {
     switch (dur) {
-      case '1':    inner = noteheadSVG(false, false); dx = 8; break;                 // semibreve — no stem to balance it
-      case '1/2':  inner = noteheadSVG(false, true) + DUR_STEM; dx = 6; break;        // minim — notehead + bare stem
-      case '1/4':  inner = noteheadSVG(true, true) + DUR_STEM; dx = 6; break;         // crotchet — same composition as minim
-      case '1/8':  inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1; dx = 4; break;    // quaver — flag extends further right already
-      case '1/16': inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1 + DUR_FLAG2; dx = 4; break; // semiquaver — same as quaver
-      default:     inner = '';
+      case '1/8': return `<circle cx="37.66" cy="28" r="2.6" fill="currentColor"/>`; // shifted down with the shape (bottom-aligned to quarter rest)
+      case '1/4': return `<circle cx="36.8" cy="26.64" r="2.6" fill="currentColor"/>`; // 40% down from top (60% up from bottom)
+      case '1/2': return `<circle cx="42.2" cy="26.5" r="2.6" fill="currentColor"/>`; // vertically centered on the bar+lip shape
+      default:    return DUR_DOT;
     }
-    if (dotted) inner += DUR_DOT;
+  }
+
+  // Rest shapes, built one at a time. Returns null for any duration that
+  // doesn't have a rest-specific shape yet — caller falls back to the note icon.
+  function restBodySVG(dur) {
+    switch (dur) {
+      case '1/8':
+        // Filled silhouette, scaled/positioned from the full-detail source path. Bottom-aligned with the quarter rest.
+        return `<g transform="translate(1.08,16.85) scale(0.07067)"><path d="M311.5 183.76C320.12 183.13 328.91 178.72 336.8 175.35C357.04 166.7 376.19 154.93 391.95 139.45C395.15 136.3 398.23 132.98 400.92 129.36C402.32 127.48 403.32 125.14 404.97 123.47C409.24 119.17 424.27 118.97 428.93 122.5C429.68 129.24 422.8 140.9 420.33 147.77C413.11 167.81 405.66 187.75 398.27 207.73C373.75 274.11 348.68 340.3 324.25 406.71C317.38 425.39 309.84 443.86 303.16 462.61C301.18 468.2 297.05 484.09 293.41 487.91C290.98 490.47 285.7 489.97 282.5 490.06C272.32 490.35 260.97 491.78 251.01 489.5C252.48 480.26 257.95 470.81 261.75 462.26C269.14 445.62 276.52 428.97 283.73 412.25C306.67 359 329.58 305.69 353.33 252.8C361.64 234.28 369.36 215.51 377.42 196.88C381.87 186.58 388.17 176.41 390.5 165.34C384.79 166.43 379.13 172.5 374.39 175.94C363.87 183.57 353 190.96 341.41 196.91C326.93 204.36 311.58 208.62 295.58 211.29C286.39 212.82 276.85 214.52 267.5 214.37C242.28 213.95 217.93 201.74 203.87 180.66C199.07 173.45 195.35 165.13 194.11 156.5C190.61 132.04 202.17 109.43 221.94 95.46C228.12 91.1 235.23 86.91 242.71 85.32C247.81 84.25 253.32 84.5 258.5 84.67C276.2 85.25 289.56 90.61 302.2 103.3C317.23 118.39 322.35 138.66 318.73 159.41C317.39 167.09 311.69 176.9 311.5 183.76Z" fill="currentColor" fill-rule="evenodd" stroke="currentColor" stroke-width="0.25" stroke-linejoin="round"/></g>`;
+      case '1/4':
+        // Filled silhouette (crotchet/quarter rest), scaled/positioned from the full-detail source path.
+        return `<g transform="translate(2.55,9.79) scale(0.2096)"><path d="M87.75 1.01C90.82 1.65 101.53 15.81 104.28 18.97C109.27 24.7 126.9 41.27 127.88 47.77C129.37 57.74 121.24 65.35 116.3 73.04C108.2 85.68 102.02 97.72 104.12 113.24C106.03 127.31 117.42 140.16 125.21 151.56C127.85 155.41 133.59 161.17 134.39 165.75C129.81 165.51 121.75 157.59 113.75 157.08C99.95 156.21 85.75 166.67 87.22 181.64C87.91 188.62 92.11 192.86 95 198.75C90.91 199.48 84.69 194.74 81.59 192.19C70.19 182.79 60.72 167.06 66.21 151.91C69.68 142.33 79.84 138.57 89.25 137.99C91.5 137.85 102.6 138.5 103.25 136.59C104.21 133.74 95.89 126.73 94.14 124.64C86.43 115.45 74.25 102.57 72.27 90.46C69.19 71.62 92.89 59.01 96.82 41.66C100.22 26.69 86.93 15.03 87.75 1.01Z" fill="currentColor" fill-rule="evenodd" stroke="currentColor" stroke-width="0.25" stroke-linejoin="round"/></g>`;
+      case '1/16':
+        // Filled silhouette (semiquaver rest), scaled/positioned from the full-detail source path. Bottom-aligned with the quarter rest.
+        return `<g transform="translate(15.33,19.9) scale(0.02032)"><path d="M222.94 1535.5C294.01 1304.5 365.09 1073.5 436.16 842.5C424.78 841.16 398.41 852.99 386.18 856.59C354.36 865.96 322.14 875.03 289.44 880.74C249.86 887.66 199.67 890.04 160.67 879.72C92.73 861.75 31.46 801.51 30.12 728.5C29.81 711.15 29.11 693.6 33.26 676.65C36.43 663.68 43.47 651.19 50.39 639.88C94.64 567.57 193.1 538.1 263.14 593.39C273.18 601.31 282.82 610.94 289.76 621.73C311.18 654.98 313.41 696.91 325.82 733.6C332.89 754.51 347.22 773.97 371.53 774.61C386.01 774.99 398.35 765.15 408.63 756.11C430.45 736.91 448.91 713.96 466.08 690.62C478.75 673.4 491.34 655.01 499.72 635.25C510.59 609.61 517.02 581.22 525.22 554.62C538.27 512.33 551.44 470.08 564.32 427.73C572.62 400.42 581.44 373.23 589.38 345.8C592.89 333.7 599.65 319.99 600.5 307.44C589.9 307.2 567.79 318.23 556.4 321.8C524.93 331.65 492.84 339.96 460.37 345.69C421.85 352.49 381.25 356.38 342.56 348.75C266.08 333.66 197.7 271.94 196.96 190.5C196.79 172.36 196.2 154.35 201.36 136.77C232.33 31.21 395.52 -14.62 457.43 88.08C476.79 120.2 480.14 158.41 490.78 193.63C497.38 215.52 508.76 235.47 533.55 238.74C555.35 241.62 574.03 223.8 587.56 209.06C606.33 188.61 623.48 166.44 638.91 143.37C649.3 127.84 658.47 110.39 670.89 96.37C684.1 81.44 717.68 82.16 724.45 104.01C725.59 107.72 720.23 122.07 719.04 126.51C713.39 147.52 707.85 168.56 702.17 189.55C681.01 267.87 659.8 346.22 639.31 424.71C562.74 718 481.86 1010.17 404.7 1303.3C390.8 1356.13 376.35 1408.8 362.18 1461.56C357.6 1478.6 353.09 1495.67 348.24 1512.63C346.11 1520.06 345 1529.87 341.01 1536.5C335.08 1546.37 319.86 1551.14 309.59 1554.23C300.9 1556.84 292.72 1559.54 283.5 1559.73C265.97 1560.07 234.02 1550 222.94 1535.5Z" fill="currentColor" fill-rule="evenodd" stroke="currentColor" stroke-width="0.25" stroke-linejoin="round"/></g>`;
+      case '1/2':
+        // Minim rest: bar with a lip sticking out left/right at the bottom. Scaled up 20% around its own center.
+        return `<rect x="13.4" y="21.1" width="19.2" height="7.2" fill="currentColor"/><rect x="8.6" y="28.3" width="28.8" height="3.6" fill="currentColor"/>`;
+      case '1':
+        // Semibreve rest: same bar, lip at the top instead. Scaled up 20% around its own center.
+        return `<rect x="13.4" y="21.1" width="19.2" height="7.2" fill="currentColor"/><rect x="8.6" y="17.5" width="28.8" height="3.6" fill="currentColor"/>`;
+      default:
+        return null;
+    }
+  }
+
+  function durationIconSVG(dur, dotted, isRest) {
+    let inner, dx = 0;
+    const restBody = isRest ? restBodySVG(dur) : null;
+    if (restBody) {
+      inner = restBody;
+    } else {
+      switch (dur) {
+        case '1':    inner = noteheadSVG(false, false); dx = 8; break;                 // semibreve — no stem to balance it
+        case '1/2':  inner = noteheadSVG(false, true) + DUR_STEM; dx = 6; break;        // minim — notehead + bare stem
+        case '1/4':  inner = noteheadSVG(true, true) + DUR_STEM; dx = 6; break;         // crotchet — same composition as minim
+        case '1/8':  inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1; dx = 4; break;    // quaver — flag extends further right already
+        case '1/16': inner = noteheadSVG(true, true) + DUR_STEM + DUR_FLAG1 + DUR_FLAG2; dx = 4; break; // semiquaver — same as quaver
+        default:     inner = '';
+      }
+    }
+    if (dotted) inner += (restBody ? restDurDot(dur) : DUR_DOT);
     if (dx) inner = `<g transform="translate(${dx},0)">${inner}</g>`;
     return `<svg viewBox="0 0 46 60" width="46" height="60" class="dur-icon" aria-hidden="true">${inner}</svg>`;
   }
@@ -2456,8 +2508,17 @@
     if (k > 0 && text[k - 1] === ']') {
       const durStr = matchDurationSuffix(text, k, text.length);
       const durEnd = k + durStr.length;
-      if (pos >= k && pos <= durEnd) return { durStart: k, durEnd, durStr };
-      return null;
+      if (pos < k || pos > durEnd) return null;
+      let depth = 0, tokenStart = k;
+      for (let i = k - 1; i >= 0; i--) {
+        if (text[i] === ']') depth++;
+        else if (text[i] === '[') {
+          if (depth === 0) { tokenStart = i; break; }
+          depth--;
+        }
+      }
+      if (tokenStart > 0 && text[tokenStart - 1] === '.') tokenStart--; // leading staccato dot
+      return { durStart: k, durEnd, durStr, tokenStart, isRest: false };
     }
 
     // 2b. Note/rest form: walk back through octave marks, then require a
@@ -2465,11 +2526,18 @@
     let letterEnd = k;
     while (letterEnd > 0 && /[',]/.test(text[letterEnd - 1])) letterEnd--;
     if (letterEnd === 0 || !/[a-gA-GzZxX]/.test(text[letterEnd - 1])) return null;
+    const letterPos = letterEnd - 1;
+    const isRest = /[zZxX]/.test(text[letterPos]);
 
     const durStr = matchDurationSuffix(text, k, text.length);
     const durEnd = k + durStr.length;
     if (pos < k || pos > durEnd) return null;
-    return { durStart: k, durEnd, durStr };
+
+    let tokenStart = letterPos;
+    while (tokenStart > 0 && /[_^=]/.test(text[tokenStart - 1])) tokenStart--; // accidentals
+    if (tokenStart > 0 && text[tokenStart - 1] === '.') tokenStart--; // leading staccato dot
+
+    return { durStart: k, durEnd, durStr, tokenStart, isRest };
   }
 
   function updateActionBar() {
@@ -2479,6 +2547,7 @@
     if (!slot) {
       currentDurationSlot = null;
       actionScrollEl.innerHTML = '';
+      actionScrollEl.style.display = 'none';
       return;
     }
     slot.cursorPos = savedStart;
@@ -2488,11 +2557,15 @@
     const L = getCurrentLValue();
     const noteFrac = reduceFrac(mulFrac(parseDurationSuffix(slot.durStr), L));
 
-    actionScrollEl.innerHTML = DURATION_ICONS.map(icon => {
+    const noteText = ta.value.slice(slot.tokenStart, slot.durEnd);
+    const noteLabel = `<span class="dur-current-note">${esc(noteText)}</span>`;
+
+    actionScrollEl.style.display = 'flex';
+    actionScrollEl.innerHTML = noteLabel + DURATION_ICONS.map(icon => {
       const active = fracEq(noteFrac, icon.frac);
       return `<button class="action-btn dur-action-btn${active ? ' active' : ''}" ` +
         `data-action="setNoteDuration" data-dur="${icon.dur}" data-dotted="${icon.dotted}" ` +
-        `data-keepfocus="1" title="${icon.title}">${durationIconSVG(icon.dur, icon.dotted)}</button>`;
+        `data-keepfocus="1" title="${icon.title}">${durationIconSVG(icon.dur, icon.dotted, slot.isRest)}</button>`;
     }).join('');
     if (!sameNote) actionScrollEl.scrollLeft = 0;
   }
@@ -3797,11 +3870,24 @@
   // duration icon in the (dynamic) action bar; see setNoteDuration().
 
   // Touch move — new listener needed for gesture dragging
+  const BTN_CANCEL_DIST = 10; // cumulative px of finger movement that cancels a pending action-bar tap
+  let activeBtnInScroll = false;
+  let activeBtnLastX = 0, activeBtnLastY = 0, activeBtnCumDist = 0;
   document.addEventListener('touchmove', e => {
     if (gesture) {
       e.preventDefault();
       updateGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
+    }
+    if (activeBtn && activeBtnInScroll) {
+      const t = e.changedTouches[0];
+      activeBtnCumDist += Math.hypot(t.clientX - activeBtnLastX, t.clientY - activeBtnLastY);
+      activeBtnLastX = t.clientX;
+      activeBtnLastY = t.clientY;
+      if (activeBtnCumDist > BTN_CANCEL_DIST) {
+        activeBtn = null; // this touch has become a scroll — cancel the pending tap
+        activeBtnInScroll = false;
+      }
     }
   }, { passive: false });
 
@@ -3822,6 +3908,19 @@
     if (!inActionScroll && (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus)) {
       e.preventDefault();
     }
+    const action = btn.dataset.action;
+    if (action === 'openChordPopup' || action === 'openTextPopupAbove' || action === 'openTextPopupBelow') {
+      popupPrevFocused = taFocused;
+      popupOpen = true;
+    }
+    activeBtn = btn;
+    activeBtnInScroll = inActionScroll;
+    if (inActionScroll) {
+      activeBtnLastX = e.changedTouches[0].clientX;
+      activeBtnLastY = e.changedTouches[0].clientY;
+      activeBtnCumDist = 0;
+    }
+    handleButtonPress(btn);
   }, { passive: false });
 
   document.addEventListener('touchend', e => {
