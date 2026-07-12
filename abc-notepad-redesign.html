@@ -568,7 +568,7 @@
     align-items: center;
     justify-content: center;
   }
-  .float-pills button:active { background: var(--surface3); }
+  .float-pills button:active, .float-pills button.pressed { background: var(--surface3); }
   .float-pills svg { width: 16px; height: 16px; }
 
   /* Bottom on-screen keys */
@@ -1127,8 +1127,8 @@
     0%   { transform: scale(1.18); }
     100% { transform: scale(1); }
   }
-  .key.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
-  .key.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+  .key.pressed, .tmpl-btn.pressed, .keyboard-toggle-btn.pressed, .row-small .action-btn.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
+  .key.shrink, .tmpl-btn.shrink, .keyboard-toggle-btn.shrink, .row-small .action-btn.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
   /* Gesture note badge */
   #gesture-badge {
@@ -1166,6 +1166,7 @@
     pointer-events: none;
   }
   #gesture-wheel.visible { display: block; }
+  #gesture-wheel.cancel-zone { opacity: 0.35; }
 
   .chev-path {
     fill: none;
@@ -3661,17 +3662,17 @@
   // Unified button interaction — works for both touch and mouse
   const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration };
 
-  const releaseActions = new Set(['copyText', 'copyTextRaw', 'exportAbcFile', 'exportPdf', 'toggleCopyDropdown', 'toggleMenu', 'toggleZoom', 'openSettings', 'resetStep1', 'clearStep2', 'clearCancel', 'openChordPopup', 'openTextPopupAbove', 'openTextPopupBelow', 'openTmplOverlay', 'closeTmplOverlay', 'undo', 'setNoteDuration']);
-
   function handleButtonPress(btn) {
-    // Release-action buttons animate on release, not press
-    if (!releaseActions.has(btn.dataset.action)) {
-      btn.classList.remove('flash');
-      void btn.offsetWidth;
-      btn.classList.add('flash');
-    }
-    if (releaseActions.has(btn.dataset.action)) return;
-    // Fire all other actions immediately on press
+    // Immediate visual feedback only — every button now fires on release,
+    // like a normal button, so the actual action happens in handleButtonRelease.
+    btn.classList.add('pressed');
+    if (btn.closest('.button-area')) actionScrollEl.style.display = 'none';
+  }
+
+  function handleButtonRelease(btn) {
+    btn.classList.remove('pressed');
+    const inButtonArea = !!btn.closest('.button-area');
+
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
       if (fn) fn(btn);
@@ -3685,16 +3686,8 @@
         doInsert(insertText, isKey && taFocused);
       }
     }
-  }
 
-  function handleButtonRelease(btn) {
-    if (btn.dataset.action && releaseActions.has(btn.dataset.action)) {
-      btn.classList.remove('flash');
-      void btn.offsetWidth;
-      btn.classList.add('flash');
-      const fn = actions[btn.dataset.action];
-      if (fn) fn(btn);
-    }
+    if (inButtonArea) updateActionBar();
   }
 
   // ---- Gesture system for note-letter keys (A-G, a-g) ----
@@ -3794,24 +3787,16 @@
   }
 
   let gesture = null;
+  const CANCEL_UP_PX = 160; // swipe this far up from the key to discard the gesture entirely
 
   function startGesture(btn, startX, startY) {
-    pushUndo();
     const baseLetter = btn.dataset.insert;
     const insertPos  = savedStart;
     const insertEnd  = savedEnd;
     const initial    = baseLetter.toUpperCase();
 
-    ta.value   = ta.value.slice(0, insertPos) + initial + ta.value.slice(insertEnd);
-    savedStart = insertPos + initial.length;
-    savedEnd   = savedStart;
-    if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
-    else syncDisplayIfUnfocused();
-    updateClearBtn();
-    schedulePreview();
-    updateActionBar();
-
     btn.classList.add('pressed');
+    actionScrollEl.style.display = 'none'; // hide while gesturing; updateActionBar() restores it (if appropriate) on release
 
     const rect  = btn.getBoundingClientRect();
     const btnCX = rect.left + rect.width  / 2;
@@ -3824,44 +3809,59 @@
       if (gesture) showWheel(btnCX, btnCY);
     }, WHEEL_DELAY);
 
-    gesture = { btn, baseLetter, insertPos, startX, startY, lastNote: initial, wheelTimer, curX: startX, curY: startY };
+    gesture = { btn, baseLetter, insertPos, insertEnd, startX, startY, lastNote: initial, wheelTimer, curX: startX, curY: startY };
   }
 
   function updateGesture(currentX, currentY) {
     if (!gesture) return;
     gesture.curX = currentX;
     gesture.curY = currentY;
-    const dx   = currentX - gesture.startX;
-    const dy   = currentY - gesture.startY;
+    const dx = currentX - gesture.startX;
+    const dy = currentY - gesture.startY;
+    const cancelling = dy <= -CANCEL_UP_PX;
     const note = noteFromGesture(gesture.baseLetter, dx, dy);
+
     if (note !== gesture.lastNote) {
-      const start = gesture.insertPos;
-      const end   = start + gesture.lastNote.length;
-      ta.value   = ta.value.slice(0, start) + note + ta.value.slice(end);
-      savedStart = start + note.length;
-      savedEnd   = savedStart;
-      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
-      else syncDisplayIfUnfocused();
       gesture.lastNote = note;
-      updateClearBtn();
-      schedulePreview();
-      updateActionBar();
-      if (wheel.classList.contains('visible')) {
-        onNoteChange(dx, dy);
+      if (wheel.classList.contains('visible')) onNoteChange(dx, dy);
+    }
+
+    if (wheel.classList.contains('visible')) {
+      wheel.classList.toggle('cancel-zone', cancelling);
+      if (cancelling) {
+        badge.classList.remove('visible');
+      } else {
         badge.classList.add('visible');
+        updateBadge(gesture.lastNote, currentX, currentY);
       }
     }
-    if (badge.classList.contains('visible')) updateBadge(gesture.lastNote, currentX, currentY);
   }
 
-  function endGesture() {
+  function endGesture(commit) {
     if (!gesture) return;
     clearTimeout(gesture.wheelTimer);
+    const dy = gesture.curY - gesture.startY;
+    const cancelling = dy <= -CANCEL_UP_PX;
     hideWheel();
+    wheel.classList.remove('cancel-zone');
     const btn = gesture.btn;
     btn.classList.remove('pressed', 'shrink');
-    void btn.offsetWidth;
-    btn.classList.add('shrink');
+
+    if (commit && !cancelling) {
+      pushUndo();
+      const note = gesture.lastNote;
+      ta.value = ta.value.slice(0, gesture.insertPos) + note + ta.value.slice(gesture.insertEnd);
+      savedStart = gesture.insertPos + note.length;
+      savedEnd = savedStart;
+      if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
+      else syncDisplayIfUnfocused();
+      updateClearBtn();
+      schedulePreview();
+    } else {
+      void btn.offsetWidth;
+      btn.classList.add('shrink');
+    }
+    updateActionBar(); // re-show (if appropriate) whether committed or cancelled — it was hidden on touchdown
     gesture = null;
   }
 
@@ -3885,6 +3885,7 @@
       activeBtnLastX = t.clientX;
       activeBtnLastY = t.clientY;
       if (activeBtnCumDist > BTN_CANCEL_DIST) {
+        activeBtn.classList.remove('pressed');
         activeBtn = null; // this touch has become a scroll — cancel the pending tap
         activeBtnInScroll = false;
       }
@@ -3925,20 +3926,30 @@
 
   document.addEventListener('touchend', e => {
     if (gesture) {
-      endGesture();
+      endGesture(true);
       e.preventDefault();
       return;
     }
     if (!activeBtn) return;
     const touch = e.changedTouches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (target && activeBtn.contains(target)) handleButtonRelease(activeBtn);
+    activeBtn.classList.remove('pressed');
+    const inButtonArea = activeBtn.closest('.button-area');
+    if (target && activeBtn.contains(target)) {
+      handleButtonRelease(activeBtn); // this also calls updateActionBar() if inButtonArea
+    } else if (inButtonArea) {
+      updateActionBar();
+    }
     activeBtn = null;
     e.preventDefault();
   }, { passive: false });
 
   document.addEventListener('touchcancel', e => {
-    if (gesture) { endGesture(); return; }
+    if (gesture) { endGesture(false); return; }
+    if (activeBtn) {
+      activeBtn.classList.remove('pressed');
+      if (activeBtn.closest('.button-area')) updateActionBar();
+    }
     activeBtn = null;
   }, { passive: true });
 
@@ -3973,11 +3984,16 @@
   });
 
   document.addEventListener('mouseup', e => {
-    if (gesture) { endGesture(); return; }
+    if (gesture) { endGesture(true); return; }
     if (!activeMouseBtn) return;
     const btn = activeMouseBtn;
     activeMouseBtn = null;
-    if (btn.contains(e.target)) handleButtonRelease(btn);
+    btn.classList.remove('pressed');
+    if (btn.contains(e.target)) {
+      handleButtonRelease(btn); // this also calls updateActionBar() if inButtonArea
+    } else if (btn.closest('.button-area')) {
+      updateActionBar();
+    }
   });
 
   // ---- Draggable divider between preview and editor ----
