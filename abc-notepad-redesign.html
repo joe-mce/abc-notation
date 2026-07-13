@@ -777,6 +777,22 @@
     gap: 8px;
   }
   .insert-footer .action-btn { flex: 1; border-radius: 999px; padding: 10px 0; text-align: center; }
+  .share-link-desc {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+    margin-top: -8px;
+  }
+  .share-link-textarea {
+    border-radius: 14px;
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    resize: none;
+    word-break: break-all;
+  }
+
   .text-pos-options {
     display: flex;
     flex-direction: column;
@@ -1528,6 +1544,19 @@
   </div>
 </div>
 
+<!-- Share link modal (desktop / share-sheet-unavailable fallback) -->
+<div class="insert-overlay" id="shareLinkOverlay">
+  <div class="insert-box">
+    <div class="insert-title">Share link</div>
+    <div class="share-link-desc">Share your song with others using this link.</div>
+    <textarea class="insert-input share-link-textarea" id="shareLinkTextarea" rows="3" readonly></textarea>
+    <div class="insert-footer">
+      <button class="action-btn btn-clear" data-action="copyShareLinkText">Copy to clipboard</button>
+      <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" data-action="closeShareLinkModal">Done</button>
+    </div>
+  </div>
+</div>
+
 <div id="gesture-badge"></div>
 
 <div id="gesture-wheel">
@@ -1560,6 +1589,15 @@
     { dur: '1/2',  dotted: true,  frac: [3, 4],  title: 'Dotted minim' },
     { dur: '1',    dotted: false, frac: [1, 1],  title: 'Semibreve' },
   ]; // used by updateActionBar/setNoteDuration
+  // Relocated here (from their old spot further down) to avoid a
+  // temporal-dead-zone error: the init-time updateActionBar() call can
+  // reach durationIconSVG() before these would otherwise be declared,
+  // whenever the cursor starts out touching a real duration (e.g. after
+  // hydrating a shared link whose content ends on a bare note).
+  const DUR_STEM  = `<line x1="22.5" y1="8" x2="22.5" y2="42" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_FLAG1 = `<path d="M22.5,8 C33,12 33,24 23,30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_FLAG2 = `<path d="M22.5,16 C33,20 33,32 23,38" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
+  const DUR_DOT   = `<circle cx="32" cy="44" r="2.6" fill="currentColor"/>`;
   const BRACKET_BUTTON_IDS = [
     { id: 'bracketParen',  open: '(', close: ')' },
     { id: 'bracketSquare', open: '[', close: ']' },
@@ -2145,8 +2183,10 @@
     if (!m) return;
     const decoded = decodeAbcFromUrl(m[1]);
     if (decoded) {
+      pushUndo();
       ta.value = decoded;
-      savedStart = savedEnd = 0;
+      savedStart = savedEnd = decoded.length;
+      schedulePreview();
     }
   })();
   updateClearBtn();
@@ -2477,10 +2517,6 @@
       ? `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="currentColor"/>`
       : `<ellipse cx="14" cy="46" rx="9" ry="6.5"${rot} fill="none" stroke="currentColor" stroke-width="1.9"/>`;
   }
-  const DUR_STEM  = `<line x1="22.5" y1="8" x2="22.5" y2="42" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
-  const DUR_FLAG1 = `<path d="M22.5,8 C33,12 33,24 23,30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
-  const DUR_FLAG2 = `<path d="M22.5,16 C33,20 33,32 23,38" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`;
-  const DUR_DOT   = `<circle cx="32" cy="44" r="2.6" fill="currentColor"/>`;
   function restDurDot(dur) {
     switch (dur) {
       case '1/8': return `<circle cx="37.66" cy="28" r="2.6" fill="currentColor"/>`; // shifted down with the shape (bottom-aligned to quarter rest)
@@ -3176,22 +3212,37 @@
   async function shareLink() {
     if (!ta.value.trim()) { showToast('Nothing to share'); return; }
     const url = location.origin + location.pathname + '#abc=' + encodeAbcForUrl(ta.value);
-    if (navigator.share) {
+    if (isMobileDevice() && navigator.share) {
       try {
         await navigator.share({ url, title: getTuneFilename() });
         return;
       } catch (err) {
-        if (err && err.name === 'AbortError') return; // user cancelled the share sheet
-        // otherwise fall through to the clipboard fallback below
+        if (err && err.name === 'AbortError') return; // user cancelled the share sheet — leave it at that
+        // otherwise fall through to the modal below
       }
     }
-    // Fallback for browsers without the Web Share API (mainly desktop) —
-    // the share sheet is the primary path; this only kicks in when it's
-    // simply not available at all.
-    navigator.clipboard.writeText(url).then(() => showToast('Link copied ✓')).catch(() => {
+    openShareLinkModal(url);
+  }
+
+  function openShareLinkModal(url) {
+    document.getElementById('shareLinkTextarea').value = url;
+    document.getElementById('shareLinkOverlay').classList.add('open');
+    modalOpened('shareLinkOverlay');
+  }
+  function closeShareLinkModal() {
+    document.getElementById('shareLinkOverlay').classList.remove('open');
+    modalClosed('shareLinkOverlay');
+  }
+  function copyShareLinkText() {
+    const field = document.getElementById('shareLinkTextarea');
+    navigator.clipboard.writeText(field.value).then(() => showToast('Link copied ✓')).catch(() => {
+      field.select();
       try { document.execCommand('copy'); showToast('Link copied ✓'); } catch (e) {}
     });
   }
+  document.getElementById('shareLinkOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('shareLinkOverlay')) closeShareLinkModal();
+  });
 
   function exportAbcFile() {
     closeCopyDropdown();
@@ -4110,7 +4161,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
