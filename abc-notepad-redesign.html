@@ -535,7 +535,9 @@
     justify-content: flex-end;
     gap: 8px;
     z-index: 8;
+    pointer-events: none; /* transparent container shouldn't block taps meant for the editor beneath it */
   }
+  .editor-toolbar > * { pointer-events: auto; } /* ...but its actual buttons/rows still need to work */
   body.typing .editor-toolbar { display: none; }
 
   .action-scroll {
@@ -2066,14 +2068,29 @@
     // browser's hit-test treats "above all text" as "start of content" and
     // ignores x entirely, snapping to the beginning of the first line
     // regardless of which character you tapped above.
+    //
+    // Important: this has to be measured against the true edges of the
+    // *rendered content* (top-of-first-line / bottom-of-last-line), adjusted
+    // for the current scroll position — not simply the container's own
+    // bounding-box edges. Those only coincide when nothing is scrolled; once
+    // the div is scrolled, real text can fill the visible viewport right up
+    // to its top/bottom edge (including the region reserved by paddingBottom
+    // for the floating toolbar when NOT scrolled to the true end), and
+    // clamping against the container's edges in that case would incorrectly
+    // drag the tap onto a different line than the one actually tapped.
     const rect = taDisplay.getBoundingClientRect();
     const cs = getComputedStyle(taDisplay);
     const padTop = parseFloat(cs.paddingTop) || 0;
     const padBottom = parseFloat(cs.paddingBottom) || 0;
     let lineHeight = parseFloat(cs.lineHeight);
     if (isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
-    const minY = rect.top + padTop + lineHeight / 2;
-    const maxY = rect.bottom - padBottom - lineHeight / 2;
+
+    const scrollTop = taDisplay.scrollTop;
+    const contentTopInViewport    = rect.top - scrollTop + padTop;
+    const contentBottomInViewport = rect.top - scrollTop + taDisplay.scrollHeight - padBottom;
+
+    const minY = Math.max(rect.top, contentTopInViewport) + lineHeight / 2;
+    const maxY = Math.min(rect.bottom, contentBottomInViewport) - lineHeight / 2;
     if (minY <= maxY) {
       if (clientY < minY) clientY = minY;
       if (clientY > maxY) clientY = maxY;
