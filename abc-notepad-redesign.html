@@ -1343,7 +1343,7 @@
         <div class="modal-setting modal-setting-row">
           <div>
             <div class="modal-setting-label">Automatic barlines</div>
-            <div class="modal-setting-desc">Automatically add a barline on space when a bar is complete.</div>
+            <div class="modal-setting-desc">Automatically add a barline when a bar is complete and you press space or start a new line.</div>
           </div>
           <label class="ios-switch">
             <input type="checkbox" id="autoBarlineToggle" checked>
@@ -2328,6 +2328,11 @@
       doInsert(spaceOrBarline(), true);
       return;
     }
+    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      doInsert(newlineOrBarline(), true);
+      return;
+    }
     // Push before any character-modifying key
     const modifying = e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete';
     if (modifying && !e.ctrlKey && !e.metaKey && !e.altKey) pushUndo();
@@ -2615,6 +2620,9 @@
   });
   function spaceOrBarline() {
     return isBarComplete(savedStart) ? ' | ' : ' ';
+  }
+  function newlineOrBarline() {
+    return isBarComplete(savedStart) ? ' |\n' : '\n';
   }
 
   // Automatically complete ties: when a dash is typed (either via the real
@@ -4373,7 +4381,9 @@
         closeTmplOverlay();
         doInsert(btn.dataset.insert, taFocused);
       } else {
-        const insertText = (btn.dataset.insert === ' ') ? spaceOrBarline() : btn.dataset.insert;
+        const insertText = (btn.dataset.insert === ' ') ? spaceOrBarline()
+          : (btn.dataset.insert === '\n') ? newlineOrBarline()
+          : btn.dataset.insert;
         doInsert(insertText, isKey && taFocused);
       }
     }
