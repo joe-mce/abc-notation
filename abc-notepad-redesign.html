@@ -346,8 +346,7 @@
     overflow-y: auto;
     cursor: text;
     border-radius: 0;
-    user-select: none;
-    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
   #notation-display.active { display: block; }
   #notation-display.select-mode { touch-action: none; }
@@ -2103,6 +2102,17 @@
 
   const TAP_MAX_DIST = 10;
   let downX = 0, downY = 0;
+
+  // Native selection (drag-select, double/triple-click) inside the static
+  // display is suppressed via `selectstart` rather than `user-select: none` —
+  // the latter also blocks Safari's caretRangeFromPoint() from resolving a
+  // click position, which broke tap-to-place-cursor in Safari specifically.
+  // selectstart only cancels the browser's own selection gesture and leaves
+  // hit-testing untouched, and — since it's attached to taDisplay rather than
+  // document — doesn't affect selection in the real textarea or in any modal
+  // inputs/textareas (Settings, chord/text popups, share-link box, etc).
+  taDisplay.addEventListener('selectstart', e => e.preventDefault());
+
   /* Double-tap state — unused while double-tap-to-focus is disabled, kept for reinstatement:
   const DOUBLE_TAP_MS = 350;
   const DOUBLE_TAP_DIST = 25;
