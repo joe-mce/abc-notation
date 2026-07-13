@@ -350,6 +350,7 @@
     -webkit-user-select: none;
   }
   #notation-display.active { display: block; }
+  #notation-display.select-mode { touch-action: none; }
   #notation-display .display-placeholder { color: var(--text-dim); }
   #notation-display .hl-sel {
     background: rgba(232, 200, 74, 0.28);
@@ -450,6 +451,48 @@
   }
   .dropdown-item.danger { color: #ff6b6b; }
   .dropdown-item:active { background: var(--surface3); }
+
+  /* Tools modal — shown when tapping "Tools" in the action bar while text is selected */
+  #toolsOverlay .tools-modal-box {
+    position: relative;
+    background: #000;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 340px;
+    height: 70vh;
+    max-height: 560px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .tools-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+  }
+  .tools-modal-scroll {
+    overflow-y: auto;
+    padding: 54px 10px 16px;
+    flex: 1;
+  }
+  .tools-modal-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 12px 14px;
+    border-radius: 10px;
+    letter-spacing: 0.02em;
+  }
+  .tools-modal-item:active { background: var(--surface2); }
 
   /* Divider between preview and editor */
   .v-divider {
@@ -562,16 +605,43 @@
     font-weight: 500;
   }
 
-  .float-pills {
+  /* "Tools" + recently-used-tool items shown in the action bar while text is selected */
+  .action-scroll .tools-bar-btn {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .action-scroll .recent-tool-btn {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .float-pills-row {
     position: absolute;
     top: 8px;
     right: 12px;
+    display: flex;
+    gap: 8px;
+    z-index: 5;
+  }
+  .float-pills {
     display: flex;
     gap: 4px;
     background: var(--surface2);
     border-radius: 999px;
     padding: 4px;
-    z-index: 5;
   }
   .float-pills button {
     width: 30px;
@@ -586,6 +656,10 @@
   }
   .float-pills button:active, .float-pills button.pressed { background: var(--surface3); }
   .float-pills svg { width: 16px; height: 16px; }
+  .btn-selection-mode { color: #fff; }
+  #selectionPill.active { background: var(--accent); }
+  #selectionPill.active .btn-selection-mode { color: #111; }
+  #selectionPill.active .btn-selection-mode:active { background: transparent; }
 
   /* Bottom on-screen keys */
   .button-area {
@@ -853,54 +927,6 @@
   .menu-item.danger { color: #e06060; }
   .menu-item-arrow { opacity: 0.5; font-size: 0.7rem; margin-left: 12px; }
   .menu-divider { height: 1px; background: var(--border); margin: 3px 0; }
-
-  /* Tools submenu */
-  .menu-submenu-wrap {
-    position: relative;
-  }
-  .menu-submenu {
-    display: none;
-    position: absolute;
-    top: -2px;
-    left: 100%;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    z-index: 51;
-    white-space: nowrap;
-    min-width: 190px;
-  }
-  .menu-submenu.open { display: block; }
-  .submenu-sel-preview {
-    padding: 7px 14px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.72rem;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--border);
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .submenu-sel-preview.has-sel { color: var(--accent2); }
-  .submenu-sel-preview.no-sel  { font-style: italic; }
-  .submenu-item {
-    display: block;
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 8px 14px;
-    text-align: left;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    touch-action: manipulation;
-  }
-  .submenu-item:hover { background: var(--surface2); }
 
   /* Template popover overlay */
   #tmpl-overlay {
@@ -1338,24 +1364,6 @@
     <button class="action-btn btn-templates" id="menuBtn" data-action="toggleMenu">&#9776;</button>
     <div class="menu-dropdown" id="menuDropdown">
       <button class="menu-item action-btn" data-action="openTmplOverlay" data-keepfocus="1">Insert template…</button>
-      <div class="menu-divider"></div>
-      <div class="menu-submenu-wrap" id="toolsSubmenuWrap">
-        <button class="menu-item" id="toolsMenuItem" data-keepfocus="1">Tools <span class="menu-item-arrow">▶</span></button>
-        <div class="menu-submenu" id="toolsSubmenu">
-          <div class="submenu-sel-preview" id="toolsSelPreview">No selection</div>
-          <button class="submenu-item action-btn" data-action="transposeUp" data-keepfocus="1">Octave up</button>
-          <button class="submenu-item action-btn" data-action="transposeDown" data-keepfocus="1">Octave down</button>
-          <button class="submenu-item action-btn" data-action="doubleLength" data-keepfocus="1">Double lengths</button>
-          <button class="submenu-item action-btn" data-action="halveLength" data-keepfocus="1">Halve lengths</button>
-          <button class="submenu-item action-btn" data-action="removeText" data-keepfocus="1">Remove text</button>
-          <button class="submenu-item action-btn" data-action="removeAccidentals" data-keepfocus="1">Remove accidentals</button>
-          <button class="submenu-item action-btn" data-action="respellEnharmonic" data-keepfocus="1">Respell enharmonic</button>
-          <button class="submenu-item action-btn" data-action="wrapRepeats" data-keepfocus="1">Wrap in repeats</button>
-          <button class="submenu-item action-btn" data-action="markNotes" data-keepfocus="1">Mark notes</button>
-          <button class="submenu-item action-btn" data-action="addTriplets" data-keepfocus="1">Add triplets</button>
-          <button class="submenu-item action-btn" data-action="removeRedundantAccidentals" data-keepfocus="1">Remove redundant accidentals</button>
-        </div>
-      </div>
     </div>
   </div>
   <div class="copy-dropdown" id="copyDropdown"></div>
@@ -1395,13 +1403,25 @@
   <div id="notation-display" aria-hidden="true"></div>
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-  <div class="float-pills">
-    <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
+  <div class="float-pills-row">
+    <div class="float-pills" id="selectionPill">
+      <button class="action-btn btn-selection-mode" id="selectionModeBtn" data-action="toggleSelectionMode" data-keepfocus="1" aria-label="Selection mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+          <line x1="19" y1="4" x2="19" y2="20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="16.5" y1="4" x2="21.5" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="16.5" y1="20" x2="21.5" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="float-pills">
+      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <!-- Quick-insert row + open-keyboard button. Floats over the bottom of the
@@ -1464,6 +1484,14 @@
     <div class="insert-footer">
       <button class="action-btn btn-clear" data-action="closeTmplOverlay">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Tools modal — opened from the "Tools" action-bar item while text is selected -->
+<div class="insert-overlay" id="toolsOverlay">
+  <div class="tools-modal-box">
+    <button class="modal-close tools-modal-close" id="toolsModalClose" aria-label="Close">&times;</button>
+    <div class="tools-modal-scroll" id="toolsModalList"></div>
   </div>
 </div>
 
@@ -1579,6 +1607,29 @@
   let savedStart = 0, savedEnd = 0;
   let currentDurationSlot = null; // { durStart, durEnd, durStr, cursorPos } — used by updateActionBar/setNoteDuration
   let lastSuggestionSignature = null; // used by updateActionBar for the context-suggestion scroll-reset logic
+
+  // ---- Selection mode ----
+  let selectionModeOn = false;
+  let selDragActive = false;   // a pointer is currently down, having started while selectionModeOn
+  let selDragMoved = false;    // that pointer has moved past the tap threshold (i.e. it's a drag, not a tap)
+  let selAnchorOffset = 0;     // character offset where the drag started
+
+  // Tool definitions reused by both the Tools modal and the recent-tools action-bar
+  // shortcuts. `action` must match a key in the `actions` dispatch map below.
+  const TOOL_DEFS = [
+    { action: 'transposeUp',                label: 'Octave up' },
+    { action: 'transposeDown',              label: 'Octave down' },
+    { action: 'doubleLength',               label: 'Double lengths' },
+    { action: 'halveLength',                label: 'Halve lengths' },
+    { action: 'removeText',                 label: 'Remove text' },
+    { action: 'removeAccidentals',          label: 'Remove accidentals' },
+    { action: 'respellEnharmonic',          label: 'Respell enharmonic' },
+    { action: 'wrapRepeats',                label: 'Wrap in repeats' },
+    { action: 'markNotes',                  label: 'Mark notes' },
+    { action: 'addTriplets',                label: 'Add triplets' },
+    { action: 'removeRedundantAccidentals', label: 'Remove redundant accidentals' },
+  ];
+  const recentTools = []; // most-recently-used tool action names, unique, most recent first, max 3
   const DURATION_ICONS = [
     { dur: '1/16', dotted: false, frac: [1, 16], title: 'Semiquaver' },
     { dur: '1/8',  dotted: false, frac: [1, 8],  title: 'Quaver' },
@@ -2063,10 +2114,56 @@
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     downX = e.clientX;
     downY = e.clientY;
+    if (selectionModeOn) {
+      selDragActive = true;
+      selDragMoved = false;
+      selAnchorOffset = charOffsetFromPoint(e.clientX, e.clientY);
+    }
+  });
+
+  taDisplay.addEventListener('pointermove', e => {
+    if (!selDragActive) return;
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > TAP_MAX_DIST) selDragMoved = true;
+    if (!selDragMoved) return;
+    e.preventDefault();
+    const curOffset = charOffsetFromPoint(e.clientX, e.clientY);
+    savedStart = Math.min(selAnchorOffset, curOffset);
+    savedEnd = Math.max(selAnchorOffset, curOffset);
+    renderStaticDisplay();
+    updateActionBar();
   });
 
   taDisplay.addEventListener('pointerup', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    if (selDragActive) {
+      const wasMoved = selDragMoved;
+      selDragActive = false;
+      selDragMoved = false;
+      e.preventDefault();
+      if (wasMoved) {
+        // Finish the drag-selection; selection mode stays on so another
+        // swipe can immediately start a new selection.
+        const curOffset = charOffsetFromPoint(e.clientX, e.clientY);
+        savedStart = Math.min(selAnchorOffset, curOffset);
+        savedEnd = Math.max(selAnchorOffset, curOffset);
+        renderStaticDisplay();
+        updateActionBar();
+        return;
+      }
+      // A plain tap while selection mode was on. If it landed while text was
+      // already selected, that's a "tap outside the selection": clear it and
+      // turn selection mode off. Otherwise just move the cursor as normal,
+      // leaving selection mode on so the next swipe can select.
+      if (savedEnd > savedStart) disableSelectionMode();
+      const off = charOffsetFromPoint(e.clientX, e.clientY);
+      savedStart = savedEnd = off;
+      renderStaticDisplay();
+      scrollCursorIntoView();
+      updateActionBar();
+      return;
+    }
+
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > TAP_MAX_DIST) return; // was a scroll, not a tap
     e.preventDefault();
 
@@ -2096,6 +2193,11 @@
     renderStaticDisplay();
     scrollCursorIntoView();
     updateActionBar();
+  });
+
+  taDisplay.addEventListener('pointercancel', () => {
+    selDragActive = false;
+    selDragMoved = false;
   });
 
   const buttonArea = document.querySelector('.button-area');
@@ -2898,12 +3000,95 @@
   function insertBracketPair(btn) {
     const openChar = btn.dataset.open;
     const closeChar = btn.dataset.close;
+    if (savedEnd > savedStart) {
+      // Wrap the selection in the pair and keep the (now longer) result selected.
+      pushUndo();
+      const s = savedStart, e = savedEnd;
+      const wrapped = openChar + ta.value.slice(s, e) + closeChar;
+      ta.value = ta.value.slice(0, s) + wrapped + ta.value.slice(e);
+      savedStart = s;
+      savedEnd = s + wrapped.length;
+      if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+      else syncDisplayIfUnfocused();
+      updateClearBtn();
+      schedulePreview();
+      updateActionBar();
+      return;
+    }
     const ch = inUnclosedPair(openChar, closeChar) ? closeChar : openChar;
     doInsert(ch, taFocused);
   }
+
+  // ---- Selection mode ----
+  function updateSelectionModeButton() {
+    document.getElementById('selectionPill').classList.toggle('active', selectionModeOn);
+    taDisplay.classList.toggle('select-mode', selectionModeOn);
+  }
+  function toggleSelectionMode() {
+    selectionModeOn = !selectionModeOn;
+    updateSelectionModeButton();
+  }
+  function disableSelectionMode() {
+    if (!selectionModeOn) return;
+    selectionModeOn = false;
+    updateSelectionModeButton();
+  }
+
+  // ---- Tools (applied to the current selection) ----
+  function applyTool(name) {
+    if (savedEnd <= savedStart) return; // nothing selected — shouldn't happen, but stay safe
+    const fn = actions[name];
+    if (!fn) return;
+    fn(); // runs transformSelection(...) internally, replacing + re-selecting the result
+    const idx = recentTools.indexOf(name);
+    if (idx !== -1) recentTools.splice(idx, 1);
+    recentTools.unshift(name);
+    if (recentTools.length > 3) recentTools.length = 3;
+    updateActionBar();
+  }
+  function toolExec(btn) {
+    applyTool(btn.dataset.tool);
+    if (document.getElementById('toolsOverlay').classList.contains('open')) closeToolsModal();
+  }
+  function renderToolsModalList() {
+    document.getElementById('toolsModalList').innerHTML = TOOL_DEFS.map(t =>
+      `<button class="action-btn tools-modal-item" data-action="toolExec" data-tool="${esc(t.action)}" data-keepfocus="1">${esc(t.label)}</button>`
+    ).join('');
+  }
+  function openToolsModal() {
+    renderToolsModalList();
+    document.getElementById('toolsOverlay').classList.add('open');
+    modalOpened('toolsOverlay');
+  }
+  function closeToolsModal() {
+    document.getElementById('toolsOverlay').classList.remove('open');
+    modalClosed('toolsOverlay');
+  }
+  document.getElementById('toolsOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('toolsOverlay')) closeToolsModal();
+  });
+  document.getElementById('toolsModalClose').addEventListener('click', closeToolsModal);
+
+  function renderSelectionActionBar() {
+    currentDurationSlot = null;
+    lastSuggestionSignature = null;
+    actionScrollEl.style.display = 'flex';
+    let html = `<button class="action-btn tools-bar-btn" data-action="openToolsModal" data-keepfocus="1">Tools</button>`;
+    html += recentTools.map(name => {
+      const def = TOOL_DEFS.find(t => t.action === name);
+      if (!def) return '';
+      return `<button class="action-btn recent-tool-btn" data-action="toolExec" data-tool="${esc(name)}" data-keepfocus="1">${esc(def.label)}</button>`;
+    }).join('');
+    actionScrollEl.innerHTML = html;
+  }
+
   function updateActionBar() {
     updateBracketButtons();
     updateModalTriggerHighlight();
+    if (savedEnd > savedStart) {
+      renderSelectionActionBar();
+      return;
+    }
 
     const suggestions = getContextSuggestions();
     if (suggestions.length > 0) {
@@ -3037,8 +3222,21 @@
     updateActionBar();
   }
 
-  function arrowLeft()  { moveCursor('ArrowLeft');  }
-  function arrowRight() { moveCursor('ArrowRight'); }
+  function collapseSelectionTo(pos) {
+    const wasFocused = taFocused;
+    savedStart = savedEnd = pos;
+    if (wasFocused) ta.setSelectionRange(pos, pos);
+    else syncDisplayIfUnfocused();
+    updateActionBar();
+  }
+  function arrowLeft()  {
+    if (savedEnd > savedStart) { collapseSelectionTo(savedStart); return; }
+    moveCursor('ArrowLeft');
+  }
+  function arrowRight() {
+    if (savedEnd > savedStart) { collapseSelectionTo(savedEnd); return; }
+    moveCursor('ArrowRight');
+  }
   function arrowUp()    { moveCursor('ArrowUp');    }
   function arrowDown()  { moveCursor('ArrowDown');  }
 
@@ -3049,43 +3247,7 @@
   }
   function closeMenu() {
     document.getElementById('menuDropdown').classList.remove('open');
-    closeToolsSubmenu();
   }
-
-  // Tools submenu within context menu
-  function openToolsSubmenu() {
-    const preview = document.getElementById('toolsSelPreview');
-    const sel = ta.value.slice(savedStart, savedEnd);
-    if (sel) {
-      preview.textContent = sel;
-      preview.className = 'submenu-sel-preview has-sel';
-    } else {
-      preview.textContent = 'No selection';
-      preview.className = 'submenu-sel-preview no-sel';
-    }
-    document.getElementById('toolsSubmenu').classList.add('open');
-  }
-  function closeToolsSubmenu() {
-    document.getElementById('toolsSubmenu').classList.remove('open');
-  }
-
-  // Tools menu item opens/closes submenu
-  document.getElementById('toolsMenuItem').addEventListener('mousedown', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    const submenu = document.getElementById('toolsSubmenu');
-    submenu.classList.contains('open') ? closeToolsSubmenu() : openToolsSubmenu();
-  });
-  document.getElementById('toolsMenuItem').addEventListener('touchstart', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    const submenu = document.getElementById('toolsSubmenu');
-    submenu.classList.contains('open') ? closeToolsSubmenu() : openToolsSubmenu();
-  }, { passive: false });
-
-  // Hover to open/close submenu on desktop
-  document.getElementById('toolsSubmenuWrap').addEventListener('mouseenter', () => openToolsSubmenu());
-  document.getElementById('toolsSubmenuWrap').addEventListener('mouseleave', () => closeToolsSubmenu());
 
   // Close menu on outside click/tap
   document.addEventListener('mousedown', e => {
@@ -4161,7 +4323,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, toggleSelectionMode, openToolsModal, toolExec };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -4173,6 +4335,13 @@
   function handleButtonRelease(btn) {
     btn.classList.remove('pressed');
     const inButtonArea = !!btn.closest('.button-area');
+
+    // Tapping any onscreen-keyboard/action-bar button while text is selected
+    // turns selection mode off (the selection itself is left alone here —
+    // whatever the button does below handles it: replace, wrap, delete, etc).
+    if (btn.id !== 'selectionModeBtn' && savedEnd > savedStart) {
+      disableSelectionMode();
+    }
 
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
