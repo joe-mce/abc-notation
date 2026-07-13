@@ -2533,6 +2533,15 @@
   // right after the note/rest/chord where one would start.
   function findDurationSlotAtCursor(pos) {
     const text = ta.value;
+    const lineStart0 = text.lastIndexOf('\n', pos - 1) + 1;
+    // Inside an unclosed chord (more '[' than ']' before the cursor on this
+    // line)? Individual notes within a chord don't carry their own duration
+    // — only the chord as a whole does, after its closing ']' — so there's
+    // no valid duration context anywhere inside the brackets.
+    if (countCharOnLine(text, lineStart0, pos, '[') > countCharOnLine(text, lineStart0, pos, ']')) {
+      return null;
+    }
+
     // 1. Walk back through a contiguous run of duration characters (digits, /).
     let k = pos;
     while (k > 0 && /[0-9\/]/.test(text[k - 1])) k--;
@@ -2542,8 +2551,8 @@
       const durStr = matchDurationSuffix(text, k, text.length);
       const durEnd = k + durStr.length;
       if (pos < k || pos > durEnd) return null;
-      let depth = 0, tokenStart = k;
-      for (let i = k - 1; i >= 0; i--) {
+      let depth = 0, tokenStart = k - 1;
+      for (let i = k - 2; i >= 0; i--) {
         if (text[i] === ']') depth++;
         else if (text[i] === '[') {
           if (depth === 0) { tokenStart = i; break; }
