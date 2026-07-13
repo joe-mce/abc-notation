@@ -1352,6 +1352,7 @@
       </button>
       <div class="dropdown-menu" id="shareMenu">
         <button class="dropdown-item action-btn" data-action="copyText">Copy ABC code</button>
+        <button class="dropdown-item action-btn" data-action="shareLink">Share link</button>
         <button class="dropdown-item action-btn" data-action="exportPdf">Export PDF file</button>
         <button class="dropdown-item action-btn" data-action="exportAbcFile">Export ABC file</button>
       </div>
@@ -2138,6 +2139,15 @@
     // Reset menu item greyed out when empty
     // (no clearBtn DOM element anymore — just keep for callers)
   }
+  (function hydrateFromShareLink() {
+    const m = /#abc=(.+)$/.exec(location.hash);
+    if (!m) return;
+    const decoded = decodeAbcFromUrl(m[1]);
+    if (decoded) {
+      ta.value = decoded;
+      savedStart = savedEnd = 0;
+    }
+  })();
   updateClearBtn();
   syncDisplayIfUnfocused();
   setTypingRows(false);
@@ -3069,6 +3079,40 @@
     return clean || 'tune';
   }
 
+  // ---- Share link: encodes the whole ABC input into a URL fragment ----
+  function encodeAbcForUrl(text) {
+    const b64 = btoa(unescape(encodeURIComponent(text)));
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function decodeAbcFromUrl(encoded) {
+    let b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    try {
+      return decodeURIComponent(escape(atob(b64)));
+    } catch (e) {
+      return null;
+    }
+  }
+  async function shareLink() {
+    if (!ta.value.trim()) { showToast('Nothing to share'); return; }
+    const url = location.origin + location.pathname + '#abc=' + encodeAbcForUrl(ta.value);
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, title: getTuneFilename() });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // user cancelled the share sheet
+        // otherwise fall through to the clipboard fallback below
+      }
+    }
+    // Fallback for browsers without the Web Share API (mainly desktop) —
+    // the share sheet is the primary path; this only kicks in when it's
+    // simply not available at all.
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied ✓')).catch(() => {
+      try { document.execCommand('copy'); showToast('Link copied ✓'); } catch (e) {}
+    });
+  }
+
   function exportAbcFile() {
     closeCopyDropdown();
     if (!ta.value.trim()) { showToast('Nothing to export'); return; }
@@ -3925,7 +3969,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
