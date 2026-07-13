@@ -761,6 +761,25 @@
     gap: 8px;
   }
   .insert-footer .action-btn { flex: 1; border-radius: 999px; padding: 10px 0; text-align: center; }
+  .text-pos-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .text-pos-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .text-pos-option input[type="radio"] {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
 
   /* Context menu (hamburger) */
   .menu-wrap {
@@ -1030,12 +1049,12 @@
     100% { background: var(--btn-bg); transform: scale(1); }
   }
   .key.flash               { animation: keyflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
-  .row-primary .key.flash  { animation: keyflash-primary 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
+  .row-1 .key.flash        { animation: keyflash-primary 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
   .key-bksp.flash          { animation: keyflash-bksp 0.25s cubic-bezier(0.2, 0, 0.4, 1) !important; }
   .tmpl-btn.flash          { animation: tmplflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
   .action-btn.flash        { animation: btnflash 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
-  .row-primary .key {
+  .row-1 .key {
     flex: 1 1 0;
     max-width: 48px;
     width: auto;
@@ -1046,16 +1065,36 @@
     background: var(--surface3);
     box-shadow: 0 2px 6px rgba(0,0,0,0.35);
   }
+  .key.bracket-active { background: var(--accent); color: #111; }
+
   .key-bksp {
-    flex: 0 0 52px !important;
-    width: 52px;
-    height: 40px;
     background: var(--surface3) !important;
     color: var(--text) !important;
     font-size: 1.15rem !important;
   }
-  .row-notes .key { flex: 1 1 0; max-width: 40px; width: auto; aspect-ratio: 1 / 1; height: auto; font-size: 0.85rem; }
-  .row-notes { gap: 3px; }
+  .row-3 .key, .row-2 .key, .row-3 .action-btn, .row-2 .action-btn {
+    flex: 1 1 0;
+    max-width: 46px;
+    width: auto;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    font-size: 0.85rem;
+  }
+  .row-3 .action-btn, .row-2 .action-btn {
+    padding: 0;
+    background: var(--surface2);
+    color: var(--text);
+    border: none;
+    border-radius: 30%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+  /* More specific than the generic row/action-btn rule above (same
+     specificity but declared later), so this correctly wins. */
+  .row-3 .key-modal-trigger, .row-2 .key-modal-trigger { background: var(--surface3); }
+  .row-3, .row-2 { gap: 3px; }
   .row-notes-pad { padding: 0 clamp(8px, 4vw, 20px); }
   .key-z { background: var(--surface3) !important; color: var(--text) !important; font-size: 1.2rem !important; }
   .key-space {
@@ -1073,27 +1112,8 @@
     color: var(--text) !important;
     font-family: 'IBM Plex Mono', monospace;
   }
-  .row-small .key { flex: 1 1 0; max-width: 46px; width: auto; aspect-ratio: 1 / 1; height: auto; color: var(--text-dim); }
-  .row-small .action-btn {
-    flex: 1 1 0;
-    max-width: 46px;
-    width: auto;
-    aspect-ratio: 1 / 1;
-    height: auto;
-    padding: 0;
-    background: var(--surface2);
-    color: var(--text);
-    border: none;
-    border-radius: 30%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-  .row-small .key[data-insert="-"] { font-size: 1.5rem; color: var(--text); }
-  .row-small { gap: 3px; }
-  .row-nav .key { flex: 0 0 38px; width: 38px; height: 38px; font-size: 0.95rem; }
+  .key[data-insert="-"] { font-size: 1.5rem; color: var(--text); }
+  .row-4 .key { flex: 0 0 38px; width: 38px; height: 38px; font-size: 0.95rem; }
 
   /* Note-duration icon keys */
   .dur-action-btn { color: var(--text); }
@@ -1127,8 +1147,8 @@
     0%   { transform: scale(1.18); }
     100% { transform: scale(1); }
   }
-  .key.pressed, .tmpl-btn.pressed, .keyboard-toggle-btn.pressed, .row-small .action-btn.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
-  .key.shrink, .tmpl-btn.shrink, .keyboard-toggle-btn.shrink, .row-small .action-btn.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+  .key.pressed, .tmpl-btn.pressed, .keyboard-toggle-btn.pressed, .row-2 .action-btn.pressed, .row-3 .action-btn.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
+  .key.shrink, .tmpl-btn.shrink, .keyboard-toggle-btn.shrink, .row-2 .action-btn.shrink, .row-3 .action-btn.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
   /* Gesture note badge */
   #gesture-badge {
@@ -1417,7 +1437,7 @@
 <div class="button-area">
 
   <!-- Row 1: C D E F G A B z -->
-  <div class="key-row row-primary row-notes-pad" id="row-letters">
+  <div class="key-row row-1 row-notes-pad" id="row-letters">
     <button class="key" data-insert="C">C</button>
     <button class="key" data-insert="D">D</button>
     <button class="key" data-insert="E">E</button>
@@ -1427,33 +1447,33 @@
     <button class="key" data-insert="B">B</button>
   </div>
 
-  <!-- Row 2: relocated quick-insert buttons (chord/text popups, repeats, triplet) + dash + rest -->
-  <div class="key-row row-small row-notes-pad" id="row-numbers">
-    <button class="action-btn" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
-    <button class="action-btn" data-action="openTextPopupAbove" data-keepfocus="1">T&#9650;</button>
-    <button class="action-btn" data-action="openTextPopupBelow" data-keepfocus="1">T&#9660;</button>
-    <button class="key" data-insert="|:">|:</button>
-    <button class="key" data-insert=":|">:|</button>
-    <button class="key" data-insert="(3">(3</button>
+  <!-- Row 2: . = _ ^ , ' - z -->
+  <div class="key-row row-2" id="row-numbers">
+    <button class="key" data-insert=".">.</button>
+    <button class="key" data-insert="=">=</button>
+    <button class="key" data-insert="_">_</button>
+    <button class="key" data-insert="^">^</button>
+    <button class="key" data-insert=",">,</button>
+    <button class="key" data-insert="'">'</button>
     <button class="key" data-insert="-">-</button>
     <button class="key key-z" data-insert="z">z</button>
   </div>
 
-  <!-- Row 3: . [ ] _ ^ = , ' ⌫  ("  removed — chord/text popups now cover quoting) -->
-  <div class="key-row row-notes">
-    <button class="key" data-insert=".">.</button>
-    <button class="key" data-insert="[">&#91;</button>
-    <button class="key" data-insert="]">&#93;</button>
-    <button class="key" data-insert="_">_</button>
-    <button class="key" data-insert="^">^</button>
-    <button class="key" data-insert="=">=</button>
-    <button class="key" data-insert=",">,</button>
-    <button class="key" data-insert="'">'</button>
+  <!-- Row 3: T "" [] () {} (3 |: :| ⌫ -->
+  <div class="key-row row-3">
+    <button class="action-btn key-modal-trigger" data-action="openTextPopup" data-keepfocus="1" style="font-family: Georgia, 'Times New Roman', serif;">T</button>
+    <button class="key" id="bracketQuote" data-action="insertBracketPair" data-open="&quot;" data-close="&quot;">&quot; &quot;</button>
+    <button class="key" id="bracketSquare" data-action="insertBracketPair" data-open="[" data-close="]">[ ]</button>
+    <button class="key" id="bracketParen" data-action="insertBracketPair" data-open="(" data-close=")">( )</button>
+    <button class="key" id="bracketCurly" data-action="insertBracketPair" data-open="{" data-close="}">{ }</button>
+    <button class="key" data-insert="(3">(3</button>
+    <button class="key" data-insert="|:">|:</button>
+    <button class="key" data-insert=":|">:|</button>
     <button class="key key-bksp" data-action="bksp">⌫</button>
   </div>
 
   <!-- Row 4: ← → SPACE | ↵  (/ removed) -->
-  <div class="key-row row-nav">
+  <div class="key-row row-4">
     <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
     <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
     <button class="key key-space" data-insert=" ">SPACE</button>
@@ -1478,8 +1498,13 @@
 <!-- Text insert popup -->
 <div class="insert-overlay" id="textOverlay">
   <div class="insert-box">
-    <div class="insert-title" id="textPopupTitle">Add text</div>
+    <div class="insert-title">Add text</div>
     <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
+    <div class="text-pos-options" id="textPosOptions">
+      <label class="text-pos-option"><input type="radio" name="textPos" value="above" checked><span>^ Above staff</span></label>
+      <label class="text-pos-option"><input type="radio" name="textPos" value="below"><span>_ Below staff</span></label>
+      <label class="text-pos-option"><input type="radio" name="textPos" value="none"><span>Not specified</span></label>
+    </div>
     <div class="insert-footer">
       <button class="action-btn btn-clear" data-action="closeTextPopup">Cancel</button>
       <button class="action-btn btn-copy" style="background:var(--accent);color:#111;" id="textDone" data-action="doneTextPopup">Done</button>
@@ -1518,6 +1543,12 @@
     { dur: '1/2',  dotted: true,  frac: [3, 4],  title: 'Dotted minim' },
     { dur: '1',    dotted: false, frac: [1, 1],  title: 'Semibreve' },
   ]; // used by updateActionBar/setNoteDuration
+  const BRACKET_BUTTON_IDS = [
+    { id: 'bracketQuote',  open: '"', close: '"' },
+    { id: 'bracketParen',  open: '(', close: ')' },
+    { id: 'bracketSquare', open: '[', close: ']' },
+    { id: 'bracketCurly',  open: '{', close: '}' },
+  ]; // used by updateBracketButtons
 
   // Parse backwards from savedStart to find a tie completion candidate.
   // Returns the completion string (note/chord with accidentals stripped),
@@ -1622,6 +1653,7 @@
     updateClearBtn();
     schedulePreview();
     undoBtn.disabled = undoStack.length === 0;
+    updateActionBar();
   }
   let debounceTimer = null;
 
@@ -2141,7 +2173,7 @@
 
   function schedulePreview() {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(renderPreview, 900);
+    debounceTimer = setTimeout(renderPreview, 250);
   }
 
   function renderPreview() {
@@ -2541,7 +2573,70 @@
     return { durStart: k, durEnd, durStr, tokenStart, isRest };
   }
 
+  // ---- Matched-pair buttons ("", (), [], {}) ----
+  // Highlighted (next tap inserts the close char) when there are more opens
+  // than closes before the cursor on the current line, AND at least as many
+  // opens as closes after the cursor on the line — i.e. there's an
+  // unclosed open before you, and nothing after will be left unbalanced.
+  // For symmetric pairs (open === close, e.g. quotes) that asymmetric count
+  // doesn't apply, so we fall back to simple odd/even parity before the
+  // cursor: an odd count means you're "inside" an open quote.
+  function countCharOnLine(text, from, to, ch) {
+    let n = 0;
+    for (let i = from; i < to; i++) if (text[i] === ch) n++;
+    return n;
+  }
+  // Like countCharOnLine for '(', but skips over tuplet markers ("(3",
+  // "(3:2:3", etc.) — those aren't slur/grouping parens, so they shouldn't
+  // count as an "open" for the () bracket-pair button. Reuses the same
+  // tuplet-recognition (parseTupletAt) already used for bar-duration math.
+  function countRealOpenParens(text, from, to) {
+    let n = 0, i = from;
+    while (i < to) {
+      if (text[i] === '(') {
+        const t = parseTupletAt(text, i);
+        if (t) { i = t.end; continue; } // triplet marker — skip, don't count
+        n++;
+      }
+      i++;
+    }
+    return n;
+  }
+  function isBracketHighlighted(openChar, closeChar) {
+    if (savedStart !== savedEnd) return false; // selection active — no highlight
+    const text = ta.value;
+    const pos = savedStart;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    let lineEnd = text.indexOf('\n', pos);
+    if (lineEnd === -1) lineEnd = text.length;
+
+    if (openChar === closeChar) {
+      const before = countCharOnLine(text, lineStart, pos, openChar);
+      const total = countCharOnLine(text, lineStart, lineEnd, openChar);
+      return (before % 2 === 1) && (total % 2 === 1);
+    }
+    const isParen = openChar === '(' && closeChar === ')';
+    const beforeOpen  = isParen ? countRealOpenParens(text, lineStart, pos) : countCharOnLine(text, lineStart, pos, openChar);
+    const afterOpen   = isParen ? countRealOpenParens(text, pos, lineEnd)   : countCharOnLine(text, pos, lineEnd, openChar);
+    const beforeClose = countCharOnLine(text, lineStart, pos, closeChar);
+    const afterClose  = countCharOnLine(text, pos, lineEnd, closeChar);
+    return beforeOpen > beforeClose && afterOpen >= afterClose;
+  }
+  function updateBracketButtons() {
+    BRACKET_BUTTON_IDS.forEach(d => {
+      const btn = document.getElementById(d.id);
+      if (btn) btn.classList.toggle('bracket-active', isBracketHighlighted(d.open, d.close));
+    });
+  }
+  function insertBracketPair(btn) {
+    const openChar = btn.dataset.open;
+    const closeChar = btn.dataset.close;
+    const ch = isBracketHighlighted(openChar, closeChar) ? closeChar : openChar;
+    doInsert(ch, taFocused);
+  }
   function updateActionBar() {
+    updateBracketButtons();
+
     const prevSlot = currentDurationSlot;
     const slot = (savedStart === savedEnd) ? findDurationSlotAtCursor(savedStart) : null;
 
@@ -3623,16 +3718,12 @@
   });
 
   // --- Text popup ---
-  let textPopupPos = 'above';
-  function openTextPopup(pos) {
-    textPopupPos = pos;
+  function openTextPopup() {
     document.getElementById('textInput').value = '';
-    document.getElementById('textPopupTitle').textContent = pos === 'above' ? 'Add text above staff' : 'Add text below staff';
+    document.getElementsByName('textPos').forEach(r => { r.checked = (r.value === 'above'); });
     document.getElementById('textOverlay').classList.add('open');
     document.getElementById('textInput').focus();
   }
-  function openTextPopupAbove() { openTextPopup('above'); }
-  function openTextPopupBelow() { openTextPopup('below'); }
   function closeTextPopup() {
     popupOpen = false;
     document.getElementById('textOverlay').classList.remove('open');
@@ -3648,7 +3739,9 @@
     const val = document.getElementById('textInput').value;
     closeTextPopup();
     if (!val) return;
-    const prefix = textPopupPos === 'above' ? '^' : '_';
+    let pos = 'above';
+    document.getElementsByName('textPos').forEach(r => { if (r.checked) pos = r.value; });
+    const prefix = pos === 'above' ? '^' : pos === 'below' ? '_' : '';
     doInsert('"' + prefix + val + '"', popupPrevFocused);
   }
   document.getElementById('textOverlay').addEventListener('click', e => {
@@ -3658,9 +3751,19 @@
     if (e.key === 'Enter') { e.preventDefault(); doneTextPopup(); }
     if (e.key === 'Escape') closeTextPopup();
   });
+  // Radios/labels toggle normally on click but must not steal focus from textInput mid-typing
+  const textPosOptionsEl = document.getElementById('textPosOptions');
+  textPosOptionsEl.addEventListener('mousedown', e => e.preventDefault());
+  textPosOptionsEl.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+  // Belt-and-braces: preventDefault on mousedown/touchstart isn't reliably
+  // honored for native form controls across all browsers, so if a radio
+  // does end up focused anyway, immediately hand focus back to textInput.
+  document.getElementsByName('textPos').forEach(radio => {
+    radio.addEventListener('focus', () => { document.getElementById('textInput').focus(); });
+  });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopupAbove, openTextPopupBelow, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -3910,7 +4013,7 @@
       e.preventDefault();
     }
     const action = btn.dataset.action;
-    if (action === 'openChordPopup' || action === 'openTextPopupAbove' || action === 'openTextPopupBelow') {
+    if (action === 'openChordPopup' || action === 'openTextPopup') {
       popupPrevFocused = taFocused;
       popupOpen = true;
     }
@@ -3971,7 +4074,7 @@
       e.preventDefault();
     }
     const action = btn.dataset.action;
-    if (action === 'openChordPopup' || action === 'openTextPopupAbove' || action === 'openTextPopupBelow') {
+    if (action === 'openChordPopup' || action === 'openTextPopup') {
       popupPrevFocused = taFocused;
       popupOpen = true;
     }
