@@ -526,6 +526,21 @@
     justify-content: center;
   }
 
+  .action-scroll .text-suggestion-btn {
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+    aspect-ratio: unset;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
   .action-scroll .action-pill {
     flex: 0 0 auto;
     display: flex;
@@ -1462,13 +1477,12 @@
   <!-- Row 3: T "" [] () {} (3 |: :| ⌫ -->
   <div class="key-row row-3">
     <button class="action-btn key-modal-trigger" data-action="openTextPopup" data-keepfocus="1" style="font-family: Georgia, 'Times New Roman', serif;">T</button>
-    <button class="key" id="bracketQuote" data-action="insertBracketPair" data-open="&quot;" data-close="&quot;">&quot; &quot;</button>
+    <button class="action-btn key-modal-trigger" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
     <button class="key" id="bracketSquare" data-action="insertBracketPair" data-open="[" data-close="]">[ ]</button>
     <button class="key" id="bracketParen" data-action="insertBracketPair" data-open="(" data-close=")">( )</button>
     <button class="key" id="bracketCurly" data-action="insertBracketPair" data-open="{" data-close="}">{ }</button>
+    <button class="key" id="bracketBang" data-action="insertBracketPair" data-open="!" data-close="!">! !</button>
     <button class="key" data-insert="(3">(3</button>
-    <button class="key" data-insert="|:">|:</button>
-    <button class="key" data-insert=":|">:|</button>
     <button class="key key-bksp" data-action="bksp">⌫</button>
   </div>
 
@@ -1533,6 +1547,7 @@
   let taFocused = false;
   let savedStart = 0, savedEnd = 0;
   let currentDurationSlot = null; // { durStart, durEnd, durStr, cursorPos } — used by updateActionBar/setNoteDuration
+  let lastSuggestionSignature = null; // used by updateActionBar for the context-suggestion scroll-reset logic
   const DURATION_ICONS = [
     { dur: '1/16', dotted: false, frac: [1, 16], title: 'Semiquaver' },
     { dur: '1/8',  dotted: false, frac: [1, 8],  title: 'Quaver' },
@@ -1544,10 +1559,10 @@
     { dur: '1',    dotted: false, frac: [1, 1],  title: 'Semibreve' },
   ]; // used by updateActionBar/setNoteDuration
   const BRACKET_BUTTON_IDS = [
-    { id: 'bracketQuote',  open: '"', close: '"' },
     { id: 'bracketParen',  open: '(', close: ')' },
     { id: 'bracketSquare', open: '[', close: ']' },
     { id: 'bracketCurly',  open: '{', close: '}' },
+    { id: 'bracketBang',   open: '!', close: '!' },
   ]; // used by updateBracketButtons
 
   // Parse backwards from savedStart to find a tie completion candidate.
@@ -2418,26 +2433,12 @@
     return total;
   }
 
-  // Shared bar-completion check, used by both "Automatic Barlines" and
-  // "Automatically complete ties" — true if the given position sits right
-  // after a fully-completed bar (per the current M:/L: values).
+  // Bar-completion check used by "Automatic Barlines" — see isBarComplete()
+  // in the cursor-context section below.
   let autoBarlineEnabled = true;
   document.getElementById('autoBarlineToggle').addEventListener('change', e => {
     autoBarlineEnabled = e.target.checked;
   });
-  function isBarComplete(pos) {
-    if (!autoBarlineEnabled) return false;
-    if (savedStart !== savedEnd) return false; // replacing a selection — not a clean bar boundary
-    const M = getCurrentMValue();
-    if (!M) return false; // M:none — no fixed bar length, feature disabled
-    const L = getCurrentLValue();
-    const text = ta.value;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-    const barStart = getBarStartPos(text, lineStart, pos);
-    const fullBarLen = reduceFrac([M[0], M[1]]);
-    const total = computeBarDuration(text, barStart, pos, L, fullBarLen);
-    return fracEq(total, fullBarLen);
-  }
   function spaceOrBarline() {
     return isBarComplete(savedStart) ? ' | ' : ' ';
   }
@@ -2551,14 +2552,18 @@
       const durStr = matchDurationSuffix(text, k, text.length);
       const durEnd = k + durStr.length;
       if (pos < k || pos > durEnd) return null;
-      let depth = 0, tokenStart = k - 1;
+      let depth = 0, bracketOpenPos = k - 1;
       for (let i = k - 2; i >= 0; i--) {
         if (text[i] === ']') depth++;
         else if (text[i] === '[') {
-          if (depth === 0) { tokenStart = i; break; }
+          if (depth === 0) { bracketOpenPos = i; break; }
           depth--;
         }
       }
+      // Not a chord — an inline field like "[K:D]" or "[V:1]" — no duration context.
+      if (isInlineField(text.slice(bracketOpenPos + 1, k - 1))) return null;
+
+      let tokenStart = bracketOpenPos;
       if (tokenStart > 0 && text[tokenStart - 1] === '.') tokenStart--; // leading staccato dot
       return { durStart: k, durEnd, durStr, tokenStart, isRest: false };
     }
@@ -2582,14 +2587,29 @@
     return { durStart: k, durEnd, durStr, tokenStart, isRest };
   }
 
-  // ---- Matched-pair buttons ("", (), [], {}) ----
-  // Highlighted (next tap inserts the close char) when there are more opens
-  // than closes before the cursor on the current line, AND at least as many
-  // opens as closes after the cursor on the line — i.e. there's an
-  // unclosed open before you, and nothing after will be left unbalanced.
-  // For symmetric pairs (open === close, e.g. quotes) that asymmetric count
-  // doesn't apply, so we fall back to simple odd/even parity before the
-  // cursor: an odd count means you're "inside" an open quote.
+  // ============================================================
+  // CURSOR CONTEXT HELPERS
+  // Everything that answers "what is the cursor's context right now?"
+  // lives here — used by Automatic Barlines / tie-completion, the
+  // matched-pair button highlights, and the dynamic action bar.
+  // ============================================================
+
+  // True if `pos` sits right after a fully-completed bar (per the current
+  // M:/L: values). Used by "Automatic Barlines" and tie-completion.
+  function isBarComplete(pos) {
+    if (!autoBarlineEnabled) return false;
+    if (savedStart !== savedEnd) return false; // replacing a selection — not a clean bar boundary
+    const M = getCurrentMValue();
+    if (!M) return false; // M:none — no fixed bar length, feature disabled
+    const L = getCurrentLValue();
+    const text = ta.value;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    const barStart = getBarStartPos(text, lineStart, pos);
+    const fullBarLen = reduceFrac([M[0], M[1]]);
+    const total = computeBarDuration(text, barStart, pos, L, fullBarLen);
+    return fracEq(total, fullBarLen);
+  }
+
   function countCharOnLine(text, from, to, ch) {
     let n = 0;
     for (let i = from; i < to; i++) if (text[i] === ch) n++;
@@ -2611,7 +2631,17 @@
     }
     return n;
   }
-  function isBracketHighlighted(openChar, closeChar) {
+
+  // True if the cursor sits inside a not-yet-closed instance of the given
+  // pair — highlighted (next tap inserts the close char) when there are
+  // more opens than closes before the cursor on the current line, AND at
+  // least as many opens as closes after the cursor on the line, i.e. an
+  // unclosed open before you, with nothing after left unbalanced. For
+  // symmetric pairs (open === close, e.g. quotes, "!") that asymmetric
+  // count doesn't apply, so it falls back to: odd count before the cursor
+  // AND odd count across the whole line — otherwise the "unclosed" one
+  // might actually be closed later on the same line.
+  function inUnclosedPair(openChar, closeChar) {
     if (savedStart !== savedEnd) return false; // selection active — no highlight
     const text = ta.value;
     const pos = savedStart;
@@ -2631,20 +2661,140 @@
     const afterClose  = countCharOnLine(text, pos, lineEnd, closeChar);
     return beforeOpen > beforeClose && afterOpen >= afterClose;
   }
+
+  // True if there's an unescaped '%' between lineStart and pos — i.e. the
+  // rest of the line from that point is a comment. A leading "%%" (a
+  // formatting directive, not a comment) doesn't count.
+  function isInComment(text, lineStart, pos) {
+    let i = lineStart;
+    while (i < pos) {
+      if (text[i] === '%') {
+        if (i === lineStart && text[i + 1] === '%') { i += 2; continue; }
+        return true;
+      }
+      i++;
+    }
+    return false;
+  }
+
+  // True if the characters immediately before the cursor equal `str`,
+  // without crossing back over a line boundary, and not while inside an
+  // unclosed quote or a comment (both of which would make the match
+  // coincidental rather than meaningful).
+  function precedingChars(str) {
+    if (savedStart !== savedEnd) return false;
+    const text = ta.value;
+    const pos = savedStart;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    const start = pos - str.length;
+    if (start < lineStart) return false;
+    if (text.slice(start, pos) !== str) return false;
+    if (inUnclosedPair('"', '"')) return false;
+    if (isInComment(text, lineStart, pos)) return false;
+    return true;
+  }
+
+  // A header line starts with a single capital letter followed by ':'.
+  function isHeaderLine(line) {
+    return /^[A-Z]:/.test(line);
+  }
+
+  // True if the content of a "[...]" is an inline field (e.g. "[K:D]",
+  // "[V:1]", "[r:remark]") rather than a chord — in ABC, inline fields
+  // always start with a single letter followed by ':', which no chord
+  // (a run of notes) ever does.
+  function isInlineField(bracketContent) {
+    return /^[A-Za-z]:/.test(bracketContent);
+  }
+
+  // True if every line before the current one is either a header line or
+  // blank — i.e. we're still (plausibly) within the tune's header block,
+  // not yet into the notation body. Vacuously true if there are no
+  // previous lines (cursor on the document's first line).
+  function allPriorLinesHeaderOrBlank(lineStart) {
+    if (lineStart === 0) return true;
+    return ta.value.slice(0, lineStart).split('\n').every(line => isHeaderLine(line) || line.trim() === '');
+  }
+
+  function isLineStart() {
+    if (savedStart !== savedEnd) return false;
+    const text = ta.value;
+    const pos = savedStart;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    return pos === lineStart;
+  }
+  function isLineEnd() {
+    if (savedStart !== savedEnd) return false;
+    const text = ta.value;
+    const pos = savedStart;
+    let lineEnd = text.indexOf('\n', pos);
+    if (lineEnd === -1) lineEnd = text.length;
+    return pos === lineEnd;
+  }
+
+  // The five context-sensitive suggestion rules for the dynamic action
+  // bar. Evaluated in order; in the (normally impossible) case more than
+  // one matches at once, their suggestions are simply concatenated in
+  // rule order rather than one taking exclusive priority.
+  function getContextSuggestions() {
+    if (savedStart !== savedEnd) return [];
+    const text = ta.value;
+    const pos = savedStart;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+
+    let results = [];
+
+    if (precedingChars('M:')) {
+      results = results.concat(['4/4', '3/4', '2/4', '6/8', '12/8']);
+    }
+    if (precedingChars('L:')) {
+      results = results.concat(['1/16', '1/8', '1/4', '1/2', '1']);
+    }
+    if (inUnclosedPair('!', '!') && precedingChars('!')) {
+      results = results.concat(['>', 'mark', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'style=']);
+    }
+    if (inUnclosedPair('[', ']') && precedingChars('[')) {
+      results = results.concat(['V:', 'L:']);
+    }
+    if (precedingChars('V:')) {
+      results = results.concat(['1', '2', '3', '4']);
+    }
+    if (isLineStart() && isLineEnd() && allPriorLinesHeaderOrBlank(lineStart)) {
+      results = results.concat(['X:', 'T:', 'M:', 'K:', 'L:', 'Q:']);
+    }
+
+    return results;
+  }
+
   function updateBracketButtons() {
     BRACKET_BUTTON_IDS.forEach(d => {
       const btn = document.getElementById(d.id);
-      if (btn) btn.classList.toggle('bracket-active', isBracketHighlighted(d.open, d.close));
+      if (btn) btn.classList.toggle('bracket-active', inUnclosedPair(d.open, d.close));
     });
   }
   function insertBracketPair(btn) {
     const openChar = btn.dataset.open;
     const closeChar = btn.dataset.close;
-    const ch = isBracketHighlighted(openChar, closeChar) ? closeChar : openChar;
+    const ch = inUnclosedPair(openChar, closeChar) ? closeChar : openChar;
     doInsert(ch, taFocused);
   }
   function updateActionBar() {
     updateBracketButtons();
+
+    const suggestions = getContextSuggestions();
+    if (suggestions.length > 0) {
+      currentDurationSlot = null;
+      const sig = suggestions.join('|');
+      const sameContext = sig === lastSuggestionSignature;
+      lastSuggestionSignature = sig;
+      actionScrollEl.style.display = 'flex';
+      actionScrollEl.innerHTML = suggestions.map(s =>
+        `<button class="key text-suggestion-btn" data-insert="${esc(s)}">${esc(s)}</button>`
+      ).join('');
+      if (!sameContext) actionScrollEl.scrollLeft = 0;
+      return;
+    }
+    lastSuggestionSignature = null;
 
     const prevSlot = currentDurationSlot;
     const slot = (savedStart === savedEnd) ? findDurationSlotAtCursor(savedStart) : null;
@@ -3044,6 +3194,7 @@
 
   function resetStep1() {
     closeMenu();
+    document.getElementById('hamburgerMenu').classList.remove('open');
     if (!ta.value) return;
     activeBtn = null;
     const overlay = document.getElementById('clear-overlay');
@@ -3059,6 +3210,7 @@
     clearTimeout(debounceTimer);
     updateClearBtn();
     syncDisplayIfUnfocused();
+    updateActionBar();
     clearCancel();
   }
 
@@ -3074,6 +3226,7 @@
   }
 
   function openSettings() {
+    document.getElementById('hamburgerMenu').classList.remove('open');
     document.getElementById('settings-overlay').classList.add('open');
   }
 
@@ -4045,6 +4198,7 @@
     if (!activeBtn) return;
     const touch = e.changedTouches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    const isDropdownItem = activeBtn.classList.contains('dropdown-item');
     activeBtn.classList.remove('pressed');
     const inButtonArea = activeBtn.closest('.button-area');
     if (target && activeBtn.contains(target)) {
@@ -4053,7 +4207,7 @@
       updateActionBar();
     }
     activeBtn = null;
-    e.preventDefault();
+    if (!isDropdownItem) e.preventDefault();
   }, { passive: false });
 
   document.addEventListener('touchcancel', e => {
