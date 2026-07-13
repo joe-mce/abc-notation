@@ -325,6 +325,7 @@
     0%, 50% { opacity: 1; }
     50.01%, 100% { opacity: 0; }
   }
+  body.modal-open .editor-cursor { animation: none; opacity: 1; }
 
   /* Static editor display (shown when textarea is unfocused) */
   #notation-display {
@@ -1080,7 +1081,7 @@
     background: var(--surface3);
     box-shadow: 0 2px 6px rgba(0,0,0,0.35);
   }
-  .key.bracket-active { background: var(--accent); color: #111; }
+  .key.bracket-active, .row-3 .key-modal-trigger.bracket-active, .row-2 .key-modal-trigger.bracket-active { background: var(--accent); color: #111; }
 
   .key-bksp {
     background: var(--surface3) !important;
@@ -1477,8 +1478,8 @@
 
   <!-- Row 3: T "" [] () {} (3 |: :| ⌫ -->
   <div class="key-row row-3">
-    <button class="action-btn key-modal-trigger" data-action="openTextPopup" data-keepfocus="1" style="font-family: Georgia, 'Times New Roman', serif;">T</button>
-    <button class="action-btn key-modal-trigger" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
+    <button class="action-btn key-modal-trigger" id="textPopupBtn" data-action="openTextPopup" data-keepfocus="1" style="font-family: Georgia, 'Times New Roman', serif;">T</button>
+    <button class="action-btn key-modal-trigger" id="chordPopupBtn" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
     <button class="key" id="bracketSquare" data-action="insertBracketPair" data-open="[" data-close="]">[ ]</button>
     <button class="key" id="bracketParen" data-action="insertBracketPair" data-open="(" data-close=")">( )</button>
     <button class="key" id="bracketCurly" data-action="insertBracketPair" data-open="{" data-close="}">{ }</button>
@@ -1501,7 +1502,7 @@
 <!-- Chord insert popup -->
 <div class="insert-overlay" id="chordOverlay">
   <div class="insert-box">
-    <div class="insert-title">Add chord symbol</div>
+    <div class="insert-title" id="chordPopupTitle">Add chord symbol</div>
     <input class="insert-input" id="chordInput" type="text" placeholder="e.g. C7#9" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
     <div class="insert-footer">
       <button class="action-btn btn-clear" data-action="closeChordPopup">Cancel</button>
@@ -1513,7 +1514,7 @@
 <!-- Text insert popup -->
 <div class="insert-overlay" id="textOverlay">
   <div class="insert-box">
-    <div class="insert-title">Add text</div>
+    <div class="insert-title" id="textPopupTitle">Add text</div>
     <input class="insert-input" id="textInput" type="text" placeholder="Text to add" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false">
     <div class="text-pos-options" id="textPosOptions">
       <label class="text-pos-option"><input type="radio" name="textPos" value="above" checked><span>^ Above staff</span></label>
@@ -2672,6 +2673,82 @@
     return beforeOpen > beforeClose && afterOpen >= afterClose;
   }
 
+  // True if the cursor sits between a matched open and close of the given
+  // pair (as opposed to inUnclosedPair, which requires there be no close
+  // after the cursor). For symmetric pairs: odd count before the cursor
+  // AND odd count after it on the line. For asymmetric pairs: more opens
+  // than closes before the cursor, AND more closes than opens after it.
+  function inClosedPair(openChar, closeChar) {
+    if (savedStart !== savedEnd) return false;
+    const text = ta.value;
+    const pos = savedStart;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    let lineEnd = text.indexOf('\n', pos);
+    if (lineEnd === -1) lineEnd = text.length;
+
+    if (openChar === closeChar) {
+      const before = countCharOnLine(text, lineStart, pos, openChar);
+      const after = countCharOnLine(text, pos, lineEnd, openChar);
+      return (before % 2 === 1) && (after % 2 === 1);
+    }
+    const beforeOpen  = countCharOnLine(text, lineStart, pos, openChar);
+    const beforeClose = countCharOnLine(text, lineStart, pos, closeChar);
+    const afterOpen   = countCharOnLine(text, pos, lineEnd, openChar);
+    const afterClose  = countCharOnLine(text, pos, lineEnd, closeChar);
+    return beforeOpen > beforeClose && afterClose > afterOpen;
+  }
+
+  // If the cursor is inside a matched pair of quotes on the current line,
+  // returns { openPos, closePos, content } (content excludes the quotes
+  // themselves); otherwise null. Used to switch the chord/text popups into
+  // "edit the existing quoted string" mode, and to decide which of the
+  // T/G7 buttons (if either) should be highlighted.
+  function getEnclosingQuoteSpan() {
+    if (!inClosedPair('"', '"')) return null;
+    const text = ta.value;
+    const pos = savedStart;
+    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+    let lineEnd = text.indexOf('\n', pos);
+    if (lineEnd === -1) lineEnd = text.length;
+    const openPos = text.lastIndexOf('"', pos - 1);
+    const closePos = text.indexOf('"', pos);
+    if (openPos < lineStart || closePos === -1 || closePos > lineEnd) return null;
+    return { openPos, closePos, content: text.slice(openPos + 1, closePos) };
+  }
+
+  // Highlights exactly one of the T/G7 buttons when the cursor sits inside
+  // a matched quote pair: T if the quoted string starts with ^/_ (a text
+  // annotation), otherwise G7 (a chord symbol). Neither, if the cursor
+  // isn't inside a matched quote pair at all.
+  function updateModalTriggerHighlight() {
+    const span = getEnclosingQuoteSpan();
+    const isText = !!(span && /^[\^_]/.test(span.content));
+    const isChord = !!(span && !isText);
+    const tBtn = document.getElementById('textPopupBtn');
+    const gBtn = document.getElementById('chordPopupBtn');
+    if (tBtn) tBtn.classList.toggle('bracket-active', isText);
+    if (gBtn) gBtn.classList.toggle('bracket-active', isChord);
+  }
+
+  // ============================================================
+  // MODAL SYSTEM
+  // Every full overlay (chord popup, text popup, settings, reset
+  // confirm, template grid) registers here on open/close, so
+  // cross-cutting concerns — like pausing the div-mode cursor's blink
+  // while something is covering it — only need to be handled once,
+  // rather than per-modal. (The lightweight share/hamburger dropdowns
+  // don't register here — they don't cover the notation area.)
+  // ============================================================
+  const openModals = new Set();
+  function modalOpened(id) {
+    openModals.add(id);
+    document.body.classList.add('modal-open');
+  }
+  function modalClosed(id) {
+    openModals.delete(id);
+    if (openModals.size === 0) document.body.classList.remove('modal-open');
+  }
+
   // True if there's an unescaped '%' between lineStart and pos — i.e. the
   // rest of the line from that point is a comment. A leading "%%" (a
   // formatting directive, not a comment) doesn't count.
@@ -2790,6 +2867,7 @@
   }
   function updateActionBar() {
     updateBracketButtons();
+    updateModalTriggerHighlight();
 
     const suggestions = getContextSuggestions();
     if (suggestions.length > 0) {
@@ -2992,9 +3070,11 @@
       ta.blur();
     }
     document.getElementById('tmpl-overlay').classList.add('open');
+    modalOpened('tmpl-overlay');
   }
   function closeTmplOverlay() {
     document.getElementById('tmpl-overlay').classList.remove('open');
+    modalClosed('tmpl-overlay');
     if (tmplPrevFocused) {
       hideStaticDisplay();
       ta.focus();
@@ -3243,6 +3323,7 @@
     activeBtn = null;
     const overlay = document.getElementById('clear-overlay');
     overlay.style.display = 'flex';
+    modalOpened('clear-overlay');
     overlay.onclick = e => { if (e.target === overlay) clearCancel(); };
   }
 
@@ -3260,6 +3341,7 @@
 
   function clearCancel() {
     document.getElementById('clear-overlay').style.display = 'none';
+    modalClosed('clear-overlay');
   }
 
   function toggleZoom() {
@@ -3272,10 +3354,12 @@
   function openSettings() {
     document.getElementById('hamburgerMenu').classList.remove('open');
     document.getElementById('settings-overlay').classList.add('open');
+    modalOpened('settings-overlay');
   }
 
   function closeSettings() {
     document.getElementById('settings-overlay').classList.remove('open');
+    modalClosed('settings-overlay');
   }
 
   // Modal close button and overlay click
@@ -3893,14 +3977,26 @@
   let popupPrevFocused = false;
   let popupOpen = false;
 
+  let chordEditRange = null; // {start, end} spanning the whole "..." when editing an existing chord symbol; null = fresh insert
   function openChordPopup() {
-    document.getElementById('chordInput').value = '';
+    const span = getEnclosingQuoteSpan();
+    if (span) {
+      chordEditRange = { start: span.openPos, end: span.closePos + 1 };
+      document.getElementById('chordInput').value = span.content;
+      document.getElementById('chordPopupTitle').textContent = 'Edit chord symbol';
+    } else {
+      chordEditRange = null;
+      document.getElementById('chordInput').value = '';
+      document.getElementById('chordPopupTitle').textContent = 'Add chord symbol';
+    }
     document.getElementById('chordOverlay').classList.add('open');
+    modalOpened('chordOverlay');
     document.getElementById('chordInput').focus();
   }
   function closeChordPopup() {
     popupOpen = false;
     document.getElementById('chordOverlay').classList.remove('open');
+    modalClosed('chordOverlay');
     if (popupPrevFocused) {
       hideStaticDisplay();
       ta.focus();
@@ -3911,7 +4007,21 @@
   }
   function doneChordPopup() {
     const val = document.getElementById('chordInput').value;
+    const editRange = chordEditRange;
     closeChordPopup();
+    if (editRange) {
+      const newText = val ? ('"' + val + '"') : '';
+      if (newText === ta.value.slice(editRange.start, editRange.end)) return; // identical — do nothing
+      pushUndo();
+      ta.value = ta.value.slice(0, editRange.start) + newText + ta.value.slice(editRange.end);
+      savedStart = savedEnd = editRange.start + newText.length;
+      if (popupPrevFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+      else syncDisplayIfUnfocused();
+      updateClearBtn();
+      schedulePreview();
+      updateActionBar();
+      return;
+    }
     if (!val) return;
     doInsert('"' + val + '"', popupPrevFocused);
   }
@@ -3924,15 +4034,32 @@
   });
 
   // --- Text popup ---
+  let textEditRange = null; // {start, end} spanning the whole "..." when editing an existing text annotation; null = fresh insert
   function openTextPopup() {
-    document.getElementById('textInput').value = '';
-    document.getElementsByName('textPos').forEach(r => { r.checked = (r.value === 'above'); });
+    const span = getEnclosingQuoteSpan();
+    if (span) {
+      textEditRange = { start: span.openPos, end: span.closePos + 1 };
+      let content = span.content;
+      let pos = 'none';
+      if (content[0] === '^') { pos = 'above'; content = content.slice(1); }
+      else if (content[0] === '_') { pos = 'below'; content = content.slice(1); }
+      document.getElementById('textInput').value = content;
+      document.getElementsByName('textPos').forEach(r => { r.checked = (r.value === pos); });
+      document.getElementById('textPopupTitle').textContent = 'Edit text';
+    } else {
+      textEditRange = null;
+      document.getElementById('textInput').value = '';
+      document.getElementsByName('textPos').forEach(r => { r.checked = (r.value === 'above'); });
+      document.getElementById('textPopupTitle').textContent = 'Add text';
+    }
     document.getElementById('textOverlay').classList.add('open');
+    modalOpened('textOverlay');
     document.getElementById('textInput').focus();
   }
   function closeTextPopup() {
     popupOpen = false;
     document.getElementById('textOverlay').classList.remove('open');
+    modalClosed('textOverlay');
     if (popupPrevFocused) {
       hideStaticDisplay();
       ta.focus();
@@ -3943,11 +4070,25 @@
   }
   function doneTextPopup() {
     const val = document.getElementById('textInput').value;
-    closeTextPopup();
-    if (!val) return;
     let pos = 'above';
     document.getElementsByName('textPos').forEach(r => { if (r.checked) pos = r.value; });
     const prefix = pos === 'above' ? '^' : pos === 'below' ? '_' : '';
+    const editRange = textEditRange;
+    closeTextPopup();
+    if (editRange) {
+      const newText = val ? ('"' + prefix + val + '"') : '';
+      if (newText === ta.value.slice(editRange.start, editRange.end)) return; // identical — do nothing
+      pushUndo();
+      ta.value = ta.value.slice(0, editRange.start) + newText + ta.value.slice(editRange.end);
+      savedStart = savedEnd = editRange.start + newText.length;
+      if (popupPrevFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+      else syncDisplayIfUnfocused();
+      updateClearBtn();
+      schedulePreview();
+      updateActionBar();
+      return;
+    }
+    if (!val) return;
     doInsert('"' + prefix + val + '"', popupPrevFocused);
   }
   document.getElementById('textOverlay').addEventListener('click', e => {
