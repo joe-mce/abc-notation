@@ -353,7 +353,18 @@
   #notation-display .display-placeholder { color: var(--text-dim); }
   #notation-display .hl-sel {
     background: rgba(232, 200, 74, 0.28);
-    border-radius: 2px;
+    border-radius: 2px; /* isolated single-fragment selection: fully rounded */
+  }
+  /* Multi-fragment selection runs: flatten the corners where one highlighted
+     fragment touches the next, so only the true start/end of the selection
+     is rounded instead of every token getting its own bubble. */
+  #notation-display .hl-sel + .hl-sel {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  #notation-display .hl-sel:has(+ .hl-sel) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
   }
   #notation-display .hl-mod   { color: var(--hl-modifier); }
   #notation-display .hl-rest  { color: var(--hl-rest); }
