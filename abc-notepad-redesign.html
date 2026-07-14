@@ -2176,6 +2176,12 @@
       downY: e.clientY,
       anchorOffset: charOffsetFromPoint(e.clientX, e.clientY),
       type: 'pending',
+      // Captured now because the document-wide pointerdown listener (added
+      // further down, to dismiss the tooltip on taps elsewhere) fires after
+      // this one during the same event's bubble phase — by pointerup, the
+      // tooltip would already show as closed regardless of whether this tap
+      // is the one toggling it off.
+      tooltipWasOpen: pasteTooltipEl.classList.contains('open'),
     };
   });
 
@@ -2247,10 +2253,16 @@
 
     const off = charOffsetFromPoint(e.clientX, e.clientY);
     if (savedStart === savedEnd && off === savedStart) {
-      // Tapped exactly where the cursor already is — offer to paste there,
-      // same as any mobile text field's "tap the caret" pattern. Nothing
-      // about the cursor/selection changes, so no re-render is needed.
-      showPasteTooltipAt(off);
+      // Tapped exactly where the cursor already is — same as any mobile text
+      // field's "tap the caret" pattern. Toggle: first tap here shows the
+      // Paste tooltip, a repeat tap on the same spot dismisses it (and a tap
+      // after that shows it again, and so on). Nothing about the cursor/
+      // selection changes either way, so no re-render is needed.
+      if (g.tooltipWasOpen) {
+        hidePasteTooltip();
+      } else {
+        showPasteTooltipAt(off);
+      }
       return;
     }
     hidePasteTooltip();
