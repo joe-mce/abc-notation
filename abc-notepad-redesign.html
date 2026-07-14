@@ -3020,12 +3020,37 @@
     return { openPos, closePos, content: text.slice(openPos + 1, closePos) };
   }
 
+  // Selection counterpart to getEnclosingQuoteSpan: true only when the
+  // selection's own first and last characters are quotes AND there's no
+  // other quote strictly between them — i.e. the selection is cleanly
+  // "...", not something ambiguous like "abc"def". Deliberately stricter
+  // than the plain edge-check used for the bracket pairs, since a selection
+  // that merely starts and ends with " but contains a third one doesn't
+  // unambiguously identify a single quoted span the way it does for ()[]{}!!.
+  function getSelectionQuoteSpan() {
+    if (savedEnd - savedStart < 2) return null;
+    const text = ta.value;
+    const s = savedStart, e = savedEnd;
+    if (text[s] !== '"' || text[e - 1] !== '"') return null;
+    const content = text.slice(s + 1, e - 1);
+    if (content.includes('"')) return null;
+    return { openPos: s, closePos: e - 1, content };
+  }
+
+  // Picks whichever of the above applies to the current state, so the
+  // highlight logic and the T/G7 popups can share one entry point regardless
+  // of whether there's a selection or just a collapsed cursor.
+  function getQuoteSpanForEdit() {
+    return savedEnd > savedStart ? getSelectionQuoteSpan() : getEnclosingQuoteSpan();
+  }
+
   // Highlights exactly one of the T/G7 buttons when the cursor sits inside
-  // a matched quote pair: T if the quoted string starts with ^/_ (a text
-  // annotation), otherwise G7 (a chord symbol). Neither, if the cursor
-  // isn't inside a matched quote pair at all.
+  // a matched quote pair (or, with a selection active, when the selection
+  // is itself cleanly wrapped in quotes): T if the quoted string starts
+  // with ^/_ (a text annotation), otherwise G7 (a chord symbol). Neither, if
+  // no matched quote span applies at all.
   function updateModalTriggerHighlight() {
-    const span = getEnclosingQuoteSpan();
+    const span = getQuoteSpanForEdit();
     const isText = !!(span && /^[\^_]/.test(span.content));
     const isChord = !!(span && !isText);
     const tBtn = document.getElementById('textPopupBtn');
@@ -3157,23 +3182,46 @@
     return results;
   }
 
+  // True if the current selection's own first and last characters are
+  // literally this pair's open/close chars — a plain edge-check, not a
+  // "balanced interior" check (e.g. "(CDE(FG)" still counts as wrapped by
+  // "()"), and distinct from inUnclosedPair (which is a no-selection,
+  // cursor-in-line check). Requires at least 2 selected characters so a
+  // single selected char can't trivially satisfy both ends of a symmetric
+  // pair like "!".
+  function selectionWrappedBy(openChar, closeChar) {
+    if (savedEnd - savedStart < 2) return false;
+    return ta.value[savedStart] === openChar && ta.value[savedEnd - 1] === closeChar;
+  }
   function updateBracketButtons() {
+    const hasSel = savedEnd > savedStart;
     BRACKET_BUTTON_IDS.forEach(d => {
       const btn = document.getElementById(d.id);
-      if (btn) btn.classList.toggle('bracket-active', inUnclosedPair(d.open, d.close));
+      if (!btn) return;
+      const active = hasSel ? selectionWrappedBy(d.open, d.close) : inUnclosedPair(d.open, d.close);
+      btn.classList.toggle('bracket-active', active);
     });
   }
   function insertBracketPair(btn) {
     const openChar = btn.dataset.open;
     const closeChar = btn.dataset.close;
     if (savedEnd > savedStart) {
-      // Wrap the selection in the pair and keep the (now longer) result selected.
       pushUndo();
       const s = savedStart, e = savedEnd;
-      const wrapped = openChar + ta.value.slice(s, e) + closeChar;
-      ta.value = ta.value.slice(0, s) + wrapped + ta.value.slice(e);
-      savedStart = s;
-      savedEnd = s + wrapped.length;
+      if (selectionWrappedBy(openChar, closeChar)) {
+        // Unwrap: drop the first and last characters, keep the (now
+        // shorter) inner text selected.
+        const inner = ta.value.slice(s + 1, e - 1);
+        ta.value = ta.value.slice(0, s) + inner + ta.value.slice(e);
+        savedStart = s;
+        savedEnd = s + inner.length;
+      } else {
+        // Wrap the selection in the pair and keep the (now longer) result selected.
+        const wrapped = openChar + ta.value.slice(s, e) + closeChar;
+        ta.value = ta.value.slice(0, s) + wrapped + ta.value.slice(e);
+        savedStart = s;
+        savedEnd = s + wrapped.length;
+      }
       if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
       else syncDisplayIfUnfocused();
       updateClearBtn();
@@ -4427,10 +4475,12 @@
   let popupOpen = false;
 
   let chordEditRange = null; // {start, end} spanning the whole "..." when editing an existing chord symbol; null = fresh insert
+  let chordEditWasSelection = false; // true if edit mode was entered via a selection-matched quote span (vs. a collapsed cursor)
   function openChordPopup() {
-    const span = getEnclosingQuoteSpan();
+    const span = getQuoteSpanForEdit();
     if (span) {
       chordEditRange = { start: span.openPos, end: span.closePos + 1 };
+      chordEditWasSelection = savedEnd > savedStart;
       document.getElementById('chordInput').value = span.content;
       document.getElementById('chordPopupTitle').textContent = 'Edit chord symbol';
     } else {
@@ -4440,7 +4490,9 @@
     }
     document.getElementById('chordOverlay').classList.add('open');
     modalOpened('chordOverlay');
-    document.getElementById('chordInput').focus();
+    const chordInputEl = document.getElementById('chordInput');
+    chordInputEl.focus();
+    chordInputEl.setSelectionRange(chordInputEl.value.length, chordInputEl.value.length);
   }
   function closeChordPopup() {
     popupOpen = false;
@@ -4463,7 +4515,12 @@
       if (newText === ta.value.slice(editRange.start, editRange.end)) return; // identical — do nothing
       pushUndo();
       ta.value = ta.value.slice(0, editRange.start) + newText + ta.value.slice(editRange.end);
-      savedStart = savedEnd = editRange.start + newText.length;
+      if (textEditWasSelection && newText) {
+        savedStart = editRange.start;
+        savedEnd = editRange.start + newText.length;
+      } else {
+        savedStart = savedEnd = editRange.start + newText.length;
+      }
       if (popupPrevFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
       else syncDisplayIfUnfocused();
       updateClearBtn();
@@ -4484,10 +4541,12 @@
 
   // --- Text popup ---
   let textEditRange = null; // {start, end} spanning the whole "..." when editing an existing text annotation; null = fresh insert
+  let textEditWasSelection = false; // true if edit mode was entered via a selection-matched quote span (vs. a collapsed cursor)
   function openTextPopup() {
-    const span = getEnclosingQuoteSpan();
+    const span = getQuoteSpanForEdit();
     if (span) {
       textEditRange = { start: span.openPos, end: span.closePos + 1 };
+      textEditWasSelection = savedEnd > savedStart;
       let content = span.content;
       let pos = 'none';
       if (content[0] === '^') { pos = 'above'; content = content.slice(1); }
@@ -4503,7 +4562,9 @@
     }
     document.getElementById('textOverlay').classList.add('open');
     modalOpened('textOverlay');
-    document.getElementById('textInput').focus();
+    const textInputEl = document.getElementById('textInput');
+    textInputEl.focus();
+    textInputEl.setSelectionRange(textInputEl.value.length, textInputEl.value.length);
   }
   function closeTextPopup() {
     popupOpen = false;
@@ -4529,7 +4590,12 @@
       if (newText === ta.value.slice(editRange.start, editRange.end)) return; // identical — do nothing
       pushUndo();
       ta.value = ta.value.slice(0, editRange.start) + newText + ta.value.slice(editRange.end);
-      savedStart = savedEnd = editRange.start + newText.length;
+      if (chordEditWasSelection && newText) {
+        savedStart = editRange.start;
+        savedEnd = editRange.start + newText.length;
+      } else {
+        savedStart = savedEnd = editRange.start + newText.length;
+      }
       if (popupPrevFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
       else syncDisplayIfUnfocused();
       updateClearBtn();
@@ -4547,13 +4613,16 @@
     if (e.key === 'Enter') { e.preventDefault(); doneTextPopup(); }
     if (e.key === 'Escape') closeTextPopup();
   });
-  // Radios/labels toggle normally on click but must not steal focus from textInput mid-typing
-  const textPosOptionsEl = document.getElementById('textPosOptions');
-  textPosOptionsEl.addEventListener('mousedown', e => e.preventDefault());
-  textPosOptionsEl.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
-  // Belt-and-braces: preventDefault on mousedown/touchstart isn't reliably
-  // honored for native form controls across all browsers, so if a radio
-  // does end up focused anyway, immediately hand focus back to textInput.
+  // Radios/labels toggle normally on click but must not steal focus from
+  // textInput mid-typing. preventDefault on mousedown is what actually does
+  // this (standard, reliable behavior: it blocks focus without blocking the
+  // click's own checked-toggle). Earlier this also had a touchstart
+  // preventDefault, intended as the touch equivalent — but on mobile that
+  // instead blocked the whole tap-to-check activation, making the radios
+  // impossible to select. Dropping just that one and keeping the focus-
+  // redirect below as a fallback (for any browser where mousedown alone
+  // doesn't reliably block focus) fixes both.
+  document.getElementById('textPosOptions').addEventListener('mousedown', e => e.preventDefault());
   document.getElementsByName('textPos').forEach(radio => {
     radio.addEventListener('focus', () => { document.getElementById('textInput').focus(); });
   });
