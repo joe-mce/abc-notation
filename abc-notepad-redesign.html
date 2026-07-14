@@ -399,6 +399,22 @@
     fill: var(--accent) !important;
     stroke: var(--accent) !important;
   }
+  /* Highlights whatever preview element corresponds to the editor's current
+     (collapsed) cursor position. The class is applied directly to the
+     relevant leaf shape/text elements (see collectDrawableLeaves), but the
+     descendant-targeting variants are kept too as a safety net in case any
+     of those leaves ever have their own drawable children. */
+  #preview svg .preview-cursor-highlight,
+  #preview svg .preview-cursor-highlight path,
+  #preview svg .preview-cursor-highlight rect,
+  #preview svg .preview-cursor-highlight ellipse,
+  #preview svg .preview-cursor-highlight polygon,
+  #preview svg .preview-cursor-highlight line,
+  #preview svg .preview-cursor-highlight polyline,
+  #preview svg .preview-cursor-highlight text {
+    fill: var(--accent) !important;
+    stroke: var(--accent) !important;
+  }
 
   /* ---------- New shell layout ---------- */
   #preview-wrap {
@@ -1624,6 +1640,15 @@
   let savedStart = 0, savedEnd = 0;
   let currentDurationSlot = null; // { durStart, durEnd, durStr, cursorPos } — used by updateActionBar/setNoteDuration
   let lastSuggestionSignature = null; // used by updateActionBar for the context-suggestion scroll-reset logic
+  // Tracks the abcjs TuneObject from the most recent preview render (needed
+  // for getElementFromChar), and whichever AbsoluteElement is currently
+  // highlighted as corresponding to the editor's cursor. Declared here
+  // (rather than near renderPreview/updatePreviewCursorHighlight further
+  // down) because updateActionBar() — which reads these — is already called
+  // once synchronously during page-load setup, before that later point in
+  // the script would otherwise have run.
+  let currentTuneObj = null;
+  let previewHighlightedNodes = []; // raw SVG DOM nodes currently highlighted
 
   // ---- Selection drag-gesture tracking (div/static-display mode) ----
   // A swipe's direction decides whether it's a scroll or a text-selection —
@@ -2597,11 +2622,150 @@
     updateActionBar();
   }
 
+  // Highlighting manipulates the SVG DOM directly via each element's
+  // .elemset (the array of raw SVG nodes belonging to it), rather than using
+  // AbsoluteElement's own .highlight()/.unhighlight() — those always act on
+  // the *entire* elemset, but a note with an attached chord symbol/
+  // annotation shares ONE elemset covering both the text and the note (they
+  // render as sibling nodes in the same group), and we need to be able to
+  // highlight just one or the other depending on where the cursor actually
+  // is relative to the quoted text.
+
+  function clearPreviewHighlight() {
+    previewHighlightedNodes.forEach(el => { if (el && el.classList) el.classList.remove('preview-cursor-highlight'); });
+    previewHighlightedNodes = [];
+  }
+
+  // Expands a list of SVG nodes (which might be wrapping <g> groups or
+  // already-individual leaf shapes/text — not documented which, so handle
+  // both) down to the actual leaf drawable elements. We need to classify and
+  // highlight at the leaf level (a chord symbol's <text class="abcjs-chord">
+  // vs. its note's <path>s), so operating on a wrapping group as a single
+  // unit isn't precise enough.
+  const PREVIEW_LEAF_TAGS = ['path', 'rect', 'ellipse', 'polygon', 'line', 'polyline', 'text'];
+  function collectDrawableLeaves(nodes) {
+    const result = [];
+    function visit(el) {
+      if (!el || el.nodeType !== 1) return;
+      const tag = el.tagName && el.tagName.toLowerCase();
+      if (PREVIEW_LEAF_TAGS.indexOf(tag) !== -1) { result.push(el); return; }
+      if (el.children) for (let i = 0; i < el.children.length; i++) visit(el.children[i]);
+    }
+    nodes.forEach(visit);
+    return result;
+  }
+
+  // matchedOffset is the specific trimmed-string character position that
+  // caused abcElem to be found (either the cursor's own position, or one
+  // character back — see updatePreviewCursorHighlight) — needed to tell
+  // apart "cursor is within the annotation" from "cursor is within the note"
+  // when the two share one abcElem/elemset.
+  function highlightPreviewElement(abcElem, matchedOffset) {
+    clearPreviewHighlight();
+    if (!abcElem) return;
+    // getElementFromChar(Fixed) can return the raw parsed abcelem data
+    // (pitches, startChar, etc.) rather than the AbsoluteElement wrapper
+    // that actually has .elemset — fall back to its .abselem back-reference
+    // (AbsoluteElement's constructor stores abcelem -> AbsoluteElement as
+    // this.abcelem, so the reverse pointer living on the abcelem side is a
+    // reasonable bet) if the direct object doesn't have what we need.
+    const target = Array.isArray(abcElem.elemset) ? abcElem
+      : (abcElem.abselem && Array.isArray(abcElem.abselem.elemset)) ? abcElem.abselem
+      : null;
+    const elemset = target && target.elemset;
+    if (!Array.isArray(elemset) || !elemset.length) return;
+
+    const leaves = collectDrawableLeaves(elemset);
+    let nodesToHighlight = leaves; // default: everything — the common, unambiguous case
+
+    const trimmed = ta.value.trim();
+    const startChar = abcElem.startChar;
+    if (typeof startChar === 'number' && trimmed[startChar] === '"') {
+      // This element is a fused chord-symbol/annotation + the note it's
+      // attached to. Figure out, from the actual matched character position,
+      // whether we're really highlighting the annotation or the note, and
+      // only touch the relevant leaves.
+      const closeIdx = trimmed.indexOf('"', startChar + 1);
+      if (closeIdx !== -1) {
+        const textLeaves = leaves.filter(el => el.classList && (el.classList.contains('abcjs-chord') || el.classList.contains('abcjs-annotation')));
+        if (textLeaves.length && textLeaves.length < leaves.length) {
+          const wantsAnnotation = matchedOffset !== undefined && matchedOffset < closeIdx + 1;
+          nodesToHighlight = wantsAnnotation ? textLeaves : leaves.filter(el => textLeaves.indexOf(el) === -1);
+        }
+      }
+    }
+
+    nodesToHighlight.forEach(el => { if (el && el.classList) el.classList.add('preview-cursor-highlight'); });
+    previewHighlightedNodes = nodesToHighlight;
+  }
+
+  // Re-implementation of TuneObject.getElementFromChar, working around a
+  // confirmed bug in abcjs's own version: it checks `elem.startChar &&
+  // elem.endChar`, which is falsy — and so incorrectly treated as "not
+  // present" — whenever startChar is literally 0 (i.e. the very first
+  // element in the tune). That makes the real getElementFromChar(pos) always
+  // return null for any position that should resolve to that first element.
+  // This matches its traversal exactly, just with a proper existence check.
+  function getElementFromCharFixed(tuneObj, char) {
+    for (var i = 0; i < tuneObj.lines.length; i++) {
+      var line = tuneObj.lines[i];
+      if (line.staff) {
+        for (var j = 0; j < line.staff.length; j++) {
+          var staff = line.staff[j];
+          for (var k = 0; k < staff.voices.length; k++) {
+            var voice = staff.voices[k];
+            for (var ii = 0; ii < voice.length; ii++) {
+              var elem = voice[ii];
+              if (typeof elem.startChar === 'number' && typeof elem.endChar === 'number' &&
+                elem.startChar <= char && elem.endChar > char)
+                return elem;
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Keeps the preview's highlight in sync with the editor's (collapsed)
+  // cursor position. No-ops (and clears any existing highlight) whenever
+  // there's an active selection instead of a plain cursor.
+  //
+  // getElementFromChar(pos) matches a half-open range [startChar, endChar),
+  // so a cursor sitting exactly between two notes always resolves to the
+  // *next* one. We'd rather it prefer the note that just ended — i.e. check
+  // position (pos - 1) first — except right at the start of a line, where
+  // there's no same-line preceding note to prefer, so that falls through to
+  // the normal "note starting here" behavior instead of reaching back across
+  // the line break.
+  function updatePreviewCursorHighlight() {
+    if (!currentTuneObj || savedStart !== savedEnd) { clearPreviewHighlight(); return; }
+    const text = ta.value;
+    const leadTrim = text.length - text.replace(/^\s+/, '').length;
+    const pos = savedStart - leadTrim;
+    if (pos < 0) { clearPreviewHighlight(); return; }
+
+    const trimmed = text.trim(); // same string abcjs actually parsed positions against
+    const atLineStart = pos === 0 || trimmed[pos - 1] === '\n';
+    let matchedOffset = pos;
+    let elem = null;
+    if (!atLineStart) {
+      elem = getElementFromCharFixed(currentTuneObj, pos - 1);
+      if (elem) matchedOffset = pos - 1;
+    }
+    if (!elem) {
+      elem = getElementFromCharFixed(currentTuneObj, pos);
+      matchedOffset = pos;
+    }
+    highlightPreviewElement(elem, matchedOffset);
+  }
+
   function renderPreview() {
     const raw = ta.value.trim();
-    if (!raw) { previewDiv.innerHTML = ''; return; }
+    previewHighlightedNodes = []; // old DOM is about to be replaced wholesale
+    if (!raw) { previewDiv.innerHTML = ''; currentTuneObj = null; return; }
     try {
-      ABCJS.renderAbc('preview', raw, {
+      const tunes = ABCJS.renderAbc('preview', raw, {
         responsive: 'resize',
         staffwidth: getStaffwidth(),
         add_classes: true,
@@ -2610,7 +2774,9 @@
         format: { gchordfont: 'Helvetica 12' },
         clickListener: previewClickListener
       });
-    } catch(e) {}
+      currentTuneObj = (tunes && tunes[0]) || null;
+      updatePreviewCursorHighlight(); // re-apply to the freshly rendered SVG
+    } catch(e) { currentTuneObj = null; }
   }
 
   // Core insert — used by both key buttons and template buttons
@@ -3456,6 +3622,7 @@
   }
 
   function updateActionBar() {
+    updatePreviewCursorHighlight();
     updateBracketButtons();
     updateModalTriggerHighlight();
     if (savedEnd > savedStart) {
