@@ -2141,14 +2141,27 @@
   }
 
   // Finds the character offset within [lineStart, lineEnd] whose rendered
-  // caret position is closest to clientX, by measuring each candidate
-  // position's own actual x directly — rather than asking the browser to
-  // hit-test a (x, y) point, which is what fails here: once y is outside
-  // every real line's box, the browser's own out-of-bounds handling discards
-  // x entirely and resolves to the nearest end of the whole document.
+  // position is closest to clientX, by measuring each candidate position's
+  // own actual x directly — rather than asking the browser to hit-test a
+  // (x, y) point, which is what fails here: once y is outside every real
+  // line's box, the browser's own out-of-bounds handling discards x entirely
+  // and resolves to the nearest end of the whole document.
+  //
+  // Deliberately measures actual (non-collapsed) character ranges rather
+  // than collapsed carets: a collapsed caret positioned exactly at a
+  // line-wrap boundary (the offset right after a "\n") is ambiguous — some
+  // browsers report its rendered position as the *end of the previous line*
+  // rather than the start of this one, for the same logical text offset.
+  // That intermittently made the very first position of a line measure as
+  // if it were still sitting at the previous line's end.
   function offsetForXOnLine(clientX, lineStart, lineEnd) {
+    if (lineEnd <= lineStart) return lineStart; // empty line — nothing to compare
     let bestOffset = lineStart;
     let bestDist = Infinity;
+    const consider = (offset, x) => {
+      const dist = Math.abs(x - clientX);
+      if (dist < bestDist) { bestDist = dist; bestOffset = offset; }
+    };
     const walker = document.createTreeWalker(taDisplay, NodeFilter.SHOW_TEXT, null);
     let total = 0, n;
     while ((n = walker.nextNode())) {
@@ -2157,15 +2170,16 @@
       total += len;
       const from = Math.max(lineStart, nodeStart);
       const to = Math.min(lineEnd, nodeEnd);
-      if (from > to) { if (total > lineEnd) break; continue; }
-      for (let i = from; i <= to; i++) {
+      if (from >= to) { if (total > lineEnd) break; continue; }
+      for (let i = from; i < to; i++) {
+        const localI = i - nodeStart;
         const range = document.createRange();
-        range.setStart(n, i - nodeStart);
-        range.collapse(true);
+        range.setStart(n, localI);
+        range.setEnd(n, localI + 1);
         const rects = range.getClientRects();
         if (!rects.length) continue;
-        const dist = Math.abs(rects[0].left - clientX);
-        if (dist < bestDist) { bestDist = dist; bestOffset = i; }
+        consider(i, rects[0].left); // position just before this character
+        if (i === lineEnd - 1) consider(i + 1, rects[0].right); // last char on the line: also test just after it
       }
       if (total > lineEnd) break;
     }
