@@ -349,7 +349,7 @@
     -webkit-touch-callout: none;
   }
   #notation-display.active { display: block; }
-  #notation-display.select-mode { touch-action: none; }
+  #notation-display { touch-action: pan-y; }
   #notation-display .display-placeholder { color: var(--text-dim); }
   #notation-display .hl-sel {
     background: rgba(232, 200, 74, 0.28);
@@ -617,43 +617,34 @@
     font-weight: 500;
   }
 
-  /* "Tools" + recently-used-tool items shown in the action bar while text is selected */
-  .action-scroll .tools-bar-btn {
-    flex: 0 0 auto;
-    background: transparent;
-    border: none;
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 0.85rem;
-    padding: 8px 10px;
-    white-space: nowrap;
-    letter-spacing: 0.02em;
-  }
-  .action-scroll .recent-tool-btn {
+  /* "Tools" / "Copy" / "Paste" items shown in the action bar while text is selected */
+  .action-scroll .sel-bar-btn {
     flex: 0 0 auto;
     background: transparent;
     border: none;
     color: var(--text);
-    font-weight: 500;
+    font-weight: 600;
     font-size: 0.85rem;
     padding: 8px 10px;
     white-space: nowrap;
   }
+  /* Truncated preview of the selected text, shown at the left of the action
+     bar while text is selected — same look as the duration display's
+     current-note label. */
+  .action-scroll .sel-preview {
+    font-weight: 600;
+  }
 
-  .float-pills-row {
+  .float-pills {
     position: absolute;
     top: 8px;
     right: 12px;
-    display: flex;
-    gap: 8px;
-    z-index: 5;
-  }
-  .float-pills {
     display: flex;
     gap: 4px;
     background: var(--surface2);
     border-radius: 999px;
     padding: 4px;
+    z-index: 5;
   }
   .float-pills button {
     width: 30px;
@@ -668,10 +659,6 @@
   }
   .float-pills button:active, .float-pills button.pressed { background: var(--surface3); }
   .float-pills svg { width: 16px; height: 16px; }
-  .btn-selection-mode { color: #fff; }
-  #selectionPill.active { background: var(--accent); }
-  #selectionPill.active .btn-selection-mode { color: #111; }
-  #selectionPill.active .btn-selection-mode:active { background: transparent; }
 
   /* Bottom on-screen keys */
   .button-area {
@@ -1245,6 +1232,31 @@
     #gesture-badge { margin-top: -48px; }
   }
 
+  /* Paste-at-cursor tooltip — appears when tapping right on the existing
+     (collapsed) cursor in the static display, like the native OS pattern. */
+  .paste-tooltip {
+    display: none;
+    position: fixed;
+    transform: translate(-50%, calc(-100% - 8px));
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    z-index: 60;
+  }
+  .paste-tooltip.open { display: block; }
+  .paste-tooltip-btn {
+    background: transparent;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .paste-tooltip-btn:active, .paste-tooltip-btn.pressed { background: var(--surface3); }
+
   /* Gesture chevron wheel */
   #gesture-wheel {
     display: none;
@@ -1415,25 +1427,13 @@
   <div id="notation-display" aria-hidden="true"></div>
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-  <div class="float-pills-row">
-    <div class="float-pills" id="selectionPill">
-      <button class="action-btn btn-selection-mode" id="selectionModeBtn" data-action="toggleSelectionMode" data-keepfocus="1" aria-label="Selection mode">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="2" y="6" width="12" height="12" rx="2" fill="currentColor"/>
-          <line x1="19" y1="4" x2="19" y2="20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-          <line x1="16.5" y1="4" x2="21.5" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="16.5" y1="20" x2="21.5" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </div>
-    <div class="float-pills">
-      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
+  <div class="float-pills">
+    <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Quick-insert row + open-keyboard button. Floats over the bottom of the
@@ -1599,6 +1599,10 @@
 
 <div id="gesture-badge"></div>
 
+<div class="paste-tooltip" id="pasteTooltip">
+  <button class="action-btn paste-tooltip-btn" data-action="pasteAtCursor" data-keepfocus="1">Paste</button>
+</div>
+
 <div id="gesture-wheel">
   <svg viewBox="0 0 200 200" width="160" height="160" overflow="visible">
     <g id="chev-up-g">    <polyline class="chev-path dim" points="76,40 100,28 124,40"/></g>
@@ -1620,14 +1624,14 @@
   let currentDurationSlot = null; // { durStart, durEnd, durStr, cursorPos } — used by updateActionBar/setNoteDuration
   let lastSuggestionSignature = null; // used by updateActionBar for the context-suggestion scroll-reset logic
 
-  // ---- Selection mode ----
-  let selectionModeOn = false;
-  let selDragActive = false;   // a pointer is currently down, having started while selectionModeOn
-  let selDragMoved = false;    // that pointer has moved past the tap threshold (i.e. it's a drag, not a tap)
-  let selAnchorOffset = 0;     // character offset where the drag started
+  // ---- Selection drag-gesture tracking (div/static-display mode) ----
+  // A swipe's direction decides whether it's a scroll or a text-selection —
+  // see the pointerdown/pointermove/pointerup handlers below.
+  let dragGesture = null; // { pointerType, downX, downY, anchorOffset, type } | null — type: 'pending' | 'select' | 'scroll'
 
-  // Tool definitions reused by both the Tools modal and the recent-tools action-bar
-  // shortcuts. `action` must match a key in the `actions` dispatch map below.
+  // Tool definitions used by the Tools modal (opened from the action bar
+  // while text is selected). `action` must match a key in the `actions`
+  // dispatch map below.
   const TOOL_DEFS = [
     { action: 'transposeUp',                label: 'Octave up' },
     { action: 'transposeDown',              label: 'Octave down' },
@@ -1641,7 +1645,6 @@
     { action: 'addTriplets',                label: 'Add triplets' },
     { action: 'removeRedundantAccidentals', label: 'Remove redundant accidentals' },
   ];
-  const recentTools = []; // most-recently-used tool action names, unique, most recent first, max 3
   const DURATION_ICONS = [
     { dur: '1/16', dotted: false, frac: [1, 16], title: 'Semiquaver' },
     { dur: '1/8',  dotted: false, frac: [1, 8],  title: 'Quaver' },
@@ -2129,7 +2132,13 @@
   }
 
   const TAP_MAX_DIST = 10;
-  let downX = 0, downY = 0;
+  // Once a touch has moved this much further horizontally than vertically,
+  // it locks in as a selection gesture rather than a scroll. Biased well
+  // above 1 so only a fairly deliberate, close-to-horizontal swipe triggers
+  // selection — a diagonal or ambiguous swipe defaults to scrolling, since
+  // that's the far more common gesture. (2.5 ≈ within about ±22° of
+  // horizontal; raise further to narrow the selection cone even more.)
+  const DRAG_DIRECTION_BIAS = 2.5;
 
   // Native selection (drag-select, double/triple-click) inside the static
   // display is suppressed via `selectstart` rather than `user-select: none` —
@@ -2148,61 +2157,71 @@
   let preTapStart = 0, preTapEnd = 0;
   */
 
+  // Selecting text by tap-and-drag: `#notation-display` has `touch-action: pan-y`
+  // (see CSS), which tells the browser it's free to handle vertical dragging
+  // natively as a scroll, but must never claim horizontal movement as a
+  // native gesture of its own. That lets us direction-lock each touch
+  // ourselves: once total movement passes a small threshold, a mostly-
+  // horizontal swipe commits to building a text selection (and takes over the
+  // rest of that gesture, including any later vertical movement, so a
+  // selection can still span multiple lines) — a mostly-vertical swipe
+  // commits to being a scroll and we back off entirely, leaving it to the
+  // browser. Mouse has no competing native drag-scroll on this element, so
+  // any mouse-drag always means "select," regardless of direction.
   taDisplay.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    downX = e.clientX;
-    downY = e.clientY;
-    if (selectionModeOn) {
-      selDragActive = true;
-      selDragMoved = false;
-      selAnchorOffset = charOffsetFromPoint(e.clientX, e.clientY);
-    }
+    dragGesture = {
+      pointerType: e.pointerType,
+      downX: e.clientX,
+      downY: e.clientY,
+      anchorOffset: charOffsetFromPoint(e.clientX, e.clientY),
+      type: 'pending',
+    };
   });
 
   taDisplay.addEventListener('pointermove', e => {
-    if (!selDragActive) return;
-    if (Math.hypot(e.clientX - downX, e.clientY - downY) > TAP_MAX_DIST) selDragMoved = true;
-    if (!selDragMoved) return;
+    if (!dragGesture) return;
+    if (dragGesture.type === 'scroll') return; // this gesture is the browser's — stay out of it
+
+    if (dragGesture.type === 'pending') {
+      const dx = e.clientX - dragGesture.downX;
+      const dy = e.clientY - dragGesture.downY;
+      if (Math.hypot(dx, dy) < TAP_MAX_DIST) return; // could still just be a tap
+      const isHorizontal = dragGesture.pointerType === 'mouse' || Math.abs(dx) > Math.abs(dy) * DRAG_DIRECTION_BIAS;
+      if (!isHorizontal) {
+        dragGesture.type = 'scroll';
+        return;
+      }
+      dragGesture.type = 'select';
+    }
+
+    // dragGesture.type === 'select' from here on
     e.preventDefault();
     const curOffset = charOffsetFromPoint(e.clientX, e.clientY);
-    savedStart = Math.min(selAnchorOffset, curOffset);
-    savedEnd = Math.max(selAnchorOffset, curOffset);
+    savedStart = Math.min(dragGesture.anchorOffset, curOffset);
+    savedEnd = Math.max(dragGesture.anchorOffset, curOffset);
     renderStaticDisplay();
     updateActionBar();
   });
 
   taDisplay.addEventListener('pointerup', e => {
+    if (!dragGesture) return;
+    const g = dragGesture;
+    dragGesture = null;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
-    if (selDragActive) {
-      const wasMoved = selDragMoved;
-      selDragActive = false;
-      selDragMoved = false;
+    if (g.type === 'select') {
       e.preventDefault();
-      if (wasMoved) {
-        // Finish the drag-selection; selection mode stays on so another
-        // swipe can immediately start a new selection.
-        const curOffset = charOffsetFromPoint(e.clientX, e.clientY);
-        savedStart = Math.min(selAnchorOffset, curOffset);
-        savedEnd = Math.max(selAnchorOffset, curOffset);
-        renderStaticDisplay();
-        updateActionBar();
-        return;
-      }
-      // A plain tap while selection mode was on. If it landed while text was
-      // already selected, that's a "tap outside the selection": clear it and
-      // turn selection mode off. Otherwise just move the cursor as normal,
-      // leaving selection mode on so the next swipe can select.
-      if (savedEnd > savedStart) disableSelectionMode();
-      const off = charOffsetFromPoint(e.clientX, e.clientY);
-      savedStart = savedEnd = off;
+      const curOffset = charOffsetFromPoint(e.clientX, e.clientY);
+      savedStart = Math.min(g.anchorOffset, curOffset);
+      savedEnd = Math.max(g.anchorOffset, curOffset);
       renderStaticDisplay();
-      scrollCursorIntoView();
       updateActionBar();
       return;
     }
+    if (g.type === 'scroll') return; // was a scroll — leave the cursor/selection untouched
 
-    if (Math.hypot(e.clientX - downX, e.clientY - downY) > TAP_MAX_DIST) return; // was a scroll, not a tap
+    // g.type is still 'pending' — never moved past the tap threshold: a plain tap.
     e.preventDefault();
 
     /* Double-tap-to-focus — disabled, kept for reinstatement:
@@ -2227,6 +2246,14 @@
     */
 
     const off = charOffsetFromPoint(e.clientX, e.clientY);
+    if (savedStart === savedEnd && off === savedStart) {
+      // Tapped exactly where the cursor already is — offer to paste there,
+      // same as any mobile text field's "tap the caret" pattern. Nothing
+      // about the cursor/selection changes, so no re-render is needed.
+      showPasteTooltipAt(off);
+      return;
+    }
+    hidePasteTooltip();
     savedStart = savedEnd = off;
     renderStaticDisplay();
     scrollCursorIntoView();
@@ -2234,8 +2261,7 @@
   });
 
   taDisplay.addEventListener('pointercancel', () => {
-    selDragActive = false;
-    selDragMoved = false;
+    dragGesture = null;
   });
 
   const buttonArea = document.querySelector('.button-area');
@@ -3065,31 +3091,12 @@
     doInsert(ch, taFocused);
   }
 
-  // ---- Selection mode ----
-  function updateSelectionModeButton() {
-    document.getElementById('selectionPill').classList.toggle('active', selectionModeOn);
-    taDisplay.classList.toggle('select-mode', selectionModeOn);
-  }
-  function toggleSelectionMode() {
-    selectionModeOn = !selectionModeOn;
-    updateSelectionModeButton();
-  }
-  function disableSelectionMode() {
-    if (!selectionModeOn) return;
-    selectionModeOn = false;
-    updateSelectionModeButton();
-  }
-
   // ---- Tools (applied to the current selection) ----
   function applyTool(name) {
     if (savedEnd <= savedStart) return; // nothing selected — shouldn't happen, but stay safe
     const fn = actions[name];
     if (!fn) return;
     fn(); // runs transformSelection(...) internally, replacing + re-selecting the result
-    const idx = recentTools.indexOf(name);
-    if (idx !== -1) recentTools.splice(idx, 1);
-    recentTools.unshift(name);
-    if (recentTools.length > 3) recentTools.length = 3;
     updateActionBar();
   }
   function toolExec(btn) {
@@ -3115,16 +3122,103 @@
   });
   document.getElementById('toolsModalClose').addEventListener('click', closeToolsModal);
 
+  // ---- Copy / Paste (act on the current selection) ----
+  function copySelection() {
+    if (savedEnd <= savedStart) return;
+    if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+    const text = ta.value.slice(savedStart, savedEnd);
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Copied ✓');
+    }).catch(() => {});
+  }
+  function pasteOverSelection() {
+    if (savedEnd <= savedStart) return;
+    if (!navigator.clipboard || !navigator.clipboard.readText) return;
+    navigator.clipboard.readText().then(text => {
+      if (!text) return; // clipboard empty or holds something unsuitable — fail silently, insert nothing
+      if (savedEnd <= savedStart) return; // selection changed while the read was in flight
+      pushUndo();
+      const s = savedStart, e = savedEnd;
+      ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+      savedStart = s + text.length;
+      savedEnd = savedStart;
+      if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+      else syncDisplayIfUnfocused();
+      updateClearBtn();
+      schedulePreview();
+      updateActionBar();
+    }).catch(() => {});
+  }
+
+  // ---- Paste-at-cursor tooltip ----
+  // Shown when a plain tap lands on the position the (collapsed) cursor is
+  // already at — the same "tap the caret to reveal Paste" pattern used by
+  // mobile OS text fields. Div/static-display mode only; the real textarea
+  // (native keyboard open) already gets the OS's own paste UI for free.
+  const pasteTooltipEl = document.getElementById('pasteTooltip');
+  function hidePasteTooltip() {
+    pasteTooltipEl.classList.remove('open');
+  }
+  function showPasteTooltipAt(pos) {
+    if (savedStart !== savedEnd || savedStart !== pos) return; // stale — cursor moved since this was requested
+    const cursorEl = taDisplay.querySelector('.editor-cursor');
+    if (!cursorEl) return;
+    const rect = cursorEl.getBoundingClientRect();
+    pasteTooltipEl.style.left = (rect.left + rect.width / 2) + 'px';
+    pasteTooltipEl.style.top = rect.top + 'px';
+    pasteTooltipEl.classList.add('open');
+    // Clamp horizontally within the app's own (centered, max-width) column
+    // rather than the full window, then re-measure now that it's visible.
+    requestAnimationFrame(() => {
+      if (!pasteTooltipEl.classList.contains('open')) return;
+      const bodyRect = document.body.getBoundingClientRect();
+      const tRect = pasteTooltipEl.getBoundingClientRect();
+      const pad = 6;
+      let shift = 0;
+      if (tRect.left < bodyRect.left + pad) shift = (bodyRect.left + pad) - tRect.left;
+      else if (tRect.right > bodyRect.right - pad) shift = (bodyRect.right - pad) - tRect.right;
+      if (shift) pasteTooltipEl.style.left = (rect.left + rect.width / 2 + shift) + 'px';
+    });
+  }
+  function pasteAtCursor() {
+    hidePasteTooltip();
+    if (!navigator.clipboard || !navigator.clipboard.readText) return;
+    navigator.clipboard.readText().then(text => {
+      if (!text) return; // clipboard empty or holds something unsuitable — fail silently, insert nothing
+      doInsert(text, taFocused); // cursor is collapsed here, so this inserts at + moves past it, same as any other key
+    }).catch(() => {});
+  }
+  // Any tap/press anywhere else in the app dismisses the tooltip (except on
+  // the tooltip's own Paste button, which needs its press to survive to
+  // trigger pasteAtCursor above).
+  document.addEventListener('pointerdown', e => {
+    if (!e.target.closest('.paste-tooltip')) hidePasteTooltip();
+  });
+  // Scrolling the input area also dismisses it, since a fixed-position
+  // tooltip wouldn't otherwise track the (now-moved) cursor beneath it.
+  taDisplay.addEventListener('scroll', hidePasteTooltip);
+
+  // Truncates a selection preview to at most 4 characters, or to the first
+  // line break if that comes sooner, appending a single-character ellipsis
+  // whenever anything was cut off.
+  function truncateSelectionPreview(text) {
+    const nlIdx = text.indexOf('\n');
+    const hasNewline = nlIdx !== -1;
+    const cutoff = hasNewline ? Math.min(4, nlIdx) : 4;
+    if (text.length <= cutoff && !hasNewline) return text; // fits as-is
+    return text.slice(0, cutoff) + '…';
+  }
+
   function renderSelectionActionBar() {
     currentDurationSlot = null;
     lastSuggestionSignature = null;
     actionScrollEl.style.display = 'flex';
-    let html = `<button class="action-btn tools-bar-btn" data-action="openToolsModal" data-keepfocus="1">Tools</button>`;
-    html += recentTools.map(name => {
-      const def = TOOL_DEFS.find(t => t.action === name);
-      if (!def) return '';
-      return `<button class="action-btn recent-tool-btn" data-action="toolExec" data-tool="${esc(name)}" data-keepfocus="1">${esc(def.label)}</button>`;
-    }).join('');
+
+    const selText = ta.value.slice(savedStart, savedEnd);
+    let html = `<span class="dur-current-note sel-preview">${esc(truncateSelectionPreview(selText))}</span>`;
+    html += `<button class="action-btn sel-bar-btn" data-action="openToolsModal" data-keepfocus="1">Tools</button>`;
+    html += `<button class="action-btn sel-bar-btn" data-action="copySelection" data-keepfocus="1">Copy</button>`;
+    html += `<button class="action-btn sel-bar-btn" data-action="pasteOverSelection" data-keepfocus="1">Paste</button>`;
     actionScrollEl.innerHTML = html;
   }
 
@@ -3569,10 +3663,12 @@
     if (!e.target.closest('.copy-split')) closeCopyDropdown();
   }, { passive: true });
 
+  let toastHideTimer = null;
   function showToast(msg) {
     toast.textContent = msg || 'Copied ✓';
     toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 1800);
+    clearTimeout(toastHideTimer);
+    toastHideTimer = setTimeout(() => toast.classList.remove('show'), 1800);
   }
 
   function resetStep1() {
@@ -4369,7 +4465,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, toggleSelectionMode, openToolsModal, toolExec };
+  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -4381,13 +4477,6 @@
   function handleButtonRelease(btn) {
     btn.classList.remove('pressed');
     const inButtonArea = !!btn.closest('.button-area');
-
-    // Tapping any onscreen-keyboard/action-bar button while text is selected
-    // turns selection mode off (the selection itself is left alone here —
-    // whatever the button does below handles it: replace, wrap, delete, etc).
-    if (btn.id !== 'selectionModeBtn' && savedEnd > savedStart) {
-      disableSelectionMode();
-    }
 
     if (btn.dataset.action) {
       const fn = actions[btn.dataset.action];
