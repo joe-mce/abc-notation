@@ -388,6 +388,7 @@
   #preview svg polygon, #preview svg line, #preview svg polyline {
     fill: var(--text); stroke: var(--text);
   }
+  #preview svg text { fill: var(--text) !important; }
   #preview svg [fill="none"] { fill: none; }
   #preview svg [stroke="none"] { stroke: none; }
   #preview svg .mark path,
@@ -2507,6 +2508,95 @@
     debounceTimer = setTimeout(renderPreview, 250);
   }
 
+  // Suppress previewClickListener when the touch that produced the click was
+  // actually a scroll, not a tap — same cumulative-distance approach (and
+  // same BTN_CANCEL_DIST threshold) as the action bar's own tap-vs-scroll
+  // handling: sum the length of each touchmove segment (not just the net
+  // start-to-end displacement), since a scroll-away-and-back gesture could
+  // otherwise end up right back near its start point and wrongly look like a
+  // tap. Touch-only — mouse dragging isn't a scrolling concern here.
+  let previewTouchLastX = 0, previewTouchLastY = 0, previewTouchCumDist = 0;
+  let previewTapSuppressed = false;
+  previewWrap.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    previewTouchLastX = t.clientX;
+    previewTouchLastY = t.clientY;
+    previewTouchCumDist = 0;
+    previewTapSuppressed = false;
+  }, { passive: true });
+  previewWrap.addEventListener('touchmove', e => {
+    if (previewTapSuppressed) return; // already over threshold — nothing more to track
+    const t = e.touches[0];
+    previewTouchCumDist += Math.hypot(t.clientX - previewTouchLastX, t.clientY - previewTouchLastY);
+    previewTouchLastX = t.clientX;
+    previewTouchLastY = t.clientY;
+    if (previewTouchCumDist > BTN_CANCEL_DIST) previewTapSuppressed = true;
+  }, { passive: true });
+
+  // Tapping a note/element in the preview selects its matching span in the
+  // source text. abcElem.startChar/endChar are offsets into the *trimmed*
+  // string we hand to renderAbc, so they need shifting back by however much
+  // leading whitespace was trimmed off ta.value. If the tap lands on (or
+  // inside) a bracketed chord group like [G1B1D1], widen out to the full
+  // "[...]" — abcjs's own startChar/endChar for chord notes are inconsistent
+  // about whether they already cover the whole group, so this is done
+  // explicitly rather than relied upon.
+  function previewClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
+    if (previewTapSuppressed) { previewTapSuppressed = false; return; } // was a scroll, not a tap
+    if (!abcElem || typeof abcElem.startChar !== 'number' || typeof abcElem.endChar !== 'number') return;
+    if (abcElem.startChar < 0 || abcElem.endChar < 0) return;
+    const text = ta.value;
+    const leadTrim = text.length - text.replace(/^\s+/, '').length;
+    let start = abcElem.startChar + leadTrim;
+    let end = abcElem.endChar + leadTrim;
+
+    // A chord symbol or text annotation renders as its own <text> sibling
+    // inside the SAME <g class="abcjs-note ..."> group as the notehead/stem
+    // it's attached to (confirmed by inspecting the actual rendered SVG), so
+    // abcjs reports one shared abcElem — same startChar/endChar spanning
+    // both — no matter which part was physically tapped. Figure out which
+    // one it really was from the actual DOM target: mouseEvent.target if
+    // abcjs passed it, falling back to the classes array (both are checked
+    // since it's undocumented which of these abcjs reliably provides).
+    const target = mouseEvent && mouseEvent.target;
+    const targetIsAnnotation = !!(target && target.closest && target.closest('.abcjs-chord, .abcjs-annotation'));
+    const classesIsAnnotation = Array.isArray(classes) &&
+      (classes.indexOf('abcjs-chord') !== -1 || classes.indexOf('abcjs-annotation') !== -1);
+    const isAnnotationTap = targetIsAnnotation || classesIsAnnotation;
+
+    if (text[start] === '"') {
+      const closeIdx = text.indexOf('"', start + 1);
+      if (closeIdx !== -1) {
+        if (isAnnotationTap) {
+          end = closeIdx + 1; // tapped the annotation itself — select just "..."
+        } else {
+          start = closeIdx + 1; // tapped the note — skip the annotation, select just the note
+        }
+      }
+    } else {
+      if (text[start] !== '[') {
+        for (let i = start - 1; i >= 0 && text[i] !== '\n' && text[i] !== ']'; i--) {
+          if (text[i] === '[') { start = i; break; }
+        }
+      }
+      if (text[end - 1] !== ']') {
+        for (let j = end; j < text.length && text[j] !== '\n' && text[j] !== '['; j++) {
+          if (text[j] === ']') { end = j + 1; break; }
+        }
+      }
+    }
+
+    savedStart = Math.max(0, Math.min(start, text.length));
+    savedEnd = Math.max(savedStart, Math.min(end, text.length));
+    if (taFocused) {
+      ta.setSelectionRange(savedStart, savedEnd);
+    } else {
+      renderStaticDisplay();
+      scrollCursorIntoView();
+    }
+    updateActionBar();
+  }
+
   function renderPreview() {
     const raw = ta.value.trim();
     if (!raw) { previewDiv.innerHTML = ''; return; }
@@ -2517,7 +2607,8 @@
         add_classes: true,
         paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8,
         jazzchords: false,
-        format: { gchordfont: 'Helvetica 12' }
+        format: { gchordfont: 'Helvetica 12' },
+        clickListener: previewClickListener
       });
     } catch(e) {}
   }
@@ -4515,7 +4606,7 @@
       if (newText === ta.value.slice(editRange.start, editRange.end)) return; // identical — do nothing
       pushUndo();
       ta.value = ta.value.slice(0, editRange.start) + newText + ta.value.slice(editRange.end);
-      if (textEditWasSelection && newText) {
+      if (chordEditWasSelection && newText) {
         savedStart = editRange.start;
         savedEnd = editRange.start + newText.length;
       } else {
@@ -4590,7 +4681,7 @@
       if (newText === ta.value.slice(editRange.start, editRange.end)) return; // identical — do nothing
       pushUndo();
       ta.value = ta.value.slice(0, editRange.start) + newText + ta.value.slice(editRange.end);
-      if (chordEditWasSelection && newText) {
+      if (textEditWasSelection && newText) {
         savedStart = editRange.start;
         savedEnd = editRange.start + newText.length;
       } else {
