@@ -2611,6 +2611,12 @@
       }
     }
 
+    // abcjs's startChar/endChar can include a leading or trailing space
+    // (e.g. the space before a note) — trim those off so the selection
+    // matches just the actual notation, not surrounding whitespace.
+    while (start < end && /\s/.test(text[start])) start++;
+    while (end > start && /\s/.test(text[end - 1])) end--;
+
     savedStart = Math.max(0, Math.min(start, text.length));
     savedEnd = Math.max(savedStart, Math.min(end, text.length));
     if (taFocused) {
@@ -2655,14 +2661,12 @@
     return result;
   }
 
-  // matchedOffset is the specific trimmed-string character position that
-  // caused abcElem to be found (either the cursor's own position, or one
-  // character back — see updatePreviewCursorHighlight) — needed to tell
-  // apart "cursor is within the annotation" from "cursor is within the note"
-  // when the two share one abcElem/elemset.
-  function highlightPreviewElement(abcElem, matchedOffset) {
-    clearPreviewHighlight();
-    if (!abcElem) return;
+  // Given one matched abcElem and whether its annotation sub-part and/or its
+  // note sub-part should be included (when the two are fused into one
+  // elemset — see the note above), returns the leaf DOM nodes to highlight.
+  // If both are wanted (or the element isn't a fused chord/annotation+note
+  // to begin with), that's just "everything".
+  function leavesForAbcElem(abcElem, wantsAnnotation, wantsNote) {
     // getElementFromChar(Fixed) can return the raw parsed abcelem data
     // (pitches, startChar, etc.) rather than the AbsoluteElement wrapper
     // that actually has .elemset — fall back to its .abselem back-reference
@@ -2673,30 +2677,47 @@
       : (abcElem.abselem && Array.isArray(abcElem.abselem.elemset)) ? abcElem.abselem
       : null;
     const elemset = target && target.elemset;
-    if (!Array.isArray(elemset) || !elemset.length) return;
-
+    if (!Array.isArray(elemset) || !elemset.length) return [];
     const leaves = collectDrawableLeaves(elemset);
-    let nodesToHighlight = leaves; // default: everything — the common, unambiguous case
 
     const trimmed = ta.value.trim();
     const startChar = abcElem.startChar;
     if (typeof startChar === 'number' && trimmed[startChar] === '"') {
-      // This element is a fused chord-symbol/annotation + the note it's
-      // attached to. Figure out, from the actual matched character position,
-      // whether we're really highlighting the annotation or the note, and
-      // only touch the relevant leaves.
       const closeIdx = trimmed.indexOf('"', startChar + 1);
       if (closeIdx !== -1) {
         const textLeaves = leaves.filter(el => el.classList && (el.classList.contains('abcjs-chord') || el.classList.contains('abcjs-annotation')));
         if (textLeaves.length && textLeaves.length < leaves.length) {
-          const wantsAnnotation = matchedOffset !== undefined && matchedOffset < closeIdx + 1;
-          nodesToHighlight = wantsAnnotation ? textLeaves : leaves.filter(el => textLeaves.indexOf(el) === -1);
+          if (wantsAnnotation && wantsNote) return leaves;
+          if (wantsAnnotation) return textLeaves;
+          if (wantsNote) return leaves.filter(el => textLeaves.indexOf(el) === -1);
+          return [];
         }
       }
     }
+    return leaves;
+  }
 
-    nodesToHighlight.forEach(el => { if (el && el.classList) el.classList.add('preview-cursor-highlight'); });
-    previewHighlightedNodes = nodesToHighlight;
+  // matchedOffset is the specific trimmed-string character position that
+  // caused abcElem to be found (either the cursor's own position, or one
+  // character back — see updatePreviewCursorHighlight) — needed to tell
+  // apart "cursor is within the annotation" from "cursor is within the note"
+  // when the two share one abcElem/elemset.
+  function highlightPreviewElement(abcElem, matchedOffset) {
+    clearPreviewHighlight();
+    if (!abcElem) return;
+    const trimmed = ta.value.trim();
+    const startChar = abcElem.startChar;
+    let wantsAnnotation = true, wantsNote = true;
+    if (typeof startChar === 'number' && trimmed[startChar] === '"') {
+      const closeIdx = trimmed.indexOf('"', startChar + 1);
+      if (closeIdx !== -1 && matchedOffset !== undefined) {
+        wantsAnnotation = matchedOffset < closeIdx + 1;
+        wantsNote = !wantsAnnotation;
+      }
+    }
+    const leaves = leavesForAbcElem(abcElem, wantsAnnotation, wantsNote);
+    leaves.forEach(el => { if (el && el.classList) el.classList.add('preview-cursor-highlight'); });
+    previewHighlightedNodes = leaves;
   }
 
   // Re-implementation of TuneObject.getElementFromChar, working around a
@@ -2727,9 +2748,157 @@
     return null;
   }
 
+  // Same traversal as getElementFromCharFixed, but collects every element
+  // whose [startChar, endChar) range overlaps [start, end) at all, instead
+  // of returning on the first match. Used for highlighting a selection.
+  function getElementsInRangeFixed(tuneObj, start, end) {
+    const result = [];
+    for (var i = 0; i < tuneObj.lines.length; i++) {
+      var line = tuneObj.lines[i];
+      if (line.staff) {
+        for (var j = 0; j < line.staff.length; j++) {
+          var staff = line.staff[j];
+          for (var k = 0; k < staff.voices.length; k++) {
+            var voice = staff.voices[k];
+            for (var ii = 0; ii < voice.length; ii++) {
+              var elem = voice[ii];
+              if (typeof elem.startChar === 'number' && typeof elem.endChar === 'number' &&
+                elem.startChar < end && elem.endChar > start)
+                result.push(elem);
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  // Extracts a note or beam element's line/measure-in-line/absolute-measure/
+  // voice class-key (e.g. "abcjs-l1|abcjs-m0|abcjs-mm2|abcjs-v0") — notes and
+  // the beams connecting them share this same combination, which (combined
+  // with x-position) is how we match a beam to its notes below.
+  function classKeyOf(el) {
+    let l, m, mm, v;
+    if (el.classList) {
+      el.classList.forEach(c => {
+        if (/^abcjs-l\d+$/.test(c)) l = c;
+        else if (/^abcjs-mm\d+$/.test(c)) mm = c;
+        else if (/^abcjs-m\d+$/.test(c)) m = c;
+        else if (/^abcjs-v\d+$/.test(c)) v = c;
+      });
+    }
+    if (!l || !m || !mm || !v) return null;
+    return l + '|' + m + '|' + mm + '|' + v;
+  }
+
+  // A beam's path data is a quadrilateral running from its first note's
+  // stem x to its last note's stem x — extracts that [minX, maxX] range.
+  function parseBeamXRange(pathEl) {
+    const d = pathEl.getAttribute('d') || '';
+    const nums = d.replace(/[MLZz]/g, ' ').match(/-?\d+(\.\d+)?/g);
+    if (!nums || nums.length < 4) return null;
+    const xs = [];
+    for (let i = 0; i < nums.length; i += 2) xs.push(parseFloat(nums[i]));
+    return { minX: Math.min.apply(null, xs), maxX: Math.max.apply(null, xs) };
+  }
+
+  // A note group's bbox includes accidentals (which sit to the left of the
+  // notehead/stem), so its center can be skewed away from the note's actual
+  // x — use the stem's own x specifically (which is exactly what defines a
+  // beam's endpoints), falling back to the notehead if there's no stem.
+  function noteGroupX(g) {
+    const target = g.querySelector('.abcjs-stem') || g.querySelector('.abcjs-notehead') || g;
+    const bbox = target.getBBox();
+    return bbox.x + bbox.width / 2;
+  }
+
+  // Finds every beam all of whose notes are in highlightedNoteGroups (a Set
+  // of <g data-name="note"> elements) — never a beam only partially covered
+  // by the selection. Deliberately gated on there being at least 2
+  // highlighted notes: a single note can never fully cover a real (multi-
+  // note) beam, and getBBox() forces an SVG layout pass, so skipping this
+  // entirely for the much more frequent single-cursor case matters for
+  // performance.
+  function findBeamsToHighlight(highlightedNoteGroups) {
+    if (highlightedNoteGroups.size < 2) return [];
+    const beamEls = previewDiv.querySelectorAll('.abcjs-beam-elem');
+    if (!beamEls.length) return [];
+    const allNoteGroups = previewDiv.querySelectorAll('g[data-name="note"]');
+    const noteInfo = [];
+    allNoteGroups.forEach(g => {
+      const key = classKeyOf(g);
+      if (!key) return;
+      noteInfo.push({ el: g, key, x: noteGroupX(g) });
+    });
+
+    const EPS = 2; // px tolerance for coordinate rounding
+    const beamsToHighlight = [];
+    beamEls.forEach(beam => {
+      const key = classKeyOf(beam);
+      if (!key) return;
+      let relevant = false;
+      highlightedNoteGroups.forEach(g => { if (!relevant && classKeyOf(g) === key) relevant = true; });
+      if (!relevant) return; // cheap check before the pricier per-beam work below
+      const range = parseBeamXRange(beam);
+      if (!range) return;
+      const notesUnderBeam = noteInfo.filter(n => n.key === key && n.x >= range.minX - EPS && n.x <= range.maxX + EPS);
+      if (notesUnderBeam.length < 2) return;
+      if (notesUnderBeam.every(n => highlightedNoteGroups.has(n.el))) beamsToHighlight.push(beam);
+    });
+    return beamsToHighlight;
+  }
+
+  // Keeps the preview's highlight in sync with the editor's current
+  // selection: highlights every element the selection overlaps at all (not
+  // just fully-contained ones). For a fused chord/annotation+note element,
+  // each sub-part is included independently based on whether the selection
+  // overlaps *that* sub-range — so a selection spanning from partway through
+  // "C7" into the following note correctly highlights both parts, with no
+  // special-casing needed for that "both" case.
+  function updatePreviewSelectionHighlight() {
+    clearPreviewHighlight();
+    if (!currentTuneObj) return;
+    const text = ta.value;
+    const leadTrim = text.length - text.replace(/^\s+/, '').length;
+    const selStart = Math.max(0, savedStart - leadTrim);
+    const selEnd = savedEnd - leadTrim;
+    if (selEnd <= selStart) return;
+
+    const trimmed = text.trim();
+    const elems = getElementsInRangeFixed(currentTuneObj, selStart, selEnd);
+    let allLeaves = [];
+    elems.forEach(elem => {
+      let wantsAnnotation = true, wantsNote = true;
+      const startChar = elem.startChar;
+      if (typeof startChar === 'number' && trimmed[startChar] === '"') {
+        const closeIdx = trimmed.indexOf('"', startChar + 1);
+        if (closeIdx !== -1) {
+          wantsAnnotation = selStart < closeIdx + 1 && selEnd > startChar;
+          wantsNote = selStart < elem.endChar && selEnd > closeIdx + 1;
+        }
+      }
+      allLeaves = allLeaves.concat(leavesForAbcElem(elem, wantsAnnotation, wantsNote));
+    });
+
+    const highlightedNoteGroups = new Set();
+    allLeaves.forEach(el => {
+      const g = el.closest && el.closest('g[data-name="note"]');
+      if (g) highlightedNoteGroups.add(g);
+    });
+    allLeaves = allLeaves.concat(findBeamsToHighlight(highlightedNoteGroups));
+
+    allLeaves.forEach(el => { if (el && el.classList) el.classList.add('preview-cursor-highlight'); });
+    previewHighlightedNodes = allLeaves;
+  }
+
+  // Dispatches to whichever of the above applies to the current state.
+  function updatePreviewHighlight() {
+    if (savedEnd > savedStart) updatePreviewSelectionHighlight();
+    else updatePreviewCursorHighlight();
+  }
+
   // Keeps the preview's highlight in sync with the editor's (collapsed)
-  // cursor position. No-ops (and clears any existing highlight) whenever
-  // there's an active selection instead of a plain cursor.
+  // cursor position.
   //
   // getElementFromChar(pos) matches a half-open range [startChar, endChar),
   // so a cursor sitting exactly between two notes always resolves to the
@@ -2739,7 +2908,7 @@
   // the normal "note starting here" behavior instead of reaching back across
   // the line break.
   function updatePreviewCursorHighlight() {
-    if (!currentTuneObj || savedStart !== savedEnd) { clearPreviewHighlight(); return; }
+    if (!currentTuneObj) { clearPreviewHighlight(); return; }
     const text = ta.value;
     const leadTrim = text.length - text.replace(/^\s+/, '').length;
     const pos = savedStart - leadTrim;
@@ -2775,7 +2944,7 @@
         clickListener: previewClickListener
       });
       currentTuneObj = (tunes && tunes[0]) || null;
-      updatePreviewCursorHighlight(); // re-apply to the freshly rendered SVG
+      updatePreviewHighlight(); // re-apply to the freshly rendered SVG
     } catch(e) { currentTuneObj = null; }
   }
 
@@ -3622,7 +3791,7 @@
   }
 
   function updateActionBar() {
-    updatePreviewCursorHighlight();
+    updatePreviewHighlight();
     updateBracketButtons();
     updateModalTriggerHighlight();
     if (savedEnd > savedStart) {
