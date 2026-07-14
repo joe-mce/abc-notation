@@ -2065,51 +2065,36 @@
   // solely via the keyboard-toggle button) but the logic is kept below,
   // commented out, in case we want to reinstate it later.
 
-  function charOffsetFromPoint(clientX, clientY) {
-    // If the tap lands in the padding above the first line or below the last
-    // line, clamp y to that line's vertical center first — otherwise the
-    // browser's hit-test treats "above all text" as "start of content" and
-    // ignores x entirely, snapping to the beginning of the first line
-    // regardless of which character you tapped above.
-    //
-    // Important: this has to be measured against the true edges of the
-    // *rendered content* (top-of-first-line / bottom-of-last-line), adjusted
-    // for the current scroll position — not simply the container's own
-    // bounding-box edges. Those only coincide when nothing is scrolled; once
-    // the div is scrolled, real text can fill the visible viewport right up
-    // to its top/bottom edge (including the region reserved by paddingBottom
-    // for the floating toolbar when NOT scrolled to the true end), and
-    // clamping against the container's edges in that case would incorrectly
-    // drag the tap onto a different line than the one actually tapped.
-    const rect = taDisplay.getBoundingClientRect();
-    const cs = getComputedStyle(taDisplay);
-    const padTop = parseFloat(cs.paddingTop) || 0;
-    const padBottom = parseFloat(cs.paddingBottom) || 0;
-    let lineHeight = parseFloat(cs.lineHeight);
-    if (isNaN(lineHeight)) lineHeight = parseFloat(cs.fontSize) * 1.2;
-
-    const scrollTop = taDisplay.scrollTop;
-    const contentTopInViewport    = rect.top - scrollTop + padTop;
-    const contentBottomInViewport = rect.top - scrollTop + taDisplay.scrollHeight - padBottom;
-
-    const minY = Math.max(rect.top, contentTopInViewport) + lineHeight / 2;
-    const maxY = Math.min(rect.bottom, contentBottomInViewport) - lineHeight / 2;
-    if (minY <= maxY) {
-      if (clientY < minY) clientY = minY;
-      if (clientY > maxY) clientY = maxY;
-    }
-
-    let range = null;
-    if (document.caretRangeFromPoint) {
-      range = document.caretRangeFromPoint(clientX, clientY);
-    } else if (document.caretPositionFromPoint) {
-      const pos = document.caretPositionFromPoint(clientX, clientY);
-      if (pos && pos.offsetNode) {
-        range = document.createRange();
-        range.setStart(pos.offsetNode, pos.offset);
+  // Measures the true top/bottom (viewport coordinates) of the actually
+  // rendered text inside taDisplay, by walking its text nodes directly.
+  // Deliberately NOT based on scrollHeight: scrollHeight is only reliable as
+  // a stand-in for "content height" when the content is taller than the box
+  // and thus actually needs to scroll. taDisplay is a flex-grown box that's
+  // usually much taller than a short document, and in that case scrollHeight
+  // just falls back to reporting the box's own height.
+  function measureContentVerticalBounds() {
+    let top = null, bottom = null;
+    const walker = document.createTreeWalker(taDisplay, NodeFilter.SHOW_TEXT, null);
+    let n;
+    while ((n = walker.nextNode())) {
+      if (!n.textContent.length) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      const rects = range.getClientRects();
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i];
+        if (r.width === 0 && r.height === 0) continue;
+        if (top === null || r.top < top) top = r.top;
+        if (bottom === null || r.bottom > bottom) bottom = r.bottom;
       }
     }
-    if (!range) return ta.value.length;
+    if (top === null || bottom === null) return null; // no real text (e.g. placeholder only)
+    return { top, bottom };
+  }
+
+  // Converts a DOM Range's start position into a total character offset
+  // within taDisplay's full text content.
+  function domRangeToOffset(range) {
     let node = range.startContainer;
     let offset = range.startOffset;
     if (node.nodeType !== Node.TEXT_NODE) {
@@ -2129,6 +2114,84 @@
     }
     if (!found) return ta.value.length;
     return Math.max(0, Math.min(total, ta.value.length));
+  }
+
+  function rawPointToOffset(clientX, clientY) {
+    let range = null;
+    if (document.caretRangeFromPoint) {
+      range = document.caretRangeFromPoint(clientX, clientY);
+    } else if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(clientX, clientY);
+      if (pos && pos.offsetNode) {
+        range = document.createRange();
+        range.setStart(pos.offsetNode, pos.offset);
+      }
+    }
+    if (!range) return ta.value.length;
+    return domRangeToOffset(range);
+  }
+
+  // Plain point-based hit-test, unmodified — used for ordinary taps. Tapping
+  // in truly blank space below (or above) all rendered content is supposed
+  // to resolve to the absolute end (or start) of the document regardless of
+  // x, exactly like a native text field, so this deliberately does no
+  // clamping of any kind.
+  function charOffsetFromPoint(clientX, clientY) {
+    return rawPointToOffset(clientX, clientY);
+  }
+
+  // Finds the character offset within [lineStart, lineEnd] whose rendered
+  // caret position is closest to clientX, by measuring each candidate
+  // position's own actual x directly — rather than asking the browser to
+  // hit-test a (x, y) point, which is what fails here: once y is outside
+  // every real line's box, the browser's own out-of-bounds handling discards
+  // x entirely and resolves to the nearest end of the whole document.
+  function offsetForXOnLine(clientX, lineStart, lineEnd) {
+    let bestOffset = lineStart;
+    let bestDist = Infinity;
+    const walker = document.createTreeWalker(taDisplay, NodeFilter.SHOW_TEXT, null);
+    let total = 0, n;
+    while ((n = walker.nextNode())) {
+      const len = n.textContent.length;
+      const nodeStart = total, nodeEnd = total + len;
+      total += len;
+      const from = Math.max(lineStart, nodeStart);
+      const to = Math.min(lineEnd, nodeEnd);
+      if (from > to) { if (total > lineEnd) break; continue; }
+      for (let i = from; i <= to; i++) {
+        const range = document.createRange();
+        range.setStart(n, i - nodeStart);
+        range.collapse(true);
+        const rects = range.getClientRects();
+        if (!rects.length) continue;
+        const dist = Math.abs(rects[0].left - clientX);
+        if (dist < bestDist) { bestDist = dist; bestOffset = i; }
+      }
+      if (total > lineEnd) break;
+    }
+    return bestOffset;
+  }
+
+  // Used while a drag-selection is extending: resolves normally via
+  // point-based hit-testing UNLESS clientY has crossed past the bottom of
+  // the last real line (or the top of the first real line), in which case
+  // it explicitly finds the closest character on that boundary line by x
+  // instead. This only engages right at the very top/bottom line — moving
+  // between interior real lines is untouched, so ordinary multi-line
+  // drag-selection is unaffected.
+  function charOffsetFromPointForDrag(clientX, clientY, contentBounds) {
+    if (contentBounds) {
+      if (clientY > contentBounds.bottom) {
+        const lineStart = ta.value.lastIndexOf('\n') + 1;
+        return offsetForXOnLine(clientX, lineStart, ta.value.length);
+      }
+      if (clientY < contentBounds.top) {
+        const firstNl = ta.value.indexOf('\n');
+        const lineEnd = firstNl === -1 ? ta.value.length : firstNl;
+        return offsetForXOnLine(clientX, 0, lineEnd);
+      }
+    }
+    return rawPointToOffset(clientX, clientY);
   }
 
   const TAP_MAX_DIST = 10;
@@ -2170,11 +2233,16 @@
   // any mouse-drag always means "select," regardless of direction.
   taDisplay.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Measured once per gesture (not on every pointermove) since walking all
+    // of taDisplay's text nodes on every touch-move would be wasteful —
+    // content doesn't change while a selection drag is in progress.
+    const contentBounds = measureContentVerticalBounds();
     dragGesture = {
       pointerType: e.pointerType,
       downX: e.clientX,
       downY: e.clientY,
-      anchorOffset: charOffsetFromPoint(e.clientX, e.clientY),
+      contentBounds,
+      anchorOffset: charOffsetFromPointForDrag(e.clientX, e.clientY, contentBounds),
       type: 'pending',
       // Captured now because the document-wide pointerdown listener (added
       // further down, to dismiss the tooltip on taps elsewhere) fires after
@@ -2203,7 +2271,7 @@
 
     // dragGesture.type === 'select' from here on
     e.preventDefault();
-    const curOffset = charOffsetFromPoint(e.clientX, e.clientY);
+    const curOffset = charOffsetFromPointForDrag(e.clientX, e.clientY, dragGesture.contentBounds);
     savedStart = Math.min(dragGesture.anchorOffset, curOffset);
     savedEnd = Math.max(dragGesture.anchorOffset, curOffset);
     renderStaticDisplay();
@@ -2218,7 +2286,7 @@
 
     if (g.type === 'select') {
       e.preventDefault();
-      const curOffset = charOffsetFromPoint(e.clientX, e.clientY);
+      const curOffset = charOffsetFromPointForDrag(e.clientX, e.clientY, g.contentBounds);
       savedStart = Math.min(g.anchorOffset, curOffset);
       savedEnd = Math.max(g.anchorOffset, curOffset);
       renderStaticDisplay();
