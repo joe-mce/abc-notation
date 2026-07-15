@@ -1307,8 +1307,49 @@
   .badge-arrow-bottom.arrow-flash { animation: badge-arrow-flash-bottom 0.56s ease-out; }
   .badge-arrow-left.arrow-flash   { animation: badge-arrow-flash-left   0.56s ease-out; }
   .badge-arrow-right.arrow-flash  { animation: badge-arrow-flash-right  0.56s ease-out; }
+
+  /* Press-and-hold options overlay (barline variants, triplet variants,
+     double accidentals, etc.) — a dark translucent pill floating above the
+     held button, listing its alternates in a row. */
+  #hold-overlay {
+    display: none;
+    position: fixed;
+    transform: translate(-50%, -100%);
+    margin-top: -14px; /* desktop/mouse default — no need for extra clearance since the cursor doesn't block the view */
+    background: rgba(30, 30, 36, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    flex-direction: row;
+    align-items: stretch;
+    padding: 8px;
+    gap: 6px;
+    pointer-events: none;
+    z-index: 102;
+    overflow: hidden;
+  }
+  #hold-overlay.visible { display: flex; }
+  .hold-overlay-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    padding: 12px 17px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    border-radius: 999px;
+    background: transparent;
+    transition: background 0.1s ease-out, color 0.1s ease-out;
+  }
+  .hold-overlay-item.active { background: var(--accent); color: #111; }
   @media (pointer: coarse) {
     #gesture-badge { margin-top: -48px; }
+    #hold-overlay { margin-top: -32px; } /* extra clearance on touch — room for the bottom grace zone before reaching the button */
   }
 
   /* Paste-at-cursor tooltip — appears when tapping right on the existing
@@ -1580,7 +1621,7 @@
     <button class="key" id="bracketParen" data-action="insertBracketPair" data-open="(" data-close=")">( )</button>
     <button class="key" id="bracketCurly" data-action="insertBracketPair" data-open="{" data-close="}">{ }</button>
     <button class="key" id="bracketBang" data-action="insertBracketPair" data-open="!" data-close="!">! !</button>
-    <button class="key" data-insert="(3">(3</button>
+    <button class="key" data-insert="(3" data-hold-options="(2 (4 (5 (3::2">(3</button>
     <button class="key key-bksp" data-action="bksp">⌫</button>
   </div>
 
@@ -1589,7 +1630,7 @@
     <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
     <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
     <button class="key key-space" data-insert=" ">SPACE</button>
-    <button class="key" data-insert="|">|</button>
+    <button class="key" data-insert="|" data-hold-options="|| |: :| |]">|</button>
     <button class="key key-nl" data-insert="&#10;">↵</button>
   </div>
 
@@ -1645,6 +1686,8 @@
   <div class="badge-arrow badge-arrow-left"></div>
   <div class="badge-arrow badge-arrow-right"></div>
 </div>
+
+<div id="hold-overlay"></div>
 
 <div class="paste-tooltip" id="pasteTooltip">
   <button class="action-btn paste-tooltip-btn" data-action="pasteAtCursor" data-keepfocus="1">Paste</button>
@@ -5444,6 +5487,153 @@
     gesture = null;
   }
 
+  // ---- Press-and-hold options gesture (barline variants, triplet variants,
+  // double accidentals, etc.) ----
+  //
+  // Any `.key` button with a `data-hold-options="a b c"` attribute (space-
+  // separated ABC tokens) gets this behavior instead of a plain tap:
+  //   - Quick tap (release before the hold delay, or release without ever
+  //     entering the overlay's grace area) inserts the button's normal
+  //     data-insert value, same as today.
+  //   - Hold past HOLD_DELAY: an overlay of the alternates appears above the
+  //     button, nothing selected.
+  //   - While still down: a grace rectangle surrounds the overlay (extending
+  //     HOLD_TOP_GRACE above, HOLD_BOTTOM_GRACE below, HOLD_SIDE_GRACE either
+  //     side). Inside it, X position picks an option (clamped to the nearest
+  //     one at the edges). Outside it — in any direction — we're back to
+  //     plain-tap ("normal") behavior: release inserts the default only if
+  //     released back over the button, otherwise nothing.
+  const HOLD_DELAY = 180;        // ms before the overlay appears
+  // The grace area exists to compensate for the thumb blocking the view of
+  // what's underneath it — a mouse cursor doesn't have that problem, so on
+  // fine-pointer (mouse) devices there's no grace area at all.
+  const HOLD_IS_COARSE_POINTER = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const HOLD_TOP_GRACE    = HOLD_IS_COARSE_POINTER ? 80 : 0; // px above the overlay that still counts as "selecting"
+  const HOLD_BOTTOM_GRACE = HOLD_IS_COARSE_POINTER ? 30 : 0; // px below the overlay that still counts as "selecting"
+  const HOLD_SIDE_GRACE   = HOLD_IS_COARSE_POINTER ? 80 : 0; // px either side of the overlay that still counts as "selecting"
+  const HOLD_EDGE_MARGIN  = 16;  // keep the overlay at least this far from the screen edges
+
+  function hasHoldOptions(btn) {
+    return !!(btn && btn.dataset.holdOptions);
+  }
+
+  const holdOverlayEl = document.getElementById('hold-overlay');
+  let holdGesture = null; // { btn, options, defaultInsert, startX, startY, curX, curY, timer, armed, overlayRect, itemRects, mode, selectedIndex }
+
+  function buildHoldOverlay(options) {
+    holdOverlayEl.innerHTML = '';
+    options.forEach((opt, i) => {
+      const div = document.createElement('div');
+      div.className = 'hold-overlay-item';
+      div.dataset.index = i;
+      div.textContent = opt;
+      holdOverlayEl.appendChild(div);
+    });
+  }
+
+  function positionHoldOverlay(btn) {
+    const rect = btn.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    holdOverlayEl.style.left = cx + 'px';
+    holdOverlayEl.style.top  = rect.top + 'px';
+
+    // Nudge horizontally so the overlay never touches the screen edges —
+    // it may end up off-center over the button as a result.
+    const measured = holdOverlayEl.getBoundingClientRect();
+    let shift = 0;
+    if (measured.left < HOLD_EDGE_MARGIN) {
+      shift = HOLD_EDGE_MARGIN - measured.left;
+    } else if (measured.right > window.innerWidth - HOLD_EDGE_MARGIN) {
+      shift = (window.innerWidth - HOLD_EDGE_MARGIN) - measured.right;
+    }
+    if (shift !== 0) holdOverlayEl.style.left = (cx + shift) + 'px';
+  }
+
+  function renderHoldSelection() {
+    const items = holdOverlayEl.querySelectorAll('.hold-overlay-item');
+    items.forEach((el, i) => {
+      el.classList.toggle('active', holdGesture.mode === 'selecting' && i === holdGesture.selectedIndex);
+    });
+  }
+
+  function armHoldGesture() {
+    if (!holdGesture) return;
+    holdGesture.armed = true;
+    buildHoldOverlay(holdGesture.options);
+    holdOverlayEl.classList.add('visible'); // must be visible/laid out before we can measure it
+    positionHoldOverlay(holdGesture.btn);
+    holdGesture.overlayRect = holdOverlayEl.getBoundingClientRect();
+    holdGesture.itemRects = Array.from(holdOverlayEl.querySelectorAll('.hold-overlay-item'))
+      .map(el => el.getBoundingClientRect());
+    updateHoldGesture(holdGesture.curX, holdGesture.curY); // evaluate immediately at the current finger position
+  }
+
+  function startHoldGesture(btn, startX, startY) {
+    btn.classList.add('pressed');
+    const options = btn.dataset.holdOptions.trim().split(/\s+/);
+    const timer = setTimeout(armHoldGesture, HOLD_DELAY);
+    holdGesture = {
+      btn, options, defaultInsert: btn.dataset.insert,
+      startX, startY, curX: startX, curY: startY,
+      timer, armed: false, overlayRect: null, itemRects: null,
+      mode: 'normal', selectedIndex: -1,
+    };
+  }
+
+  // Which option's cell a given X coordinate falls in — the first item whose
+  // right edge is past x, clamping to the last item if x is past all of them
+  // (this naturally also clamps to the first item if x is before it starts).
+  function holdItemIndexForX(x) {
+    const rects = holdGesture.itemRects;
+    for (let i = 0; i < rects.length; i++) {
+      if (x < rects[i].right) return i;
+    }
+    return rects.length - 1;
+  }
+
+  function updateHoldGesture(x, y) {
+    if (!holdGesture) return;
+    holdGesture.curX = x;
+    holdGesture.curY = y;
+    if (!holdGesture.armed) return;
+
+    const r = holdGesture.overlayRect;
+    const inGraceArea =
+      x >= r.left - HOLD_SIDE_GRACE && x <= r.right + HOLD_SIDE_GRACE &&
+      y >= r.top - HOLD_TOP_GRACE   && y <= r.bottom + HOLD_BOTTOM_GRACE;
+
+    holdGesture.mode = inGraceArea ? 'selecting' : 'normal';
+    holdGesture.selectedIndex = inGraceArea ? holdItemIndexForX(x) : -1;
+    renderHoldSelection();
+  }
+
+  function endHoldGesture(releaseX, releaseY) {
+    if (!holdGesture) return;
+    const g = holdGesture;
+    clearTimeout(g.timer);
+    g.btn.classList.remove('pressed');
+    holdOverlayEl.classList.remove('visible');
+    holdGesture = null;
+
+    let insertText = null;
+    if (!g.armed || g.mode === 'normal') {
+      const el = document.elementFromPoint(releaseX, releaseY);
+      if (el && g.btn.contains(el)) insertText = g.defaultInsert;
+    } else if (g.mode === 'selecting' && g.selectedIndex >= 0) {
+      insertText = g.options[g.selectedIndex];
+    }
+
+    if (insertText !== null) doInsert(insertText, taFocused);
+  }
+
+  function cancelHoldGesture() {
+    if (!holdGesture) return;
+    clearTimeout(holdGesture.timer);
+    holdGesture.btn.classList.remove('pressed');
+    holdOverlayEl.classList.remove('visible');
+    holdGesture = null;
+  }
+
   // ---- Note-duration buttons ----
   // Swipe-for-dot gesture removed — durations are now set by tapping a
   // duration icon in the (dynamic) action bar; see setNoteDuration().
@@ -5456,6 +5646,11 @@
     if (gesture) {
       e.preventDefault();
       updateGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+    if (holdGesture) {
+      e.preventDefault();
+      updateHoldGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
     }
     if (activeBtn && activeBtnInScroll) {
@@ -5484,6 +5679,13 @@
       return;
     }
 
+    if (hasHoldOptions(btn)) {
+      e.preventDefault();
+      activeBtn = null; // hold-options gesture takes over
+      startHoldGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      return;
+    }
+
     const inActionScroll = !!btn.closest('.action-scroll');
     if (!inActionScroll && (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus)) {
       e.preventDefault();
@@ -5509,6 +5711,12 @@
       e.preventDefault();
       return;
     }
+    if (holdGesture) {
+      const touch = e.changedTouches[0];
+      endHoldGesture(touch.clientX, touch.clientY);
+      e.preventDefault();
+      return;
+    }
     if (!activeBtn) return;
     const touch = e.changedTouches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -5526,6 +5734,7 @@
 
   document.addEventListener('touchcancel', e => {
     if (gesture) { endGesture(false); return; }
+    if (holdGesture) { cancelHoldGesture(); return; }
     if (activeBtn) {
       activeBtn.classList.remove('pressed');
       if (activeBtn.closest('.button-area')) updateActionBar();
@@ -5547,6 +5756,13 @@
       return;
     }
 
+    if (hasHoldOptions(btn)) {
+      e.preventDefault();
+      activeMouseBtn = null;
+      startHoldGesture(btn, e.clientX, e.clientY);
+      return;
+    }
+
     if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
       e.preventDefault();
     }
@@ -5561,10 +5777,12 @@
 
   document.addEventListener('mousemove', e => {
     if (gesture) { updateGesture(e.clientX, e.clientY); return; }
+    if (holdGesture) { updateHoldGesture(e.clientX, e.clientY); return; }
   });
 
   document.addEventListener('mouseup', e => {
     if (gesture) { endGesture(true); return; }
+    if (holdGesture) { endHoldGesture(e.clientX, e.clientY); return; }
     if (!activeMouseBtn) return;
     const btn = activeMouseBtn;
     activeMouseBtn = null;
