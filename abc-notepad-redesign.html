@@ -53,8 +53,10 @@
     position: relative;
   }
 
-  /* Legacy header (title/zoom/settings) — kept functional in code, no longer shown.
-     Zoom and the old Settings trigger will get a new home later. */
+  /* Legacy header (title/settings) — kept functional in code, no longer shown.
+     The old Settings trigger will get a new home later; Zoom moved to the
+     View Options sidebar (see #view-options-sidebar) and its old home here
+     has been removed. */
   header { display: none; }
 
   .btn-settings {
@@ -70,29 +72,7 @@
     letter-spacing: 0.04em;
     touch-action: manipulation;
   }
-  .btn-settings.active { border-color: var(--accent); color: var(--accent); }
   .header-btns { display: flex; gap: 6px; }
-
-  /* Zoom panel */
-  #zoom-panel {
-    display: none;
-    position: absolute;
-    top: 32px;
-    right: 10px;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    padding: 2px 10px 10px;
-    z-index: 50;
-    width: 160px;
-  }
-  #zoom-panel.open { display: block; }
-  #zoom-slider {
-    width: 100%;
-    accent-color: var(--accent);
-    cursor: pointer;
-    height: 4px;
-  }
 
   /* Settings modal */
   #settings-overlay {
@@ -450,6 +430,92 @@
   }
   .preview-pill button:active { background: var(--surface3); }
   .preview-pill svg { width: 16px; height: 16px; }
+  .preview-pill.pill-left { left: 14px; right: auto; }
+  #viewOptionsBtn.showing-part {
+    width: auto;
+    min-width: 30px;
+    padding: 0 11px;
+    border-radius: 15px;
+  }
+  #viewOptionsBtn .part-abbrev { display: none; }
+  #viewOptionsBtn.showing-part svg { display: none; }
+  #viewOptionsBtn.showing-part .part-abbrev { display: inline-block; }
+  .part-abbrev {
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  /* View Options sidebar */
+  #view-options-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  #view-options-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #view-options-sidebar {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: min(75vw, 360px);
+    background: #000;
+    border-right: 1.5px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    padding: 22px 18px;
+    overflow-y: auto;
+  }
+  #view-options-overlay.open #view-options-sidebar { transform: translateX(0); }
+  .view-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+  }
+  .view-option-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 10px;
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: left;
+  }
+  .view-option-item:active { background: var(--surface3); }
+  .view-option-item .check {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    opacity: 0;
+    color: var(--accent);
+  }
+  .view-option-item.selected { color: var(--accent); }
+  .view-option-item.selected .check { opacity: 1; }
+  #preview-scale-slider {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 4px;
+  }
 
   .dropdown-menu {
     display: none;
@@ -1384,11 +1450,7 @@
 <header>
   <a href="#" class="logo">ABC <span>Notepad</span></a>
   <div class="header-btns">
-    <button class="btn-settings action-btn" id="zoomToggle" data-action="toggleZoom">Zoom</button>
     <button class="btn-settings action-btn" id="modalSettingsBtn" data-action="openSettings">Settings</button>
-  </div>
-  <div id="zoom-panel">
-    <input type="range" id="zoom-slider" min="0" max="1" step="0.01" value="0.5">
   </div>
 </header>
 
@@ -1461,6 +1523,46 @@
   </div>
 </div>
 
+<!-- View Options sidebar -->
+<div id="view-options-overlay">
+  <div id="view-options-sidebar">
+    <div class="modal-header">
+      <span class="modal-title">View Options</span>
+      <button class="modal-close" id="viewOptionsClose">✕</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Preview scale</div>
+      <div class="settings-card">
+        <input type="range" id="preview-scale-slider" min="0" max="1" step="0.01" value="0.5">
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Parts</div>
+      <div class="settings-card view-options-list" id="partsList">
+        <button class="view-option-item action-btn selected" data-action="selectPart" data-part="concert">
+          <span>Concert pitch</span>
+          <svg class="check" viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="view-option-item action-btn" data-action="selectPart" data-part="bb">
+          <span>B♭ instruments</span>
+          <svg class="check" viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="view-option-item action-btn" data-action="selectPart" data-part="eb">
+          <span>E♭ instruments</span>
+          <svg class="check" viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="view-option-item action-btn" data-action="selectPart" data-part="f">
+          <span>F instruments</span>
+          <svg class="check" viewBox="0 0 24 24" fill="none"><path d="M4 12l6 6L20 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- Legacy menu: Insert-template + Tools submenu + kept here so the functionality
      stays wired up (toggleMenu/openTmplOverlay/transposeUp/etc still reference these
      ids). Hidden until we give it a new home in the redesign. -->
@@ -1475,6 +1577,12 @@
 </div>
 
 <div id="preview-wrap">
+  <div class="preview-pill pill-left">
+    <button id="viewOptionsBtn" aria-label="View options">
+      <svg id="viewOptionsIcon" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" stroke="#f5f5f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="#f5f5f7" stroke-width="2"/></svg>
+      <span id="viewOptionsAbbrev" class="part-abbrev"></span>
+    </button>
+  </div>
   <div class="preview-pill">
     <div class="menu-wrap">
       <button id="shareBtn" aria-label="Share">
@@ -1713,6 +1821,21 @@
   // the script would otherwise have run.
   let currentTuneObj = null;
   let previewHighlightedNodes = []; // raw SVG DOM nodes currently highlighted
+
+  // Which "Parts" option is selected in the View Options sidebar. Purely a
+  // view-layer / rendering concern — never written back into ta.value — and
+  // deliberately not persisted anywhere, so it resets to 'concert' on reload
+  // (see also clearStep2, which resets it on an explicit Reset).
+  let selectedPart = 'concert';
+
+  // The exact string last handed to ABCJS.renderAbc for the preview (may
+  // differ from ta.value.trim() — see getRenderableAbc), plus where/how much
+  // was synthetically inserted into it. currentTuneObj's startChar/endChar
+  // values are offsets into THIS string, not into ta.value, so anything that
+  // maps between the two (see taPosToRenderPos/renderPosToTaPos) needs it.
+  let previewRenderedText = '';
+  let previewInsertPos = -1;
+  let previewInsertLen = 0;
 
   // ---- Selection drag-gesture tracking (div/static-display mode) ----
   // A swipe's direction decides whether it's a scroll or a text-selection —
@@ -2575,7 +2698,7 @@
     }
   });
 
-  const zoomSlider = document.getElementById('zoom-slider');
+  const zoomSlider = document.getElementById('preview-scale-slider'); // "Preview scale" in the View Options sidebar
   let zoomLevel = 0.5;
 
   const BASE_MULTIPLIER = 1.45;
@@ -2623,21 +2746,44 @@
   }, { passive: true });
 
   // Tapping a note/element in the preview selects its matching span in the
-  // source text. abcElem.startChar/endChar are offsets into the *trimmed*
-  // string we hand to renderAbc, so they need shifting back by however much
-  // leading whitespace was trimmed off ta.value. If the tap lands on (or
-  // inside) a bracketed chord group like [G1B1D1], widen out to the full
-  // "[...]" — abcjs's own startChar/endChar for chord notes are inconsistent
-  // about whether they already cover the whole group, so this is done
-  // explicitly rather than relied upon.
+  // source text. abcElem.startChar/endChar are offsets into previewRenderedText
+  // (the string we handed to renderAbc), which can differ from ta.value in two
+  // ways that need shifting back out: leading whitespace trimmed off ta.value,
+  // and — when a Parts transposition needed a synthetic K: field (see
+  // getRenderableAbc) — the length of that inserted field. renderPosToTaPos
+  // handles both. If the tap lands on (or inside) a bracketed chord group like
+  // [G1B1D1], widen out to the full "[...]" — abcjs's own startChar/endChar for
+  // chord notes are inconsistent about whether they already cover the whole
+  // group, so this is done explicitly rather than relied upon.
+  //
+  // ta.value position <-> previewRenderedText position, accounting for both
+  // the leading-whitespace trim already applied before rendering, and any
+  // synthetic K: field spliced in by getRenderableAbc.
+  function taPosToRenderPos(pos) {
+    const text = ta.value;
+    const leadTrim = text.length - text.replace(/^\s+/, '').length;
+    let rawPos = pos - leadTrim;
+    if (previewInsertLen > 0 && rawPos >= previewInsertPos) rawPos += previewInsertLen;
+    return rawPos;
+  }
+  function renderPosToTaPos(pos) {
+    let rawPos = pos;
+    if (previewInsertLen > 0) {
+      if (rawPos >= previewInsertPos + previewInsertLen) rawPos -= previewInsertLen;
+      else if (rawPos >= previewInsertPos) rawPos = previewInsertPos; // inside the synthetic field itself — clamp to the boundary
+    }
+    const text = ta.value;
+    const leadTrim = text.length - text.replace(/^\s+/, '').length;
+    return rawPos + leadTrim;
+  }
+
   function previewClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
     if (previewTapSuppressed) { previewTapSuppressed = false; return; } // was a scroll, not a tap
     if (!abcElem || typeof abcElem.startChar !== 'number' || typeof abcElem.endChar !== 'number') return;
     if (abcElem.startChar < 0 || abcElem.endChar < 0) return;
     const text = ta.value;
-    const leadTrim = text.length - text.replace(/^\s+/, '').length;
-    let start = abcElem.startChar + leadTrim;
-    let end = abcElem.endChar + leadTrim;
+    let start = renderPosToTaPos(abcElem.startChar);
+    let end = renderPosToTaPos(abcElem.endChar);
 
     // A chord symbol or text annotation renders as its own <text> sibling
     // inside the SAME <g class="abcjs-note ..."> group as the notehead/stem
@@ -2744,7 +2890,9 @@
     if (!Array.isArray(elemset) || !elemset.length) return [];
     const leaves = collectDrawableLeaves(elemset);
 
-    const trimmed = ta.value.trim();
+    // abcElem.startChar is an offset into previewRenderedText (what abcjs
+    // actually parsed), not ta.value — see previewClickListener's comment.
+    const trimmed = previewRenderedText;
     const startChar = abcElem.startChar;
     if (typeof startChar === 'number' && trimmed[startChar] === '"') {
       const closeIdx = trimmed.indexOf('"', startChar + 1);
@@ -2769,7 +2917,7 @@
   function highlightPreviewElement(abcElem, matchedOffset) {
     clearPreviewHighlight();
     if (!abcElem) return;
-    const trimmed = ta.value.trim();
+    const trimmed = previewRenderedText; // abcElem.startChar is render-space — see leavesForAbcElem
     const startChar = abcElem.startChar;
     let wantsAnnotation = true, wantsNote = true;
     if (typeof startChar === 'number' && trimmed[startChar] === '"') {
@@ -2922,13 +3070,11 @@
   function updatePreviewSelectionHighlight() {
     clearPreviewHighlight();
     if (!currentTuneObj) return;
-    const text = ta.value;
-    const leadTrim = text.length - text.replace(/^\s+/, '').length;
-    const selStart = Math.max(0, savedStart - leadTrim);
-    const selEnd = savedEnd - leadTrim;
+    const selStart = Math.max(0, taPosToRenderPos(savedStart));
+    const selEnd = taPosToRenderPos(savedEnd);
     if (selEnd <= selStart) return;
 
-    const trimmed = text.trim();
+    const trimmed = previewRenderedText;
     const elems = getElementsInRangeFixed(currentTuneObj, selStart, selEnd);
     let allLeaves = [];
     elems.forEach(elem => {
@@ -2973,12 +3119,10 @@
   // the line break.
   function updatePreviewCursorHighlight() {
     if (!currentTuneObj) { clearPreviewHighlight(); return; }
-    const text = ta.value;
-    const leadTrim = text.length - text.replace(/^\s+/, '').length;
-    const pos = savedStart - leadTrim;
+    const pos = taPosToRenderPos(savedStart);
     if (pos < 0) { clearPreviewHighlight(); return; }
 
-    const trimmed = text.trim(); // same string abcjs actually parsed positions against
+    const trimmed = previewRenderedText; // same string abcjs actually parsed positions against
     const atLineStart = pos === 0 || trimmed[pos - 1] === '\n';
     let matchedOffset = pos;
     let elem = null;
@@ -2996,9 +3140,20 @@
   function renderPreview() {
     const raw = ta.value.trim();
     previewHighlightedNodes = []; // old DOM is about to be replaced wholesale
-    if (!raw) { previewDiv.innerHTML = ''; currentTuneObj = null; return; }
+    if (!raw) {
+      previewDiv.innerHTML = '';
+      currentTuneObj = null;
+      previewRenderedText = '';
+      previewInsertPos = -1;
+      previewInsertLen = 0;
+      return;
+    }
+    const rendered = getRenderableAbc(raw);
+    previewRenderedText = rendered.text;
+    previewInsertPos = rendered.insertPos;
+    previewInsertLen = rendered.insertLen;
     try {
-      const tunes = ABCJS.renderAbc('preview', raw, {
+      const options = {
         responsive: 'resize',
         staffwidth: getStaffwidth(),
         add_classes: true,
@@ -3006,7 +3161,9 @@
         jazzchords: false,
         format: { gchordfont: 'Helvetica 12' },
         clickListener: previewClickListener
-      });
+      };
+      if (rendered.transpose) options.visualTranspose = rendered.transpose;
+      const tunes = ABCJS.renderAbc('preview', rendered.text, options);
       currentTuneObj = (tunes && tunes[0]) || null;
       updatePreviewHighlight(); // re-apply to the freshly rendered SVG
     } catch(e) { currentTuneObj = null; }
@@ -4219,11 +4376,14 @@
       // Render at a pixel width matching the PDF's usable print width (1 render px ≈ 1pt),
       // independent of the on-screen zoom level, which has nothing to do with print size.
       const renderWidthPx = Math.round(usablePt);
-      ABCJS.renderAbc(exportHost, raw, {
+      const rendered = getRenderableAbc(raw);
+      const exportOptions = {
         staffwidth: renderWidthPx,
         add_classes: true,
         paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8
-      });
+      };
+      if (rendered.transpose) exportOptions.visualTranspose = rendered.transpose;
+      ABCJS.renderAbc(exportHost, rendered.text, exportOptions);
 
       const svg = exportHost.querySelector('svg');
       if (!svg) return null;
@@ -4324,19 +4484,13 @@
     updateClearBtn();
     syncDisplayIfUnfocused();
     updateActionBar();
+    applyPartSelection('concert');
     clearCancel();
   }
 
   function clearCancel() {
     document.getElementById('clear-overlay').style.display = 'none';
     modalClosed('clear-overlay');
-  }
-
-  function toggleZoom() {
-    const panel = document.getElementById('zoom-panel');
-    const btn = document.getElementById('zoomToggle');
-    const isOpen = panel.classList.toggle('open');
-    btn.classList.toggle('active', isOpen);
   }
 
   function openSettings() {
@@ -4356,19 +4510,66 @@
     if (e.target === document.getElementById('settings-overlay')) closeSettings();
   });
 
-  // Close zoom panel when clicking outside
-  document.addEventListener('mousedown', e => {
-    if (!e.target.closest('#zoom-panel') && !e.target.closest('#zoomToggle')) {
-      document.getElementById('zoom-panel').classList.remove('open');
-      document.getElementById('zoomToggle').classList.remove('active');
-    }
+  // ---- View Options sidebar ----
+  function openViewOptions() {
+    document.getElementById('view-options-overlay').classList.add('open');
+    modalOpened('view-options-overlay');
+  }
+
+  function closeViewOptions() {
+    document.getElementById('view-options-overlay').classList.remove('open');
+    modalClosed('view-options-overlay');
+  }
+
+  document.getElementById('viewOptionsBtn').addEventListener('click', () => openViewOptions());
+  document.getElementById('viewOptionsClose').addEventListener('click', closeViewOptions);
+  // Tap outside the sidebar (i.e. on the dimmed backdrop itself) closes it.
+  // Deliberately no swipe-to-close gesture.
+  document.getElementById('view-options-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('view-options-overlay')) closeViewOptions();
   });
-  document.addEventListener('touchstart', e => {
-    if (!e.target.closest('#zoom-panel') && !e.target.closest('#zoomToggle')) {
-      document.getElementById('zoom-panel').classList.remove('open');
-      document.getElementById('zoomToggle').classList.remove('active');
+
+  // Selecting a part applies its transposition to the preview and closes the
+  // sidebar. selectedPart intentionally isn't persisted (see its declaration)
+  // — it survives sidebar reopens for the rest of the session, but resets to
+  // 'concert' on reload or Reset (see clearStep2).
+  function selectPart(btn) {
+    const part = btn && btn.dataset.part;
+    if (!part || !PART_TRANSPOSE.hasOwnProperty(part)) return;
+    applyPartSelection(part);
+    closeViewOptions();
+    renderPreview();
+  }
+
+  // Updates the sidebar's checkmarked item and the View Options button's
+  // own indicator to match `part`. Shared by selectPart and clearStep2
+  // (Reset), so the two can never fall out of sync with each other.
+  function applyPartSelection(part) {
+    selectedPart = part;
+    document.querySelectorAll('#partsList .view-option-item').forEach(item => {
+      item.classList.toggle('selected', item.dataset.part === part);
+    });
+    updateViewOptionsButton();
+  }
+
+  // Swaps the View Options button between its default eye icon and a short
+  // text abbreviation of the active part (e.g. "B♭") — a lightweight reminder
+  // that the preview isn't showing concert pitch, without permanently taking
+  // up extra space in the top bar (see .showing-part in the stylesheet).
+  function updateViewOptionsButton() {
+    const btn = document.getElementById('viewOptionsBtn');
+    const abbrevEl = document.getElementById('viewOptionsAbbrev');
+    const abbrev = PART_ABBREV[selectedPart];
+    if (abbrev) {
+      btn.classList.add('showing-part');
+      abbrevEl.textContent = abbrev;
+      btn.setAttribute('aria-label', `View options — showing ${PART_LABEL[selectedPart]}`);
+    } else {
+      btn.classList.remove('showing-part');
+      abbrevEl.textContent = '';
+      btn.setAttribute('aria-label', 'View options');
     }
-  }, { passive: true });
+  }
 
   document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 500}\n---\n%%MIDI gchord \"none\"";
   document.getElementById('wrapAfter').value = "```";
@@ -5119,7 +5320,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, toggleZoom, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor };
+  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -5321,6 +5522,77 @@
     }
     if (lastAcc !== undefined) return lastAcc.charAt(0) === '=' ? '' : lastAcc.charAt(0);
     return getKeySigMapAt(pos)[letter.toUpperCase()] || '';
+  }
+
+  // ---- Header-block detection ----
+  // The "header block" is the run of lines from the very start of the tune
+  // that are header fields (a single letter followed by ':', e.g. X: T: K:),
+  // %% directive lines, % comment lines, or blank lines. The first line that
+  // isn't one of those is the first line of the tune body. Used below to
+  // decide whether a tune has its own K: field, and where to splice in a
+  // synthetic one if not — and later, this is also where a dedicated
+  // header-editing view would anchor itself.
+  function findHeaderEndPos(text) {
+    const lines = text.split('\n');
+    let pos = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const isLastLine = i === lines.length - 1;
+      const lineLen = line.length + (isLastLine ? 0 : 1); // +1 for the \n split() ate
+      if (line.trim() === '' || /^[A-Za-z]:/.test(line) || line.startsWith('%')) {
+        pos += lineLen;
+        continue;
+      }
+      return pos;
+    }
+    return pos; // whole text is header/comment/blank lines — body starts at the end
+  }
+
+  // True if there's an explicit header K: field (not counting inline
+  // [K:...] fields, which don't establish the tune's overall key).
+  function hasHeaderKeyField(text) {
+    const header = text.slice(0, findHeaderEndPos(text));
+    return /^K:/m.test(header);
+  }
+
+  // ---- View Options: Parts (transposition) ----
+  // Semitone shift to turn a concert-pitch part into the written pitch for a
+  // transposing-instrument part, following the standard convention (written
+  // pitch = concert pitch transposed up by the interval that instrument
+  // sounds *below* written pitch — e.g. a Bb instrument sounds a major 2nd
+  // below what's written, so its part is written a major 2nd above concert).
+  const PART_TRANSPOSE = { concert: 0, bb: 2, eb: 9, f: 7 };
+
+  // Short label shown on the View Options button itself (in place of the eye
+  // icon) whenever a non-default part is active, as a reminder of what's
+  // currently being viewed. null for concert pitch, since that's the default
+  // and gets the plain eye icon instead. Full names used in the aria-label.
+  const PART_ABBREV = { concert: null, bb: 'B♭', eb: 'E♭', f: 'F' };
+  const PART_LABEL = { concert: 'Concert pitch', bb: 'B♭ instruments', eb: 'E♭ instruments', f: 'F instruments' };
+
+  const SYNTHETIC_KEY_FIELD = 'K:C major\n';
+
+  // Builds the exact ABC string to hand to ABCJS.renderAbc for the current
+  // Parts selection, given the real (trimmed) source text.
+  //
+  // visualTranspose only produces a real key signature + correctly-spelled
+  // accidentals when the tune has an explicit K: field — with no K: at all,
+  // it just shifts notes diatonically with no accidentals applied. So when a
+  // transposition is needed and the source has no header K: of its own, we
+  // splice a synthetic "K:C major" in at the header/body boundary, for
+  // rendering only. This is NEVER written back into ta.value — see
+  // getElementFromCharFixed's callers (previewClickListener etc.), which
+  // translate between positions in this returned string and positions in
+  // ta.value via taPosToRenderPos/renderPosToTaPos so the splice stays
+  // purely a rendering-time concern.
+  function getRenderableAbc(raw) {
+    const semitones = PART_TRANSPOSE[selectedPart] || 0;
+    if (!semitones || hasHeaderKeyField(raw)) {
+      return { text: raw, transpose: semitones, insertPos: -1, insertLen: 0 };
+    }
+    const pos = findHeaderEndPos(raw);
+    const text = raw.slice(0, pos) + SYNTHETIC_KEY_FIELD + raw.slice(pos);
+    return { text, transpose: semitones, insertPos: pos, insertLen: SYNTHETIC_KEY_FIELD.length };
   }
 
   // Renders a single ABC pitch token (e.g. "^d'", "_D,") as a tiny staff
