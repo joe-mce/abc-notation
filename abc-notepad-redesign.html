@@ -187,6 +187,7 @@
     .modal-close { width: 36px; height: 36px; font-size: 1.05rem; }
   }
   .settings-section { display: flex; flex-direction: column; gap: 10px; }
+  .export-tab-panel { display: flex; flex-direction: column; gap: 26px; }
   .settings-section-label {
     font-family: -apple-system, 'IBM Plex Sans', sans-serif;
     font-size: 0.72rem;
@@ -1709,68 +1710,6 @@
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-label">Parts</div>
-      <div class="settings-card" id="exportPartsList">
-        <div class="modal-setting modal-setting-row">
-          <div class="modal-setting-label">Concert pitch</div>
-          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="concert"><span class="ios-switch-track"></span></label>
-        </div>
-        <div class="modal-setting modal-setting-row">
-          <div class="modal-setting-label">B♭ instruments</div>
-          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="bb"><span class="ios-switch-track"></span></label>
-        </div>
-        <div class="modal-setting modal-setting-row">
-          <div class="modal-setting-label">E♭ instruments</div>
-          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="eb"><span class="ios-switch-track"></span></label>
-        </div>
-        <div class="modal-setting modal-setting-row">
-          <div class="modal-setting-label">F instruments</div>
-          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="f"><span class="ios-switch-track"></span></label>
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section-label">Layout</div>
-      <div class="seg-control" id="exportLayoutSeg">
-        <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="single">Single page</button>
-        <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="perpage">One per page</button>
-        <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="separate">Separate PDFs</button>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section-label">Page setup</div>
-      <div class="settings-card">
-        <div class="modal-setting">
-          <div class="modal-setting-label">Paper size</div>
-          <div class="seg-control" id="exportPageSizeSeg">
-            <button class="seg-option action-btn" data-action="setExportOption" data-group="pageSize" data-value="a4">A4</button>
-            <button class="seg-option action-btn" data-action="setExportOption" data-group="pageSize" data-value="letter">Letter</button>
-          </div>
-        </div>
-        <div class="modal-setting">
-          <div class="modal-setting-label">Orientation</div>
-          <div class="seg-control" id="exportOrientationSeg">
-            <button class="seg-option action-btn" data-action="setExportOption" data-group="orientation" data-value="portrait">Portrait</button>
-            <button class="seg-option action-btn" data-action="setExportOption" data-group="orientation" data-value="landscape">Landscape</button>
-          </div>
-        </div>
-        <div class="modal-setting">
-          <div class="modal-setting-header">
-            <span class="modal-setting-label">Margins</span>
-            <span class="modal-range-value" id="exportMarginValue"></span>
-          </div>
-          <input type="range" class="modal-range" id="exportMarginSlider" min="18" max="72" step="1" value="36">
-        </div>
-        <div class="modal-setting">
-          <div class="modal-setting-label">Notation size</div>
-          <input type="range" class="modal-range" id="exportSizeSlider" min="0" max="1" step="0.01" value="0.5">
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <div class="settings-section-label">Preview</div>
       <div class="settings-card export-preview-card">
         <div id="exportPreviewPage"></div>
@@ -1778,6 +1717,77 @@
           <button class="action-btn" id="exportPreviewPrev" data-action="exportPreviewPrevPage" aria-label="Previous page">‹</button>
           <span id="exportPreviewPageLabel"></span>
           <button class="action-btn" id="exportPreviewNext" data-action="exportPreviewNextPage" aria-label="Next page">›</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="seg-control" id="exportTabBar">
+      <button class="seg-option action-btn selected" data-action="setExportTab" data-tab="parts">Parts</button>
+      <button class="seg-option action-btn" data-action="setExportTab" data-tab="layout">Layout</button>
+    </div>
+
+    <div class="export-tab-panel" id="exportTabPanel-parts">
+      <div class="settings-section">
+        <div class="settings-section-label">Parts</div>
+        <div class="settings-card" id="exportPartsList">
+          <div class="modal-setting modal-setting-row">
+            <div class="modal-setting-label">Concert pitch</div>
+            <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="concert"><span class="ios-switch-track"></span></label>
+          </div>
+          <div class="modal-setting modal-setting-row">
+            <div class="modal-setting-label">B♭ instruments</div>
+            <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="bb"><span class="ios-switch-track"></span></label>
+          </div>
+          <div class="modal-setting modal-setting-row">
+            <div class="modal-setting-label">E♭ instruments</div>
+            <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="eb"><span class="ios-switch-track"></span></label>
+          </div>
+          <div class="modal-setting modal-setting-row">
+            <div class="modal-setting-label">F instruments</div>
+            <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="f"><span class="ios-switch-track"></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="export-tab-panel" id="exportTabPanel-layout" style="display:none">
+      <div class="settings-section">
+        <div class="settings-section-label">Layout</div>
+        <div class="seg-control" id="exportLayoutSeg">
+          <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="single">Single page</button>
+          <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="perpage">One per page</button>
+          <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="separate">Separate PDFs</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-label">Page setup</div>
+        <div class="settings-card">
+          <div class="modal-setting">
+            <div class="modal-setting-label">Paper size</div>
+            <div class="seg-control" id="exportPageSizeSeg">
+              <button class="seg-option action-btn" data-action="setExportOption" data-group="pageSize" data-value="a4">A4</button>
+              <button class="seg-option action-btn" data-action="setExportOption" data-group="pageSize" data-value="letter">Letter</button>
+            </div>
+          </div>
+          <div class="modal-setting">
+            <div class="modal-setting-label">Orientation</div>
+            <div class="seg-control" id="exportOrientationSeg">
+              <button class="seg-option action-btn" data-action="setExportOption" data-group="orientation" data-value="portrait">Portrait</button>
+              <button class="seg-option action-btn" data-action="setExportOption" data-group="orientation" data-value="landscape">Landscape</button>
+            </div>
+          </div>
+          <div class="modal-setting">
+            <div class="modal-setting-header">
+              <span class="modal-setting-label">Margins</span>
+              <span class="modal-range-value" id="exportMarginValue"></span>
+            </div>
+            <input type="range" class="modal-range" id="exportMarginSlider" min="18" max="72" step="1" value="36">
+          </div>
+          <div class="modal-setting">
+            <div class="modal-setting-label">Notation size</div>
+            <input type="range" class="modal-range" id="exportSizeSlider" min="0" max="1" step="0.01" value="0.5">
+          </div>
         </div>
       </div>
     </div>
@@ -4992,8 +5002,10 @@
     exportPdfState.parts = new Set([selectedPart]);
     exportPreviewPageIndex = 0;
     syncExportPdfUI();
+    setExportTab(document.querySelector('#exportTabBar .seg-option[data-tab="parts"]'));
     document.getElementById('export-pdf-overlay').classList.add('open');
     modalOpened('export-pdf-overlay');
+    document.getElementById('export-pdf-box').scrollTop = 0;
     renderExportPreview();
   }
 
@@ -5007,12 +5019,27 @@
     document.querySelectorAll('.export-part-toggle').forEach(input => {
       input.checked = exportPdfState.parts.has(input.dataset.part);
     });
-    document.querySelectorAll('.seg-control .seg-option').forEach(btn => {
+    // Scoped to the three actual settings seg-controls — NOT a generic
+    // '.seg-control .seg-option', which would also match #exportTabBar's
+    // buttons (they share the same classes for visual consistency, but
+    // have no data-group/data-value, so both would wrongly compare
+    // undefined === undefined and end up marked selected).
+    document.querySelectorAll('#exportLayoutSeg .seg-option, #exportPageSizeSeg .seg-option, #exportOrientationSeg .seg-option').forEach(btn => {
       btn.classList.toggle('selected', exportPdfState[btn.dataset.group] === btn.dataset.value);
     });
     document.getElementById('exportMarginSlider').value = exportPdfState.marginPt;
     document.getElementById('exportMarginValue').textContent = exportPdfState.marginPt + ' pt';
     document.getElementById('exportSizeSlider').value = exportPdfState.sizeLevel;
+  }
+
+  // Switches between the Parts and Layout tabs. Tab state is purely a modal
+  // display concern (not part of exportPdfState) — it always resets to
+  // Parts on open, per openExportPdfModal.
+  function setExportTab(btn) {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('#exportTabBar .seg-option').forEach(b => b.classList.toggle('selected', b === btn));
+    document.getElementById('exportTabPanel-parts').style.display = tab === 'parts' ? 'flex' : 'none';
+    document.getElementById('exportTabPanel-layout').style.display = tab === 'layout' ? 'flex' : 'none';
   }
 
   // Shared handler for every seg-control (Layout / Paper size / Orientation).
@@ -5928,7 +5955,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport };
+  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
