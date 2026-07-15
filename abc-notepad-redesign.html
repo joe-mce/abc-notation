@@ -1235,16 +1235,78 @@
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: var(--radius-sm);
-    padding: 8px 18px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--accent);
+    padding: 4px 10px;
     white-space: nowrap;
     pointer-events: none;
     z-index: 102;
   }
   #gesture-badge.visible { display: block; }
+  /* Mini ABC staff preview rendered inside the badge */
+  #gesture-badge-abc svg {
+    display: block;
+  }
+  #gesture-badge-abc svg * {
+    fill: #fff !important;
+    stroke: #fff !important;
+  }
+  #gesture-badge-note {
+    margin-top: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+  }
+
+  /* Wide, flat translucent triangles attached to the outside of each badge
+     edge — a subtle hint that swiping in that direction does something.
+     Base length is fixed (not tied to the badge's own size). */
+  .badge-arrow {
+    position: absolute; width: 0; height: 0;
+    transition: border-color 0.15s ease-out;
+  }
+  .badge-arrow-top {
+    top: -8px; left: 50%; transform: translateX(-50%);
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-bottom: 8px solid rgba(255,255,255,0.3);
+  }
+  .badge-arrow-bottom {
+    bottom: -8px; left: 50%; transform: translateX(-50%);
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-top: 8px solid rgba(255,255,255,0.3);
+  }
+  .badge-arrow-left {
+    left: -8px; top: 50%; transform: translateY(-50%);
+    border-top: 15px solid transparent;
+    border-bottom: 15px solid transparent;
+    border-right: 8px solid rgba(255,255,255,0.3);
+  }
+  .badge-arrow-right {
+    right: -8px; top: 50%; transform: translateY(-50%);
+    border-top: 15px solid transparent;
+    border-bottom: 15px solid transparent;
+    border-left: 8px solid rgba(255,255,255,0.3);
+  }
+
+  /* Persistent "activated" color while the gesture stays in that direction. */
+  .badge-arrow-top.arrow-active    { border-bottom-color: rgba(255,255,255,0.45); }
+  .badge-arrow-bottom.arrow-active { border-top-color:    rgba(255,255,255,0.45); }
+  .badge-arrow-left.arrow-active   { border-right-color:  rgba(255,255,255,0.45); }
+  .badge-arrow-right.arrow-active  { border-left-color:   rgba(255,255,255,0.45); }
+
+  /* Brief full-brightness flash on entering a direction (or advancing a
+     stage), settling to the activated color. */
+  @keyframes badge-arrow-flash-top    { 0% { border-bottom-color: #fff; } 100% { border-bottom-color: rgba(255,255,255,0.45); } }
+  @keyframes badge-arrow-flash-bottom { 0% { border-top-color:    #fff; } 100% { border-top-color:    rgba(255,255,255,0.45); } }
+  @keyframes badge-arrow-flash-left   { 0% { border-right-color:  #fff; } 100% { border-right-color:  rgba(255,255,255,0.45); } }
+  @keyframes badge-arrow-flash-right  { 0% { border-left-color:   #fff; } 100% { border-left-color:   rgba(255,255,255,0.45); } }
+
+  .badge-arrow-top.arrow-flash    { animation: badge-arrow-flash-top    0.56s ease-out; }
+  .badge-arrow-bottom.arrow-flash { animation: badge-arrow-flash-bottom 0.56s ease-out; }
+  .badge-arrow-left.arrow-flash   { animation: badge-arrow-flash-left   0.56s ease-out; }
+  .badge-arrow-right.arrow-flash  { animation: badge-arrow-flash-right  0.56s ease-out; }
   @media (pointer: coarse) {
     #gesture-badge { margin-top: -48px; }
   }
@@ -1274,45 +1336,6 @@
   }
   .paste-tooltip-btn:active, .paste-tooltip-btn.pressed { background: var(--surface3); }
 
-  /* Gesture chevron wheel */
-  #gesture-wheel {
-    display: none;
-    position: fixed;
-    width: 160px;
-    height: 160px;
-    transform: translate(-50%, -50%);
-    z-index: 101;
-    pointer-events: none;
-  }
-  #gesture-wheel.visible { display: block; }
-  #gesture-wheel.cancel-zone { opacity: 0.35; }
-
-  .chev-path {
-    fill: none;
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .chev-path.dim    { stroke: rgba(255,255,255,0.2); }
-  .chev-path.bright { stroke: rgba(255,255,255,0.82); }
-
-  @keyframes nudge-up        { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
-  @keyframes nudge-down      { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
-  @keyframes nudge-left      { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
-  @keyframes nudge-right     { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
-  @keyframes nudge-up-rev    { 0%{transform:translateY(0)} 35%{transform:translateY( 5px)} 100%{transform:translateY(0)} }
-  @keyframes nudge-down-rev  { 0%{transform:translateY(0)} 35%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
-  @keyframes nudge-left-rev  { 0%{transform:translateX(0)} 35%{transform:translateX( 5px)} 100%{transform:translateX(0)} }
-  @keyframes nudge-right-rev { 0%{transform:translateX(0)} 35%{transform:translateX(-5px)} 100%{transform:translateX(0)} }
-
-  #chev-up-g.nudge        { animation: nudge-up        0.32s cubic-bezier(0.2,0,0.4,1); }
-  #chev-down-g.nudge      { animation: nudge-down      0.32s cubic-bezier(0.2,0,0.4,1); }
-  #chev-left-g.nudge      { animation: nudge-left      0.32s cubic-bezier(0.2,0,0.4,1); }
-  #chev-right-g.nudge     { animation: nudge-right     0.32s cubic-bezier(0.2,0,0.4,1); }
-  #chev-up-g.nudge-rev    { animation: nudge-up-rev    0.32s cubic-bezier(0.2,0,0.4,1); }
-  #chev-down-g.nudge-rev  { animation: nudge-down-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
-  #chev-left-g.nudge-rev  { animation: nudge-left-rev  0.32s cubic-bezier(0.2,0,0.4,1); }
-  #chev-right-g.nudge-rev { animation: nudge-right-rev 0.32s cubic-bezier(0.2,0,0.4,1); }
 </style>
 </head>
 <body>
@@ -1614,19 +1637,17 @@
   </div>
 </div>
 
-<div id="gesture-badge"></div>
+<div id="gesture-badge">
+  <div id="gesture-badge-abc"></div>
+  <div id="gesture-badge-note"></div>
+  <div class="badge-arrow badge-arrow-top"></div>
+  <div class="badge-arrow badge-arrow-bottom"></div>
+  <div class="badge-arrow badge-arrow-left"></div>
+  <div class="badge-arrow badge-arrow-right"></div>
+</div>
 
 <div class="paste-tooltip" id="pasteTooltip">
   <button class="action-btn paste-tooltip-btn" data-action="pasteAtCursor" data-keepfocus="1">Paste</button>
-</div>
-
-<div id="gesture-wheel">
-  <svg viewBox="0 0 200 200" width="160" height="160" overflow="visible">
-    <g id="chev-up-g">    <polyline class="chev-path dim" points="76,40 100,28 124,40"/></g>
-    <g id="chev-down-g">  <polyline class="chev-path dim" points="76,160 100,172 124,160"/></g>
-    <g id="chev-left-g">  <polyline class="chev-path dim" points="40,76 28,100 40,124"/></g>
-    <g id="chev-right-g"> <polyline class="chev-path dim" points="160,76 172,100 160,124"/></g>
-  </svg>
 </div>
 
 <div class="copy-toast" id="toast">Copied ✓</div>
@@ -5088,54 +5109,198 @@
   }
 
   // ---- Gesture system for note-letter keys (A-G, a-g) ----
-  const OCTAVE_PX   = 40;
-  const MAX_OCTAVE  = 3;
-  const H_THRESHOLD = 40;
-  const WHEEL_DELAY = 180;
+  // Vertical thresholds for octave changes 1/2/3, each a bigger reach than the
+  // last (30, then +45, then +60 — cumulative 30/75/135px), with "cancel the
+  // note entirely" treated as a fourth stage past that, one more (+75) step up.
+  const OCTAVE_THRESHOLDS = [30, 75, 135];
+  const MAX_OCTAVE  = OCTAVE_THRESHOLDS.length;
+  const CANCEL_UP_PX = 210; // swipe this far up from the key to discard the gesture entirely
+  const H_THRESHOLD  = 40;
+  const H_THRESHOLD2 = 80; // second stage — past this, the "cancel the implied accidental" swipe goes all the way to the opposite accidental
+  const BADGE_DELAY = 180; // delay after touchdown before the badge appears
+
+  function octaveStepsFromDy(dy) {
+    const absDy = Math.abs(dy);
+    let steps = 0;
+    for (let i = 0; i < OCTAVE_THRESHOLDS.length; i++) {
+      if (absDy >= OCTAVE_THRESHOLDS[i]) steps = i + 1;
+    }
+    return steps;
+  }
 
   function isNoteKey(btn) {
     return btn && btn.dataset.insert && /^[a-gA-G]$/.test(btn.dataset.insert);
   }
 
-  const wheel  = document.getElementById('gesture-wheel');
-  const badge  = document.getElementById('gesture-badge');
-  const chevGrps = {
-    up:    document.getElementById('chev-up-g'),
-    down:  document.getElementById('chev-down-g'),
-    left:  document.getElementById('chev-left-g'),
-    right: document.getElementById('chev-right-g'),
+  const badge = document.getElementById('gesture-badge');
+  let badgeArmed = false; // true once BADGE_DELAY has elapsed and the badge is live for this gesture
+
+  function armBadge(x, y) {
+    badgeArmed = true;
+    Object.values(badgeArrows).forEach(el => el.classList.remove('arrow-active', 'arrow-flash'));
+    badge.classList.add('visible');
+    updateBadge(gesture.lastNote, x, y);
+  }
+
+  function hideBadge() {
+    badge.classList.remove('visible');
+    lastBadgeNote = null; // force a fresh render next time the badge appears
+    badgeArmed = false;
+  }
+
+  const badgeAbcEl  = document.getElementById('gesture-badge-abc');
+  const badgeNoteEl = document.getElementById('gesture-badge-note');
+  let lastBadgeNote = null;
+
+  // ---- Badge direction-arrow feedback ----
+  // A brief "flash" (full brightness, fading to a resting mid-light color)
+  // when a direction is newly entered (or advances a stage), plus a
+  // persistent mid-light "active" state for as long as it stays there.
+  const badgeArrows = {
+    up:    document.querySelector('.badge-arrow-top'),
+    down:  document.querySelector('.badge-arrow-bottom'),
+    left:  document.querySelector('.badge-arrow-left'),
+    right: document.querySelector('.badge-arrow-right'),
   };
 
-  function setChevState(grp, active) {
-    const path = grp.querySelector('.chev-path');
-    path.classList.toggle('dim',    !active);
-    path.classList.toggle('bright',  active);
+  function setBadgeArrowActive(dir, active) {
+    badgeArrows[dir].classList.toggle('arrow-active', active);
   }
 
-  function nudgeChev(grp, reverse) {
-    const cls = reverse ? 'nudge-rev' : 'nudge';
-    grp.classList.remove('nudge', 'nudge-rev');
-    void grp.getBoundingClientRect();
-    grp.classList.add(cls);
-    grp.addEventListener('animationend', () => grp.classList.remove(cls), { once: true });
+  function flashBadgeArrow(dir) {
+    const el = badgeArrows[dir];
+    el.classList.remove('arrow-flash');
+    void el.offsetWidth; // restart animation if still running
+    el.classList.add('arrow-flash');
+    el.addEventListener('animationend', () => el.classList.remove('arrow-flash'), { once: true });
   }
 
-  Object.values(chevGrps).forEach(g => setChevState(g, false));
+  // ---- Implied-accidental helpers for the badge preview ----
+  //
+  // When the gesture hasn't chosen an explicit accidental (no left/right swipe),
+  // the note as typed carries none — but it may still SOUND sharp or flat, due to
+  // the key signature or an earlier explicit accidental on the same pitch within
+  // the current bar (same rule used by "Remove redundant accidentals" above).
+  // We compute that here purely for the preview; it's never written into the tune.
 
-  function showWheel(x, y) {
-    wheel.style.left = x + 'px';
-    wheel.style.top  = y + 'px';
-    wheel.classList.add('visible');
-    Object.values(chevGrps).forEach(g => setChevState(g, false));
+  const SHARP_ORDER = ['F','C','G','D','A','E','B'];
+  const FLAT_ORDER  = ['B','E','A','D','G','C','F'];
+
+  function keySigMapFromFifths(fifths) {
+    const map = { C:'', D:'', E:'', F:'', G:'', A:'', B:'' };
+    if (fifths > 0) {
+      const n = Math.min(fifths, 7);
+      for (let i = 0; i < n; i++) map[SHARP_ORDER[i]] = '^';
+    } else if (fifths < 0) {
+      const n = Math.min(-fifths, 7);
+      for (let i = 0; i < n; i++) map[FLAT_ORDER[i]] = '_';
+    }
+    return map;
   }
 
-  function hideWheel() {
-    wheel.classList.remove('visible');
-    badge.classList.remove('visible');
+  // Circle-of-fifths position of each major tonic (sharps positive, flats negative).
+  const MAJOR_TONIC_FIFTHS = {
+    'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5, 'F#': 6, 'C#': 7,
+    'F': -1, 'Bb': -2, 'Eb': -3, 'Ab': -4, 'Db': -5, 'Gb': -6, 'Cb': -7,
+  };
+
+  // Parses an ABC "K:" field value (e.g. "D", "Bbm", "C mixolydian", "Ador",
+  // "D ^f") into a per-letter accidental map for that key signature.
+  function keySigMapForField(raw) {
+    const str = (raw || '').trim();
+    if (!str || /^none$/i.test(str) || /^hp$/i.test(str)) return keySigMapFromFifths(0);
+
+    const tokens = str.split(/\s+/);
+    const tonicMode = tokens[0];
+    const extraTokens = tokens.slice(1).filter(t => /^[_^=][A-Ga-g]$/.test(t));
+
+    const tm = /^([A-Ga-g])(#|b)?/.exec(tonicMode);
+    let fifths = 0;
+    if (tm) {
+      const tonicKey = tm[1].toUpperCase() + (tm[2] || '');
+      fifths = MAJOR_TONIC_FIFTHS.hasOwnProperty(tonicKey) ? MAJOR_TONIC_FIFTHS[tonicKey] : 0;
+
+      const modeStr = tonicMode.slice(tm[0].length).toLowerCase();
+      let offset = 0;
+      if (modeStr.startsWith('mix'))                              offset = -1;
+      else if (modeStr.startsWith('maj') || modeStr.startsWith('ion')) offset = 0;
+      else if (modeStr.startsWith('dor'))                          offset = -2;
+      else if (modeStr.startsWith('phr'))                          offset = -4;
+      else if (modeStr.startsWith('lyd'))                          offset = 1;
+      else if (modeStr.startsWith('loc'))                          offset = -5;
+      else if (modeStr.startsWith('min') || modeStr.startsWith('aeo') || modeStr === 'm') offset = -3;
+      fifths += offset;
+    }
+
+    const map = keySigMapFromFifths(fifths);
+    extraTokens.forEach(t => {
+      const em = /^([_^=])([A-Ga-g])$/.exec(t);
+      if (em) map[em[2].toUpperCase()] = em[1] === '=' ? '' : em[1];
+    });
+    return map;
+  }
+
+  // Finds the last K: field (header line or inline [K:...]) before `pos` and
+  // returns its accidental map; defaults to C major (no accidentals) if none found.
+  function getKeySigMapAt(pos) {
+    const text = ta.value.slice(0, pos);
+    const matches = [...text.matchAll(/(?:^|\[)K:([^\]\n]*)/gm)];
+    if (matches.length === 0) return keySigMapFromFifths(0);
+    return keySigMapForField(matches[matches.length - 1][1]);
+  }
+
+  // Returns the music text of the current (unfinished) bar leading up to `pos` —
+  // i.e. since the last barline or header/field line, whichever is more recent.
+  function currentBarTextBefore(pos) {
+    const text = ta.value.slice(0, pos);
+    const BARLINE_RE = new RegExp(BARLINE_RE_SRC, 'g');
+    let lastBar = 0, bm;
+    while ((bm = BARLINE_RE.exec(text)) !== null) lastBar = bm.index + bm[0].length;
+    const FIELD_LINE_RE = /^[A-Za-z]:[^\n]*\n?/gm;
+    let lastField = 0, fm;
+    while ((fm = FIELD_LINE_RE.exec(text)) !== null) lastField = fm.index + fm[0].length;
+    return text.slice(Math.max(lastBar, lastField));
+  }
+
+  // Given a bare (no-accidental) note letter+octave about to be inserted at `pos`,
+  // returns '^', '_', or '' — the accidental it would implicitly sound as, per an
+  // earlier explicit accidental on the same exact pitch in this bar (highest
+  // priority), else the key signature for that letter.
+  function impliedAccidentalAt(letter, octs, pos) {
+    const barText = currentBarTextBefore(pos);
+    const SCAN = /([_^=]*)([a-gA-G])([',]*)/g;
+    const noteKey = letter + octs;
+    let sm, lastAcc;
+    while ((sm = SCAN.exec(barText)) !== null) {
+      const [, acc, ltr, oct] = sm;
+      if (acc === '') continue;
+      if (ltr + oct === noteKey) lastAcc = acc;
+    }
+    if (lastAcc !== undefined) return lastAcc.charAt(0) === '=' ? '' : lastAcc.charAt(0);
+    return getKeySigMapAt(pos)[letter.toUpperCase()] || '';
+  }
+
+  // Renders a single ABC pitch token (e.g. "^d'", "_D,") as a tiny staff
+  // preview inside the badge. Skips re-rendering abcjs's SVG when the note
+  // hasn't actually changed, since updateBadge() is called on every pointer
+  // move just to reposition the badge.
+  function renderBadgeAbc(note) {
+    if (note === lastBadgeNote) return;
+    lastBadgeNote = note;
+    badgeNoteEl.textContent = note;
+    const [n, d] = getCurrentLValue();
+    try {
+      ABCJS.renderAbc(badgeAbcEl, `X:1\nK:C\nM:none\nL:${n}/${d}\n${note}`, {
+        add_classes: false,
+        staffwidth: 60,
+        scale: 0.75,
+        paddingtop: 2, paddingbottom: 2, paddingleft: 3, paddingright: 3,
+      });
+    } catch (e) { /* leave previous render in place on parse failure */ }
   }
 
   function updateBadge(note, x, y) {
-    badge.textContent = note;
+    renderBadgeAbc(note);
     badge.style.left = x + 'px';
     badge.style.top  = y + 'px';
   }
@@ -5144,47 +5309,69 @@
   let prevHDir = 0;
 
   function onNoteChange(dx, dy) {
-    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const octaveSteps = octaveStepsFromDy(dy);
     const goingUp    = dy < 0 && octaveSteps > 0;
     const goingDown  = dy > 0 && octaveSteps > 0;
     const goingLeft  = dx <= -H_THRESHOLD;
     const goingRight = dx >= H_THRESHOLD;
-    const hDir = goingLeft ? -1 : goingRight ? 1 : 0;
+    // Two-stage horizontal level: 0 = center, ±1 = past the first threshold
+    // (natural, on the side opposite an implied accidental), ±2 = past the
+    // second threshold (the opposite accidental). Tracking both stages (not
+    // just direction) lets the badge arrow flash again on the second crossing.
+    const hLevel = dx <= -H_THRESHOLD2 ? -2 : dx <= -H_THRESHOLD ? -1
+                 : dx >=  H_THRESHOLD2 ?  2 : dx >=  H_THRESHOLD ?  1 : 0;
 
-    setChevState(chevGrps.up,    goingUp);
-    setChevState(chevGrps.down,  goingDown);
-    setChevState(chevGrps.left,  goingLeft);
-    setChevState(chevGrps.right, goingRight);
+    setBadgeArrowActive('up',    goingUp);
+    setBadgeArrowActive('down',  goingDown);
+    setBadgeArrowActive('left',  goingLeft);
+    setBadgeArrowActive('right', goingRight);
 
     if (octaveSteps !== prevOctaveSteps) {
-      const decreasing = octaveSteps < prevOctaveSteps;
-      if (octaveSteps > 0) nudgeChev(dy < 0 ? chevGrps.up : chevGrps.down, decreasing);
+      if (octaveSteps > 0) flashBadgeArrow(dy < 0 ? 'up' : 'down');
       prevOctaveSteps = octaveSteps;
     }
-    if (hDir !== prevHDir) {
-      if (hDir === -1) nudgeChev(chevGrps.left);
-      if (hDir ===  1) nudgeChev(chevGrps.right);
-      prevHDir = hDir;
+    if (hLevel !== prevHDir) {
+      if (hLevel !== 0) flashBadgeArrow(hLevel < 0 ? 'left' : 'right');
+      prevHDir = hLevel;
     }
   }
 
   function noteFromGesture(baseLetter, dx, dy) {
-    const octaveSteps = Math.min(MAX_OCTAVE, Math.floor(Math.abs(dy) / OCTAVE_PX));
+    const octaveSteps = octaveStepsFromDy(dy);
     const goingUp = dy < 0;
-    let note, octaveStr = '';
+    let letter, octaveStr = '';
     if (goingUp) {
-      note = octaveSteps === 0 ? baseLetter.toUpperCase() : baseLetter.toLowerCase();
+      letter = octaveSteps === 0 ? baseLetter.toUpperCase() : baseLetter.toLowerCase();
       octaveStr = octaveSteps > 1 ? "'".repeat(octaveSteps - 1) : '';
     } else {
-      note = baseLetter.toUpperCase();
+      letter = baseLetter.toUpperCase();
       octaveStr = octaveSteps > 0 ? ','.repeat(octaveSteps) : '';
     }
-    const accidental = dx >= H_THRESHOLD ? '^' : dx <= -H_THRESHOLD ? '_' : '';
-    return accidental + note + octaveStr;
+
+    // Which accidental a swipe produces depends on whether this exact pitch would
+    // otherwise sound sharp or flat by default (key signature, or an earlier
+    // accidental on this pitch in the same bar). The side that already matches
+    // the implied alteration stays a plain single-stage swipe; the opposite side
+    // gets an extra stage — natural first, then the opposite accidental if you
+    // keep swiping further.
+    const impliedAcc = gesture ? impliedAccidentalAt(letter, octaveStr, gesture.insertPos) : '';
+    let accidental = '';
+    if (impliedAcc === '^') {
+      if      (dx <= -H_THRESHOLD2) accidental = '_';
+      else if (dx <= -H_THRESHOLD)  accidental = '=';
+      else if (dx >=  H_THRESHOLD)  accidental = '^';
+    } else if (impliedAcc === '_') {
+      if      (dx >=  H_THRESHOLD2) accidental = '^';
+      else if (dx >=  H_THRESHOLD)  accidental = '=';
+      else if (dx <= -H_THRESHOLD)  accidental = '_';
+    } else {
+      accidental = dx >= H_THRESHOLD ? '^' : dx <= -H_THRESHOLD ? '_' : '';
+    }
+
+    return accidental + letter + octaveStr;
   }
 
   let gesture = null;
-  const CANCEL_UP_PX = 160; // swipe this far up from the key to discard the gesture entirely
 
   function startGesture(btn, startX, startY) {
     const baseLetter = btn.dataset.insert;
@@ -5195,18 +5382,15 @@
     btn.classList.add('pressed');
     actionScrollEl.style.display = 'none'; // hide while gesturing; updateActionBar() restores it (if appropriate) on release
 
-    const rect  = btn.getBoundingClientRect();
-    const btnCX = rect.left + rect.width  / 2;
-    const btnCY = rect.top  + rect.height / 2;
-
     prevOctaveSteps = 0;
     prevHDir = 0;
 
-    const wheelTimer = setTimeout(() => {
-      if (gesture) showWheel(btnCX, btnCY);
-    }, WHEEL_DELAY);
+    const badgeTimer = setTimeout(() => {
+      if (!gesture) return;
+      armBadge(gesture.curX, gesture.curY);
+    }, BADGE_DELAY);
 
-    gesture = { btn, baseLetter, insertPos, insertEnd, startX, startY, lastNote: initial, wheelTimer, curX: startX, curY: startY };
+    gesture = { btn, baseLetter, insertPos, insertEnd, startX, startY, lastNote: initial, badgeTimer, curX: startX, curY: startY };
   }
 
   function updateGesture(currentX, currentY) {
@@ -5220,11 +5404,10 @@
 
     if (note !== gesture.lastNote) {
       gesture.lastNote = note;
-      if (wheel.classList.contains('visible')) onNoteChange(dx, dy);
+      if (badgeArmed) onNoteChange(dx, dy);
     }
 
-    if (wheel.classList.contains('visible')) {
-      wheel.classList.toggle('cancel-zone', cancelling);
+    if (badgeArmed) {
       if (cancelling) {
         badge.classList.remove('visible');
       } else {
@@ -5236,11 +5419,10 @@
 
   function endGesture(commit) {
     if (!gesture) return;
-    clearTimeout(gesture.wheelTimer);
+    clearTimeout(gesture.badgeTimer);
     const dy = gesture.curY - gesture.startY;
     const cancelling = dy <= -CANCEL_UP_PX;
-    hideWheel();
-    wheel.classList.remove('cancel-zone');
+    hideBadge();
     const btn = gesture.btn;
     btn.classList.remove('pressed', 'shrink');
 
