@@ -517,6 +517,143 @@
     height: 4px;
   }
 
+  /* Export PDF modal */
+  #export-pdf-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #export-pdf-overlay.open { display: flex; }
+  #export-pdf-box {
+    background: #000;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  @media (max-width: 600px) {
+    #export-pdf-overlay { padding: 0; background: #000; }
+    #export-pdf-box {
+      max-width: none;
+      max-height: none;
+      height: 100dvh;
+      border-radius: 0;
+      border: none;
+      padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+  .seg-control {
+    display: flex;
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .seg-option {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    padding: 8px 6px;
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-align: center;
+    white-space: nowrap;
+  }
+  .seg-option.selected { background: var(--accent); color: #1a1a1a; }
+  .modal-range {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 4px;
+  }
+  .modal-range-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+  }
+  .export-preview-card { align-items: center; }
+  #exportPreviewPage {
+    position: relative;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  #exportPreviewPage .export-preview-label {
+    position: absolute;
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    color: #000;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  #exportPreviewPage .export-preview-svg-wrap {
+    position: absolute;
+  }
+  #exportPreviewPage .export-preview-svg-wrap svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  /* abcjs's shape elements (noteheads, stems, beams, barlines...) resolve
+     their color via currentColor rather than a hardcoded fill, which is why
+     #preview (above) and #pdf-export-cache-host (see the Export PDF JS)
+     each carry their own scoped color-forcing rule for it. Cloning a part's
+     rendered SVG out of the cache host into this container leaves both of
+     those scopes behind, so without an equivalent rule here the clone falls
+     through to body's `color: var(--text)` — the app's pale on-screen text
+     color — against this preview's white page background, which is what
+     actually caused the "faint" notation (text elements happen to carry
+     their own explicit black already, which is why the title was never
+     affected the same way).
+  */
+  #exportPreviewPage svg path, #exportPreviewPage svg rect, #exportPreviewPage svg ellipse,
+  #exportPreviewPage svg polygon, #exportPreviewPage svg line, #exportPreviewPage svg polyline {
+    fill: #000000; stroke: #000000;
+  }
+  #exportPreviewPage svg text { fill: #000000; }
+  #exportPreviewPage svg [fill="none"] { fill: none; }
+  #exportPreviewPage svg [stroke="none"] { stroke: none; }
+  .export-preview-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+  .export-preview-pager.hidden { display: none; }
+  .export-preview-pager button {
+    background: var(--surface3);
+    border: none;
+    color: var(--text);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .export-preview-pager span {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    min-width: 60px;
+    text-align: center;
+  }
+
   .dropdown-menu {
     display: none;
     position: absolute;
@@ -1563,6 +1700,96 @@
   </div>
 </div>
 
+<!-- Export PDF modal -->
+<div id="export-pdf-overlay">
+  <div id="export-pdf-box">
+    <div class="modal-header">
+      <span class="modal-title">Export PDF</span>
+      <button class="modal-close" id="exportPdfClose">✕</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Parts</div>
+      <div class="settings-card" id="exportPartsList">
+        <div class="modal-setting modal-setting-row">
+          <div class="modal-setting-label">Concert pitch</div>
+          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="concert"><span class="ios-switch-track"></span></label>
+        </div>
+        <div class="modal-setting modal-setting-row">
+          <div class="modal-setting-label">B♭ instruments</div>
+          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="bb"><span class="ios-switch-track"></span></label>
+        </div>
+        <div class="modal-setting modal-setting-row">
+          <div class="modal-setting-label">E♭ instruments</div>
+          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="eb"><span class="ios-switch-track"></span></label>
+        </div>
+        <div class="modal-setting modal-setting-row">
+          <div class="modal-setting-label">F instruments</div>
+          <label class="ios-switch"><input type="checkbox" class="export-part-toggle" data-part="f"><span class="ios-switch-track"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Layout</div>
+      <div class="seg-control" id="exportLayoutSeg">
+        <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="single">Single page</button>
+        <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="perpage">One per page</button>
+        <button class="seg-option action-btn" data-action="setExportOption" data-group="layout" data-value="separate">Separate PDFs</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Page setup</div>
+      <div class="settings-card">
+        <div class="modal-setting">
+          <div class="modal-setting-label">Paper size</div>
+          <div class="seg-control" id="exportPageSizeSeg">
+            <button class="seg-option action-btn" data-action="setExportOption" data-group="pageSize" data-value="a4">A4</button>
+            <button class="seg-option action-btn" data-action="setExportOption" data-group="pageSize" data-value="letter">Letter</button>
+          </div>
+        </div>
+        <div class="modal-setting">
+          <div class="modal-setting-label">Orientation</div>
+          <div class="seg-control" id="exportOrientationSeg">
+            <button class="seg-option action-btn" data-action="setExportOption" data-group="orientation" data-value="portrait">Portrait</button>
+            <button class="seg-option action-btn" data-action="setExportOption" data-group="orientation" data-value="landscape">Landscape</button>
+          </div>
+        </div>
+        <div class="modal-setting">
+          <div class="modal-setting-header">
+            <span class="modal-setting-label">Margins</span>
+            <span class="modal-range-value" id="exportMarginValue"></span>
+          </div>
+          <input type="range" class="modal-range" id="exportMarginSlider" min="18" max="72" step="1" value="36">
+        </div>
+        <div class="modal-setting">
+          <div class="modal-setting-label">Notation size</div>
+          <input type="range" class="modal-range" id="exportSizeSlider" min="0" max="1" step="0.01" value="0.5">
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Preview</div>
+      <div class="settings-card export-preview-card">
+        <div id="exportPreviewPage"></div>
+        <div class="export-preview-pager" id="exportPreviewPager">
+          <button class="action-btn" id="exportPreviewPrev" data-action="exportPreviewPrevPage" aria-label="Previous page">‹</button>
+          <span id="exportPreviewPageLabel"></span>
+          <button class="action-btn" id="exportPreviewNext" data-action="exportPreviewNextPage" aria-label="Next page">›</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="confirm-actions">
+      <button class="action-btn confirm-btn" data-action="closeExportPdfModal">Cancel</button>
+      <button class="action-btn confirm-btn" data-action="runPdfExport" style="background: var(--accent); color: #1a1a1a;">Export</button>
+    </div>
+
+  </div>
+</div>
+
 <!-- Legacy menu: Insert-template + Tools submenu + kept here so the functionality
      stays wired up (toggleMenu/openTmplOverlay/transposeUp/etc still reference these
      ids). Hidden until we give it a new home in the redesign. -->
@@ -1591,7 +1818,7 @@
       <div class="dropdown-menu" id="shareMenu">
         <button class="dropdown-item action-btn" data-action="copyText">Copy ABC code</button>
         <button class="dropdown-item action-btn" data-action="shareLink">Share link</button>
-        <button class="dropdown-item action-btn" data-action="exportPdf">Export PDF file</button>
+        <button class="dropdown-item action-btn" data-action="openExportPdfModal">Export PDF...</button>
         <button class="dropdown-item action-btn" data-action="exportAbcFile">Export ABC file</button>
       </div>
     </div>
@@ -4280,6 +4507,39 @@
     return true;
   }
 
+  // Multi-file variant — used by the Export PDF modal's "Separate PDFs"
+  // layout, where each selected part becomes its own file. The Web Share API
+  // (Level 2) accepts an array of files in one share-sheet call, so mobile
+  // still gets a single native share action; desktop falls back to several
+  // staggered downloads (some browsers throttle/block a burst of
+  // simultaneous programmatic downloads fired from one user gesture).
+  async function shareOrDownloadFiles(files) {
+    if (isMobileDevice()) {
+      try {
+        const fileObjs = files.map(f => new File([f.blob], f.filename, { type: f.mimeType }));
+        if (navigator.canShare && navigator.canShare({ files: fileObjs })) {
+          await navigator.share({ files: fileObjs });
+          return true;
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return false;
+      }
+    }
+    files.forEach((f, i) => {
+      setTimeout(() => {
+        const url = URL.createObjectURL(f.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = f.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }, i * 300);
+    });
+    return true;
+  }
+
   function getTuneFilename() {
     const m = /^T:\s*(.+)$/m.exec(ta.value);
     const raw = (m ? m[1] : 'tune').trim();
@@ -4343,61 +4603,127 @@
     shareOrDownloadFile(blob, getTuneFilename() + '.abc', 'text/plain');
   }
 
-  // Render the current abcjs preview SVG to a black-on-white PDF page
-  async function renderPreviewToPdfBlob() {
-    const raw = ta.value.trim();
-    if (!raw) return null;
+  // ==========================================================================
+  // Export PDF modal
+  //
+  // Architecture: buildExportPlan() computes ONE layout-plan data structure —
+  // page dimensions, and for every selected part, its label text (if any),
+  // its position, and its scaled size. Both the live preview (renders it with
+  // positioned DOM elements) and the real export (drawPlanToPdf, using the
+  // exact same plan) consume that same structure, so the preview is never a
+  // separate approximation that could drift from the real output.
+  //
+  // Geometry (margins/page size/orientation/layout mode) is cheap to change —
+  // it only repositions/rescales already-rendered SVGs. Only a changed Parts
+  // selection or Notation size actually re-renders abcjs (see
+  // getCachedPartRender), matching the cheap-vs-expensive split discussed
+  // before building this.
+  // ==========================================================================
 
-    const PAGE_PT_WIDTH = 595.28; // A4, pt
-    const MARGIN_PT = 36;
-    const usablePt = PAGE_PT_WIDTH - MARGIN_PT * 2;
+  const PAPER_SIZES_PT = {
+    a4:     { w: 595.28, h: 841.89 },
+    letter: { w: 612,    h: 792 }
+  };
 
-    const exportHost = document.createElement('div');
-    exportHost.id = 'pdf-export-host';
-    exportHost.style.cssText = 'position:fixed; left:-99999px; top:0;';
-    document.body.appendChild(exportHost);
+  const EXPORT_PART_GAP_PT = 24;          // gap between stacked parts on a combined page
+  const EXPORT_LABEL_GAP_PT = 6;          // gap between a part's label and its notation
+  const EXPORT_LABEL_FONT_PT = 12;
+  const EXPORT_LABEL_LINE_HEIGHT_PT = 15;
+  const EXPORT_PDF_SAFETY = 0.95;         // same deliberate slack the old single-part export used
+  const EXPORT_PREVIEW_WIDTH_PX = 220;    // small — the preview is for overall layout, not pixel-perfect text
 
-    // Reuse the exact same small ruleset that already correctly renders the on-screen
-    // preview (see the #preview svg rules above) — just with the theme variable swapped
-    // for hardcoded black. This is far simpler and safer than recomputing visibility
-    // per element in JS, and avoids stray elements being mis-colored.
-    const exportStyle = document.createElement('style');
-    exportStyle.textContent = `
-      #pdf-export-host svg path, #pdf-export-host svg rect, #pdf-export-host svg ellipse,
-      #pdf-export-host svg polygon, #pdf-export-host svg line, #pdf-export-host svg polyline {
+  // "Notation size" — same mechanism as the on-screen Preview Scale slider
+  // (see getStaffwidth): abcjs is fed a staffwidth relative to a FIXED
+  // reference width (not the page's actual usable width — that would couple
+  // this to margins/page size and force a re-render on every geometry
+  // tweak). A smaller staffwidth packs less music into abcjs's layout, which
+  // — once the fit-to-page scaling below stretches it out — ends up visually
+  // BIGGER on the page, and vice versa.
+  const PRINT_REFERENCE_WIDTH_PT = 500;
+  const PRINT_BASE_MULTIPLIER = 1.45;
+  const PRINT_SCALING_FACTOR = 1.4;
+  function getPrintStaffwidth(sizeLevel) {
+    const multiplier = PRINT_BASE_MULTIPLIER - (sizeLevel - 0.5) * PRINT_SCALING_FACTOR;
+    return Math.round(PRINT_REFERENCE_WIDTH_PT * multiplier);
+  }
+
+  let exportPdfState = {
+    parts: new Set(['concert']),
+    layout: 'single',        // 'single' | 'perpage' | 'separate'
+    pageSize: 'a4',          // 'a4' | 'letter'
+    orientation: 'portrait', // 'portrait' | 'landscape'
+    marginPt: 36,
+    sizeLevel: 0.5
+  };
+  let exportPreviewPageIndex = 0;
+
+  function getExportPageDimsPt(state) {
+    const base = PAPER_SIZES_PT[state.pageSize];
+    return state.orientation === 'landscape' ? { w: base.h, h: base.w } : { w: base.w, h: base.h };
+  }
+
+  // ---- Per-part rendering (shared by preview and real export) ----
+
+  let exportCacheHostEl = null;
+  function getExportCacheHost() {
+    if (!exportCacheHostEl || !exportCacheHostEl.isConnected) {
+      exportCacheHostEl = document.createElement('div');
+      exportCacheHostEl.id = 'pdf-export-cache-host';
+      exportCacheHostEl.style.cssText = 'position:fixed; left:-99999px; top:0; width:0; height:0; overflow:hidden;';
+      document.body.appendChild(exportCacheHostEl);
+    }
+    return exportCacheHostEl;
+  }
+
+  let exportColorStyleAdded = false;
+  function ensureExportColorStyle() {
+    if (exportColorStyleAdded) return;
+    const style = document.createElement('style');
+    style.textContent = `
+      #pdf-export-cache-host svg path, #pdf-export-cache-host svg rect, #pdf-export-cache-host svg ellipse,
+      #pdf-export-cache-host svg polygon, #pdf-export-cache-host svg line, #pdf-export-cache-host svg polyline {
         fill: #000000; stroke: #000000;
       }
-      #pdf-export-host svg [fill="none"] { fill: none; }
-      #pdf-export-host svg [stroke="none"] { stroke: none; }
+      #pdf-export-cache-host svg [fill="none"] { fill: none; }
+      #pdf-export-cache-host svg [stroke="none"] { stroke: none; }
     `;
-    document.head.appendChild(exportStyle);
+    document.head.appendChild(style);
+    exportColorStyleAdded = true;
+  }
 
+  // Renders one part to a black-on-white SVG, attached inside the (always
+  // hidden) export cache host. Returns null if the tune is empty or fails to
+  // render. The returned node stays attached (owned by the cache below) —
+  // callers that just want to display it (the preview) should clone it
+  // rather than moving it.
+  function renderPartToSvg(raw, part, staffwidthPx) {
+    if (!raw) return null;
+    ensureExportColorStyle();
+    const host = document.createElement('div');
+    getExportCacheHost().appendChild(host);
     try {
-      // Render at a pixel width matching the PDF's usable print width (1 render px ≈ 1pt),
-      // independent of the on-screen zoom level, which has nothing to do with print size.
-      const renderWidthPx = Math.round(usablePt);
-      const rendered = getRenderableAbc(raw);
-      const exportOptions = {
-        staffwidth: renderWidthPx,
+      const rendered = getRenderableAbc(raw, part);
+      const options = {
+        staffwidth: staffwidthPx,
         add_classes: true,
         paddingtop: 6, paddingbottom: 6, paddingleft: 8, paddingright: 8
       };
-      if (rendered.transpose) exportOptions.visualTranspose = rendered.transpose;
-      ABCJS.renderAbc(exportHost, rendered.text, exportOptions);
+      if (rendered.transpose) options.visualTranspose = rendered.transpose;
+      ABCJS.renderAbc(host, rendered.text, options);
 
-      const svg = exportHost.querySelector('svg');
-      if (!svg) return null;
+      const svg = host.querySelector('svg');
+      if (!svg) { host.remove(); return null; }
 
-      // Anything relying on inherited currentColor rather than the rules above (rare,
-      // e.g. augmentation dots) should also fall back to solid black.
+      // Anything relying on inherited currentColor rather than the ruleset
+      // above (rare, e.g. augmentation dots) should also fall back to black.
       svg.setAttribute('fill', '#000000');
       svg.setAttribute('stroke', '#000000');
 
-      // abcjs's own width/height attributes occasionally under-report the true painted
-      // extent (e.g. a final barline or accidental poking a couple of px past it), which
-      // was clipping the right edge. Measure the actual rendered bounding box and use
-      // whichever is larger, plus a small safety pad.
-      const attrWidth  = parseFloat(svg.getAttribute('width'))  || renderWidthPx;
+      // abcjs's own width/height attributes occasionally under-report the
+      // true painted extent — measure the actual bbox and use whichever is
+      // larger, plus a small safety pad, same as the original single-part
+      // export did.
+      const attrWidth  = parseFloat(svg.getAttribute('width'))  || staffwidthPx;
       const attrHeight = parseFloat(svg.getAttribute('height')) || 200;
       let svgWidth = attrWidth, svgHeight = attrHeight;
       try {
@@ -4406,48 +4732,330 @@
         svgHeight = Math.max(attrHeight, bbox.y + bbox.height + 4);
       } catch (e) { /* getBBox can throw if unsupported/unrendered; fall back to attrs */ }
 
-      // svg2pdf's width/height options only define an *initial viewport* (like an <img>),
-      // and without a viewBox there's nothing for it to actually scale the content
-      // against — so it was effectively ignoring our requested box. Giving the SVG an
-      // explicit viewBox is what makes that scaling real.
+      // svg2pdf needs an explicit viewBox to have anything to scale against.
       svg.setAttribute('width', svgWidth);
       svg.setAttribute('height', svgHeight);
       svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
 
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      const pageWidth  = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const maxW = pageWidth  - MARGIN_PT * 2;
-      const maxH = pageHeight - MARGIN_PT * 2;
-      const SAFETY = 0.95; // deliberate slack — the one thing we fully control, regardless of how svg2pdf measures the source
-      const ratio = svgWidth / svgHeight;
-      let drawW = maxW * SAFETY, drawH = drawW / ratio;
-      if (drawH > maxH * SAFETY) { drawH = maxH * SAFETY; drawW = drawH * ratio; }
-      const x = (pageWidth - drawW) / 2;
-
-      // Vector embed — no rasterization, so file size stays tiny regardless of how
-      // many systems of music are on the page.
-      await pdf.svg(svg, { x, y: MARGIN_PT, width: drawW, height: drawH });
-      return pdf.output('blob');
-    } finally {
-      exportHost.remove();
-      exportStyle.remove();
+      return { svg, width: svgWidth, height: svgHeight, host };
+    } catch (e) {
+      host.remove();
+      return null;
     }
   }
 
-  async function exportPdf() {
-    closeCopyDropdown();
-    if (!previewDiv.querySelector('svg')) { showToast('Nothing to export'); return; }
+  let exportPartCache = {};
+  let exportPartCacheKey = null;
+  function clearExportPartCache() {
+    Object.keys(exportPartCache).forEach(part => {
+      const entry = exportPartCache[part];
+      if (entry && entry.host) entry.host.remove();
+    });
+    exportPartCache = {};
+    exportPartCacheKey = null;
+  }
+
+  // Only re-renders abcjs when the tune text or Notation size actually
+  // changed — margin/page-size/orientation/layout tweaks reuse this as-is.
+  function getCachedPartRender(raw, part, sizeLevel) {
+    const key = sizeLevel + '::' + raw;
+    if (exportPartCacheKey !== key) {
+      clearExportPartCache();
+      exportPartCacheKey = key;
+    }
+    if (!(part in exportPartCache)) {
+      exportPartCache[part] = renderPartToSvg(raw, part, getPrintStaffwidth(sizeLevel));
+    }
+    return exportPartCache[part];
+  }
+
+  // ---- Layout plan ----
+
+  // Lays out one or more parts stacked vertically on a single page,
+  // uniformly shrinking the WHOLE stack (labels, gaps, and notation alike)
+  // if it doesn't fit at full width — rather than distorting pieces
+  // differently — same "shrink to fit" behavior the export always had, just
+  // generalized to a stack instead of one image. usableW/usableH here are
+  // already safety-padded; insetX/insetY are where that padded box starts.
+  function buildStackedPage(partInfos, usableW, usableH, insetX, insetY) {
+    let naturalHeight = 0;
+    const naturalParts = partInfos.map((info, i) => {
+      const labelH = info.label ? (EXPORT_LABEL_LINE_HEIGHT_PT + EXPORT_LABEL_GAP_PT) : 0;
+      const notationH = info.render.height * (usableW / info.render.width);
+      if (i > 0) naturalHeight += EXPORT_PART_GAP_PT;
+      naturalHeight += labelH + notationH;
+      return Object.assign({}, info, { labelH, notationH });
+    });
+
+    const scale = naturalHeight > usableH ? (usableH / naturalHeight) : 1;
+    const blockW = usableW * scale;
+    const x = insetX + (usableW - blockW) / 2; // center the (possibly-shrunk) stack horizontally
+    let y = insetY; // top-anchored, matching the original single-part export's positioning
+
+    const parts = naturalParts.map((info, i) => {
+      if (i > 0) y += EXPORT_PART_GAP_PT * scale;
+      const labelH = info.labelH * scale;
+      const notationH = info.notationH * scale;
+      const labelY = y;
+      y += labelH;
+      const notationY = y;
+      y += notationH;
+      return {
+        part: info.part,
+        label: info.label,
+        labelFontPt: EXPORT_LABEL_FONT_PT * scale,
+        x, labelY, notationY,
+        width: blockW,
+        height: notationH,
+        svg: info.render.svg
+      };
+    });
+
+    return { parts };
+  }
+
+  // Builds the full plan: which parts get a label (every non-Concert-pitch
+  // part always; Concert pitch only when exported alongside another part —
+  // this depends purely on the overall selection, not on layout mode or
+  // which page/file a part ends up in), and how many "pages" result.
+  // layout='single' → one page holding every selected part stacked together.
+  // layout='perpage'/'separate' → one page per part; the only difference
+  // between those two is what happens to this same pages array afterwards
+  // (one multi-page PDF vs. several single-page PDFs) — see runPdfExport.
+  function buildExportPlan(state) {
+    const raw = ta.value.trim();
+    const dims = getExportPageDimsPt(state);
+    const marginPt = state.marginPt;
+    const rawUsableW = dims.w - marginPt * 2;
+    const rawUsableH = dims.h - marginPt * 2;
+    const usableW = rawUsableW * EXPORT_PDF_SAFETY;
+    const usableH = rawUsableH * EXPORT_PDF_SAFETY;
+    const insetX = marginPt + (rawUsableW - usableW) / 2;
+    const insetY = marginPt + (rawUsableH - usableH) / 2;
+
+    const selected = PART_ORDER.filter(p => state.parts.has(p));
+    const multiSelected = state.parts.size > 1;
+
+    const partInfos = selected.map(part => {
+      const render = getCachedPartRender(raw, part, state.sizeLevel);
+      if (!render) return null;
+      const hasLabel = part !== 'concert' || multiSelected;
+      return { part, label: hasLabel ? PART_LABEL[part] : null, render };
+    }).filter(Boolean);
+
+    const pages = [];
+    if (state.layout === 'single') {
+      if (partInfos.length) pages.push(buildStackedPage(partInfos, usableW, usableH, insetX, insetY));
+    } else {
+      partInfos.forEach(info => pages.push(buildStackedPage([info], usableW, usableH, insetX, insetY)));
+    }
+
+    return { pageW: dims.w, pageH: dims.h, pages };
+  }
+
+  // ---- Live preview ----
+
+  function renderExportPreview() {
+    const plan = buildExportPlan(exportPdfState);
+    const pageEl = document.getElementById('exportPreviewPage');
+    const pagerEl = document.getElementById('exportPreviewPager');
+    const pageLabelEl = document.getElementById('exportPreviewPageLabel');
+
+    const previewH = Math.round(EXPORT_PREVIEW_WIDTH_PX * (plan.pageH / plan.pageW));
+    pageEl.style.width = EXPORT_PREVIEW_WIDTH_PX + 'px';
+    pageEl.style.height = previewH + 'px';
+    pageEl.innerHTML = '';
+
+    if (!plan.pages.length) {
+      pagerEl.classList.add('hidden');
+      return;
+    }
+
+    exportPreviewPageIndex = Math.max(0, Math.min(exportPreviewPageIndex, plan.pages.length - 1));
+    const previewScale = EXPORT_PREVIEW_WIDTH_PX / plan.pageW;
+    const page = plan.pages[exportPreviewPageIndex];
+
+    page.parts.forEach(p => {
+      if (p.label) {
+        const labelEl = document.createElement('div');
+        labelEl.className = 'export-preview-label';
+        labelEl.textContent = p.label;
+        labelEl.style.left = (p.x / plan.pageW * 100) + '%';
+        labelEl.style.top = (p.labelY / plan.pageH * 100) + '%';
+        labelEl.style.fontSize = Math.max(4, p.labelFontPt * previewScale) + 'px';
+        pageEl.appendChild(labelEl);
+      }
+      const wrap = document.createElement('div');
+      wrap.className = 'export-preview-svg-wrap';
+      wrap.style.left = (p.x / plan.pageW * 100) + '%';
+      wrap.style.top = (p.notationY / plan.pageH * 100) + '%';
+      wrap.style.width = (p.width / plan.pageW * 100) + '%';
+      wrap.style.height = (p.height / plan.pageH * 100) + '%';
+      wrap.appendChild(p.svg.cloneNode(true));
+      pageEl.appendChild(wrap);
+    });
+
+    pagerEl.classList.toggle('hidden', plan.pages.length <= 1);
+    pageLabelEl.textContent = `Page ${exportPreviewPageIndex + 1} of ${plan.pages.length}`;
+  }
+
+  function exportPreviewPrevPage() {
+    exportPreviewPageIndex = Math.max(0, exportPreviewPageIndex - 1);
+    renderExportPreview();
+  }
+  function exportPreviewNextPage() {
+    exportPreviewPageIndex++; // clamped inside renderExportPreview
+    renderExportPreview();
+  }
+
+  // ---- Filenames ----
+  // Distinct from getTuneFilename() (used by ABC-file export/share, which
+  // dash/lowercase-normalizes) — the PDF export keeps spaces and case as-is.
+
+  function getExportBaseTitle() {
+    const m = /^T:\s*(.+)$/m.exec(ta.value);
+    const raw = (m ? m[1] : '').trim();
+    return raw || 'Untitled';
+  }
+  // Used for 'single'/'perpage' modes, where every selected part lives in
+  // ONE file.
+  function getCombinedExportFilename(partsSet) {
+    const title = getExportBaseTitle();
+    if (partsSet.size === 1) {
+      const only = [...partsSet][0];
+      return only === 'concert' ? title : `${title} - ${PART_FILENAME_SUFFIX[only]}`;
+    }
+    return `${title} - parts`;
+  }
+  // Used for 'separate' mode, where each part is named individually
+  // regardless of what else was selected alongside it.
+  function getSinglePartExportFilename(part) {
+    const title = getExportBaseTitle();
+    return part === 'concert' ? title : `${title} - ${PART_FILENAME_SUFFIX[part]}`;
+  }
+
+  // ---- Real export ----
+
+  async function drawPlanToPdf(plan) {
+    const { jsPDF } = window.jspdf;
+    const orientation = plan.pageW > plan.pageH ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({ orientation, unit: 'pt', format: [plan.pageW, plan.pageH] });
+    for (let i = 0; i < plan.pages.length; i++) {
+      if (i > 0) pdf.addPage([plan.pageW, plan.pageH], orientation);
+      const page = plan.pages[i];
+      for (const p of page.parts) {
+        if (p.label) {
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(p.labelFontPt);
+          pdf.text(PART_LABEL_ASCII[p.part], p.x, p.labelY, { baseline: 'top' });
+        }
+        // Vector embed — no rasterization, so file size stays tiny.
+        await pdf.svg(p.svg, { x: p.x, y: p.notationY, width: p.width, height: p.height });
+      }
+    }
+    return pdf.output('blob');
+  }
+
+  async function runPdfExport() {
+    const state = exportPdfState;
+    const plan = buildExportPlan(state);
+    if (!plan.pages.length) { showToast('Nothing to export'); return; }
     showToast('Generating PDF…');
     try {
-      const blob = await renderPreviewToPdfBlob();
-      if (!blob) { showToast('Nothing to export'); return; }
-      await shareOrDownloadFile(blob, getTuneFilename() + '.pdf', 'application/pdf');
+      if (state.layout === 'separate') {
+        const files = [];
+        for (let i = 0; i < plan.pages.length; i++) {
+          const page = plan.pages[i];
+          const blob = await drawPlanToPdf({ pageW: plan.pageW, pageH: plan.pageH, pages: [page] });
+          files.push({ blob, filename: getSinglePartExportFilename(page.parts[0].part) + '.pdf', mimeType: 'application/pdf' });
+        }
+        await shareOrDownloadFiles(files);
+      } else {
+        const blob = await drawPlanToPdf(plan);
+        await shareOrDownloadFile(blob, getCombinedExportFilename(state.parts) + '.pdf', 'application/pdf');
+      }
+      closeExportPdfModal();
     } catch (err) {
       showToast('PDF export failed');
     }
   }
+
+  // ---- Modal open/close + controls ----
+  // Page setup (layout/page size/orientation/margins/size) persists across
+  // reopens within the session — only the Parts selection is re-seeded each
+  // time, from whatever part is currently active in the View Options
+  // sidebar. Nothing here ever writes back to selectedPart, ta.value, or any
+  // other part of the "normal" page.
+
+  function openExportPdfModal() {
+    closeCopyDropdown();
+    exportPdfState.parts = new Set([selectedPart]);
+    exportPreviewPageIndex = 0;
+    syncExportPdfUI();
+    document.getElementById('export-pdf-overlay').classList.add('open');
+    modalOpened('export-pdf-overlay');
+    renderExportPreview();
+  }
+
+  function closeExportPdfModal() {
+    document.getElementById('export-pdf-overlay').classList.remove('open');
+    modalClosed('export-pdf-overlay');
+    clearExportPartCache();
+  }
+
+  function syncExportPdfUI() {
+    document.querySelectorAll('.export-part-toggle').forEach(input => {
+      input.checked = exportPdfState.parts.has(input.dataset.part);
+    });
+    document.querySelectorAll('.seg-control .seg-option').forEach(btn => {
+      btn.classList.toggle('selected', exportPdfState[btn.dataset.group] === btn.dataset.value);
+    });
+    document.getElementById('exportMarginSlider').value = exportPdfState.marginPt;
+    document.getElementById('exportMarginValue').textContent = exportPdfState.marginPt + ' pt';
+    document.getElementById('exportSizeSlider').value = exportPdfState.sizeLevel;
+  }
+
+  // Shared handler for every seg-control (Layout / Paper size / Orientation).
+  function setExportOption(btn) {
+    const group = btn.dataset.group;
+    exportPdfState[group] = btn.dataset.value;
+    document.querySelectorAll(`.seg-option[data-group="${group}"]`).forEach(b => {
+      b.classList.toggle('selected', b === btn);
+    });
+    if (group === 'layout') exportPreviewPageIndex = 0;
+    renderExportPreview();
+  }
+
+  document.querySelectorAll('.export-part-toggle').forEach(input => {
+    input.addEventListener('change', () => {
+      const part = input.dataset.part;
+      if (input.checked) exportPdfState.parts.add(part);
+      else exportPdfState.parts.delete(part);
+      if (exportPdfState.parts.size === 0) {
+        // Never allow zero parts selected — revert this toggle.
+        input.checked = true;
+        exportPdfState.parts.add(part);
+      }
+      exportPreviewPageIndex = 0;
+      renderExportPreview();
+    });
+  });
+
+  document.getElementById('exportMarginSlider').addEventListener('input', e => {
+    exportPdfState.marginPt = parseFloat(e.target.value);
+    document.getElementById('exportMarginValue').textContent = exportPdfState.marginPt + ' pt';
+    renderExportPreview();
+  });
+
+  document.getElementById('exportSizeSlider').addEventListener('input', e => {
+    exportPdfState.sizeLevel = parseFloat(e.target.value);
+    renderExportPreview();
+  });
+
+  document.getElementById('exportPdfClose').addEventListener('click', closeExportPdfModal);
+  document.getElementById('export-pdf-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('export-pdf-overlay')) closeExportPdfModal();
+  });
 
   document.addEventListener('mousedown', e => {
     if (!e.target.closest('.copy-split')) closeCopyDropdown();
@@ -5320,7 +5928,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, exportPdf, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart };
+  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -5570,10 +6178,28 @@
   const PART_ABBREV = { concert: null, bb: 'B♭', eb: 'E♭', f: 'F' };
   const PART_LABEL = { concert: 'Concert pitch', bb: 'B♭ instruments', eb: 'E♭ instruments', f: 'F instruments' };
 
+  // jsPDF's built-in standard fonts (WinAnsi encoding) don't include the flat
+  // glyph (♭) — handing it to pdf.text() renders mojibake and throws off the
+  // spacing of everything after it. PART_LABEL's flat-glyph form is fine for
+  // the on-screen preview (real browser text rendering, not jsPDF's font),
+  // but the actual PDF text uses this plain-ASCII form instead.
+  const PART_LABEL_ASCII = { concert: 'Concert pitch', bb: 'Bb instruments', eb: 'Eb instruments', f: 'F instruments' };
+
+  // Canonical display/stacking order for the Export PDF modal — independent
+  // of whatever order the user happened to check the boxes in.
+  const PART_ORDER = ['concert', 'bb', 'eb', 'f'];
+
+  // ASCII forms for filenames (no flat glyph, filesystem-safe) — the
+  // on-page/preview label uses PART_LABEL's flat-glyph form instead.
+  const PART_FILENAME_SUFFIX = { bb: 'Bb instruments', eb: 'Eb instruments', f: 'F instruments' };
+
   const SYNTHETIC_KEY_FIELD = 'K:C major\n';
 
-  // Builds the exact ABC string to hand to ABCJS.renderAbc for the current
-  // Parts selection, given the real (trimmed) source text.
+  // Builds the exact ABC string to hand to ABCJS.renderAbc for a given Parts
+  // selection, given the real (trimmed) source text. `part` defaults to the
+  // View Options sidebar's selectedPart, but callers with their own
+  // independent part choice (the Export PDF modal has its own multi-select,
+  // separate from the sidebar) can pass one explicitly.
   //
   // visualTranspose only produces a real key signature + correctly-spelled
   // accidentals when the tune has an explicit K: field — with no K: at all,
@@ -5585,8 +6211,8 @@
   // translate between positions in this returned string and positions in
   // ta.value via taPosToRenderPos/renderPosToTaPos so the splice stays
   // purely a rendering-time concern.
-  function getRenderableAbc(raw) {
-    const semitones = PART_TRANSPOSE[selectedPart] || 0;
+  function getRenderableAbc(raw, part) {
+    const semitones = PART_TRANSPOSE[part || selectedPart] || 0;
     if (!semitones || hasHeaderKeyField(raw)) {
       return { text: raw, transpose: semitones, insertPos: -1, insertLen: 0 };
     }
