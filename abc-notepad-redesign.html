@@ -1592,13 +1592,13 @@
 
   <!-- Row 1: C D E F G A B z -->
   <div class="key-row row-1 row-notes-pad" id="row-letters">
-    <button class="key" data-insert="C">C</button>
-    <button class="key" data-insert="D">D</button>
-    <button class="key" data-insert="E">E</button>
-    <button class="key" data-insert="F">F</button>
-    <button class="key" data-insert="G">G</button>
-    <button class="key" data-insert="A">A</button>
-    <button class="key" data-insert="B">B</button>
+    <button class="key" data-insert="C" data-note-key="1">C</button>
+    <button class="key" data-insert="D" data-note-key="1">D</button>
+    <button class="key" data-insert="E" data-note-key="1">E</button>
+    <button class="key" data-insert="F" data-note-key="1">F</button>
+    <button class="key" data-insert="G" data-note-key="1">G</button>
+    <button class="key" data-insert="A" data-note-key="1">A</button>
+    <button class="key" data-insert="B" data-note-key="1">B</button>
   </div>
 
   <!-- Row 2: . = _ ^ , ' - z -->
@@ -5172,7 +5172,7 @@
   }
 
   function isNoteKey(btn) {
-    return btn && btn.dataset.insert && /^[a-gA-G]$/.test(btn.dataset.insert);
+    return !!(btn && btn.dataset.noteKey);
   }
 
   const badge = document.getElementById('gesture-badge');
