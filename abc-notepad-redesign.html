@@ -7175,13 +7175,6 @@
 
   // Touch handling — press on touchstart, fire on touchend
   let activeBtn = null;
-  // Set on every touchend; used by the mousedown listener below to ignore the
-  // synthetic "ghost" mousedown/mouseup/click sequence some browsers fire
-  // shortly after a real touch interaction (this matters specifically for
-  // dropdown items, which skip preventDefault on touchend — see isDropdownItem
-  // below — so their native click can still close the menu; without this guard
-  // that same synthetic click re-runs the button's action a second time).
-  let lastTouchEndTime = 0;
   document.addEventListener('touchstart', e => {
     const btn = e.target.closest('.key, .action-btn');
     if (!btn) return;
@@ -7218,7 +7211,6 @@
   }, { passive: false });
 
   document.addEventListener('touchend', e => {
-    lastTouchEndTime = Date.now();
     if (gesture) {
       endGesture(true);
       e.preventDefault();
@@ -7259,7 +7251,6 @@
   let activeMouseBtn = null;
 
   document.addEventListener('mousedown', e => {
-    if (Date.now() - lastTouchEndTime < 500) return; // ghost mousedown following a real touch — ignore
     const btn = e.target.closest('.key, .action-btn');
     if (!btn) return;
 
