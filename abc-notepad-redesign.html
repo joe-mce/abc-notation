@@ -1347,7 +1347,7 @@
       border: none;
       padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
     }
-    .hdr-value-input, .hdr-key-input { font-size: 16px !important; }
+    .hdr-value-input, .hdr-key-input, .hdr-cell-key .hdr-code, .hdr-cell-key .hdr-title, .hdr-complex-trigger-value { font-size: 16px !important; }
   }
 
   /* ---- Current Headers: minimalist two-column table ----
@@ -1463,17 +1463,16 @@
     align-self: center;
     background: transparent;
     border: none;
-    color: var(--text-dim);
+    color: #ff6b6b;
     width: 26px;
     height: 26px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
   }
   .hdr-row-remove svg { width: 20px; height: 20px; display: block; }
-  .hdr-row-remove:active, .hdr-row-remove.pressed { color: #ff6b6b; }
+  .hdr-row-remove:active, .hdr-row-remove.pressed { opacity: 0.6; }
 
   .hdr-section-head { display: flex; align-items: center; justify-content: space-between; }
   .hdr-edit-toggle {
@@ -1498,8 +1497,8 @@
   }
   .hdr-row:last-child > .hdr-cell-remove,
   .hdr-row:last-child > .hdr-cell-reorder { border-bottom: none; }
-  .hdr-cell-remove { padding: 10px 4px 10px 10px; }
-  .hdr-cell-reorder { padding: 10px 10px 10px 4px; }
+  .hdr-cell-remove { padding: 10px 10px 10px 4px; }
+  .hdr-cell-reorder { padding: 10px 4px 10px 10px; }
   .hdr-reorder-btns { display: flex; flex-direction: column; gap: 2px; }
   .hdr-reorder-btn {
     width: 24px;
@@ -1567,15 +1566,14 @@
   }
   .add-hdr-row-plus {
     flex-shrink: 0;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--accent);
-    font-size: 1.1rem;
-    line-height: 1;
   }
+  .add-hdr-row-plus svg { width: 20px; height: 20px; display: block; }
 
   /* ---- Header field editing tray: bottom sheet, dimmed backdrop ---- */
   #hdr-tray-overlay {
@@ -1589,6 +1587,7 @@
   }
   #hdr-tray-overlay.open { display: flex; }
   #hdr-tray-sheet {
+    position: relative;
     background: var(--surface2);
     width: 100%;
     max-width: 500px;
@@ -1596,7 +1595,7 @@
     padding: 8px 20px calc(54px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 24px;
     box-shadow: 0 -8px 30px rgba(0,0,0,0.4);
     transform: translateY(100%);
     transition: transform 0.22s ease;
@@ -1609,6 +1608,26 @@
     background: var(--border);
     margin: 6px auto 0;
   }
+  .hdr-tray-done.action-btn {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--surface3);
+    border: none;
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .hdr-tray-done.action-btn:active, .hdr-tray-done.action-btn.pressed { background: var(--bg); }
   .hdr-tray-title {
     font-family: -apple-system, 'IBM Plex Sans', sans-serif;
     font-size: 0.92rem;
@@ -1635,6 +1654,7 @@
   .hdr-tray-custom-input::placeholder { color: var(--text-dim); }
   @media (max-width: 600px) {
     .hdr-tray-custom-input { font-size: 16px !important; }
+    #hdr-tray-sheet { min-height: 50dvh; }
   }
 </style>
 </head>
@@ -1745,13 +1765,16 @@
 </div>
 
 <!-- Header field editing tray — a bottom sheet used by complex header
-     types (M, L for now). No Done/Cancel: every change is reflected into
-     the row immediately, and dismissing (tap the dimmed backdrop) either
-     leaves things as they are, or — if this row was just added and never
-     got a value — quietly removes the row (see closeHdrTray). -->
+     types (M, L for now). Changes made inside (preset taps, Custom field
+     edits) are a draft only: tapping ✓ commits the draft into the row and
+     closes; tapping the dimmed backdrop discards the draft (the row keeps
+     whatever value it had before the tray opened) and closes. Either path
+     will also quietly remove the row if it was just added and still has
+     no value (see finishHdrTraySession). -->
 <div id="hdr-tray-overlay">
   <div id="hdr-tray-sheet">
     <div class="hdr-tray-handle"></div>
+    <button class="action-btn modal-close hdr-tray-done" id="hdrTrayDone" data-action="saveHdrTray" aria-label="Save">✓</button>
     <div class="hdr-tray-title" id="hdrTrayTitle"></div>
     <div class="hdr-tray-body" id="hdrTrayBody"></div>
     <input type="text" id="hdrTrayCustomInput" class="hdr-tray-custom-input" placeholder="Custom">
@@ -5102,8 +5125,12 @@
   function placeCursorAtEndOnMobileFocus(input) {
     input.addEventListener('focus', () => {
       if (!HOLD_IS_COARSE_POINTER) return;
+      // The native caret placement from the tap that caused this focus
+      // happens right after the focus event fires, so setting the
+      // selection here directly gets overwritten a moment later — defer
+      // to the next tick so ours applies last.
       const len = input.value.length;
-      input.setSelectionRange(len, len);
+      setTimeout(() => { input.setSelectionRange(len, len); }, 0);
     });
   }
   // Fields that may only appear once each (T is handled separately below —
@@ -5387,10 +5414,12 @@
   }
 
   // ---- Header field editing tray (complex fields: M, L for now) ----
-  // hdrTrayRowId tracks which row the open tray is editing. There's no
-  // Done/Cancel: every change is written straight into the row (and the
-  // main Current Headers list is re-rendered to match) as it happens.
+  // hdrTrayRowId tracks which row the open tray is editing. Changes made
+  // in the tray (preset taps, Custom field edits) only touch the draft
+  // (hdrTrayDraftValue) — the row itself, and the Current Headers list
+  // behind the tray, are untouched until the tray is actually saved.
   let hdrTrayRowId = null;
+  let hdrTrayDraftValue = '';
 
   // Opens (or re-opens) the tray for a given row id — used both when a
   // complex field is freshly added (see addFieldByLetter) and when an
@@ -5405,9 +5434,10 @@
     }
     ta.blur();
     hdrTrayRowId = rowId;
+    hdrTrayDraftValue = rowData.value || '';
     document.getElementById('hdrTrayTitle').textContent = HDR_FIELD_NAMES[rowData.field] || rowData.field;
     renderHdrTrayBody(rowData);
-    document.getElementById('hdrTrayCustomInput').value = rowData.value || '';
+    document.getElementById('hdrTrayCustomInput').value = hdrTrayDraftValue;
     document.getElementById('hdr-tray-overlay').classList.add('open');
     modalOpened('hdr-tray-overlay');
   }
@@ -5418,11 +5448,10 @@
     const rowEl = btn.closest('.hdr-row');
     if (rowEl) openHdrTray(rowEl.dataset.rowId);
   }
-  // Dismissing the tray (backdrop tap) never needs an explicit Cancel:
-  // if this row was just added and never got a value in this session,
-  // quietly drop it (cancelled add) — otherwise leave everything as-is,
-  // since every change was already reflected into the row as it happened.
-  function closeHdrTray() {
+  // Shared teardown for both ending paths below: hide the overlay, and —
+  // regardless of whether the draft was saved or discarded — if this row
+  // was just added and still has no value, quietly drop it (cancelled add).
+  function finishHdrTraySession() {
     const rowData = songHeaderRows.find(r => r.id === hdrTrayRowId);
     document.getElementById('hdr-tray-overlay').classList.remove('open');
     modalClosed('hdr-tray-overlay');
@@ -5433,17 +5462,29 @@
       delete rowData._isNew;
     }
     hdrTrayRowId = null;
+    hdrTrayDraftValue = '';
     renderHdrRows();
     renderAddChips();
+  }
+  // The ✓ button: commit the draft into the row, then close.
+  function saveHdrTray() {
+    const rowData = songHeaderRows.find(r => r.id === hdrTrayRowId);
+    if (rowData) rowData.value = hdrTrayDraftValue;
+    finishHdrTraySession();
+  }
+  // Tapping the dimmed backdrop: discard the draft (row keeps whatever
+  // value it had before the tray was opened) and close.
+  function closeHdrTray() {
+    finishHdrTraySession();
   }
   document.getElementById('hdr-tray-overlay').addEventListener('click', e => {
     if (e.target === document.getElementById('hdr-tray-overlay')) closeHdrTray();
   });
 
   // Preset buttons for the row's field (M -> meter, L -> duration). A
-  // preset shows as selected only when the row's value exactly matches it
-  // — so typing in the Custom field naturally deselects every preset the
-  // moment the value stops matching, with no separate "custom mode" flag.
+  // preset shows as selected only when the draft exactly matches it — so
+  // typing in the Custom field naturally deselects every preset the
+  // moment the draft stops matching, with no separate "custom mode" flag.
   function renderHdrTrayBody(rowData) {
     const body = document.getElementById('hdrTrayBody');
     body.innerHTML = '';
@@ -5451,7 +5492,7 @@
     const presets = isDuration ? DURATION_PRESETS : METER_PRESETS;
     presets.forEach(v => {
       const btn = document.createElement('button');
-      btn.className = 'action-btn chip-option' + (rowData.value === v ? ' selected' : '');
+      btn.className = 'action-btn chip-option' + (hdrTrayDraftValue === v ? ' selected' : '');
       btn.dataset.action = 'selectHdrTrayPreset';
       btn.dataset.value = v;
       if (isDuration) {
@@ -5468,20 +5509,18 @@
   function selectHdrTrayPreset(btn) {
     const rowData = songHeaderRows.find(r => r.id === hdrTrayRowId);
     if (!rowData) return;
-    rowData.value = btn.dataset.value;
-    document.getElementById('hdrTrayCustomInput').value = rowData.value;
+    hdrTrayDraftValue = btn.dataset.value;
+    document.getElementById('hdrTrayCustomInput').value = hdrTrayDraftValue;
     renderHdrTrayBody(rowData);
-    renderHdrRows();
   }
   // The Custom field is always visible and always the eventual source of
-  // truth for the row's value — using a preset button just writes that
-  // preset's value into it (see selectHdrTrayPreset above).
+  // truth for the draft — using a preset button just writes that preset's
+  // value into it (see selectHdrTrayPreset above).
   document.getElementById('hdrTrayCustomInput').addEventListener('input', e => {
     const rowData = songHeaderRows.find(r => r.id === hdrTrayRowId);
     if (!rowData) return;
-    rowData.value = e.target.value;
+    hdrTrayDraftValue = e.target.value;
     renderHdrTrayBody(rowData);
-    renderHdrRows();
   });
   document.getElementById('hdrTrayCustomInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
@@ -5525,7 +5564,7 @@
     const plus = document.createElement('span');
     plus.className = 'add-hdr-row-plus';
     plus.setAttribute('aria-hidden', 'true');
-    plus.textContent = '+';
+    plus.innerHTML = circleGlyphSVG('plus');
     btn.appendChild(plus);
     wrap.appendChild(btn);
   }
@@ -5562,19 +5601,26 @@
     el.dataset.rowId = rowData.id;
 
     if (hdrEditMode) {
-      const removeCell = document.createElement('div');
-      removeCell.className = 'hdr-cell-remove';
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'action-btn hdr-row-remove';
-      removeBtn.dataset.action = 'removeHdrRow';
-      removeBtn.setAttribute('aria-label', 'Remove ' + (label || hdrRowBadgeText(rowData)));
-      removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-        '<circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.14"/>' +
-        '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/>' +
-        '<line x1="7.5" y1="12" x2="16.5" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
-        '</svg>';
-      removeCell.appendChild(removeBtn);
-      el.appendChild(removeCell);
+      const reorderCell = document.createElement('div');
+      reorderCell.className = 'hdr-cell-reorder';
+      const btns = document.createElement('div');
+      btns.className = 'hdr-reorder-btns';
+      const upBtn = document.createElement('button');
+      upBtn.className = 'action-btn hdr-reorder-btn';
+      upBtn.dataset.action = 'moveHdrRowUp';
+      upBtn.setAttribute('aria-label', 'Move up');
+      upBtn.disabled = index === 0;
+      upBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const downBtn = document.createElement('button');
+      downBtn.className = 'action-btn hdr-reorder-btn';
+      downBtn.dataset.action = 'moveHdrRowDown';
+      downBtn.setAttribute('aria-label', 'Move down');
+      downBtn.disabled = index === total - 1;
+      downBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      btns.appendChild(upBtn);
+      btns.appendChild(downBtn);
+      reorderCell.appendChild(btns);
+      el.appendChild(reorderCell);
     }
 
     const keyCell = document.createElement('div');
@@ -5608,26 +5654,17 @@
     el.appendChild(valueCell);
 
     if (hdrEditMode) {
-      const reorderCell = document.createElement('div');
-      reorderCell.className = 'hdr-cell-reorder';
-      const btns = document.createElement('div');
-      btns.className = 'hdr-reorder-btns';
-      const upBtn = document.createElement('button');
-      upBtn.className = 'action-btn hdr-reorder-btn';
-      upBtn.dataset.action = 'moveHdrRowUp';
-      upBtn.setAttribute('aria-label', 'Move up');
-      upBtn.disabled = index === 0;
-      upBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      const downBtn = document.createElement('button');
-      downBtn.className = 'action-btn hdr-reorder-btn';
-      downBtn.dataset.action = 'moveHdrRowDown';
-      downBtn.setAttribute('aria-label', 'Move down');
-      downBtn.disabled = index === total - 1;
-      downBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      btns.appendChild(upBtn);
-      btns.appendChild(downBtn);
-      reorderCell.appendChild(btns);
-      el.appendChild(reorderCell);
+      // Remove (⊖) sits on the right, mirroring the + icon's position in
+      // the Add Headers table below.
+      const removeCell = document.createElement('div');
+      removeCell.className = 'hdr-cell-remove';
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'action-btn hdr-row-remove';
+      removeBtn.dataset.action = 'removeHdrRow';
+      removeBtn.setAttribute('aria-label', 'Remove ' + (label || hdrRowBadgeText(rowData)));
+      removeBtn.innerHTML = circleGlyphSVG('minus');
+      removeCell.appendChild(removeBtn);
+      el.appendChild(removeCell);
 
       // Nothing else in the row is interactive while editing — textareas
       // can't be focused, buttons (incl. the complex-field tray trigger)
@@ -5646,6 +5683,20 @@
     if (rowData.kind === 'directive') return '%%' + (rowData.name || '');
     if (rowData.kind === 'comment') return '%';
     return rowData.field + ':';
+  }
+
+  // Shared outline-circle glyph for the remove (⊖) and add (+) icons — same
+  // circle radius and stroke-width for both, so they read as one visual
+  // family; 'plus' just adds the matching vertical stroke to the dash.
+  function circleGlyphSVG(kind) {
+    const cross = kind === 'plus'
+      ? '<line x1="12" y1="7.5" x2="12" y2="16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+      : '';
+    return '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>' +
+      '<line x1="7.5" y1="12" x2="16.5" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+      cross +
+      '</svg>';
   }
 
   function buildHdrValueInto(valueCell, rowData) {
@@ -6478,7 +6529,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown };
+  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown, closeHdrTray, saveHdrTray };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
