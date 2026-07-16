@@ -856,16 +856,20 @@
     font-weight: 600;
   }
 
-  .float-pills {
+  .float-pills-row {
     position: absolute;
     top: 8px;
     right: 12px;
+    display: flex;
+    gap: 8px;
+    z-index: 5;
+  }
+  .float-pills {
     display: flex;
     gap: 4px;
     background: var(--surface2);
     border-radius: 999px;
     padding: 4px;
-    z-index: 5;
   }
   .float-pills button {
     width: 30px;
@@ -1581,6 +1585,246 @@
   }
   .paste-tooltip-btn:active, .paste-tooltip-btn.pressed { background: var(--surface3); }
 
+  /* ---- Song Info modal ---- */
+  #songinfo-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #songinfo-overlay.open { display: flex; }
+  #songinfo-box {
+    background: #000;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  @media (max-width: 600px) {
+    #songinfo-overlay { padding: 0; background: #000; }
+    #songinfo-box {
+      max-width: none;
+      max-height: none;
+      height: 100dvh;
+      border-radius: 0;
+      border: none;
+      padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+    .hdr-text-input, .hdr-custom-full-input, .other-field-input, .hdr-catchall-textarea { font-size: 16px !important; }
+  }
+
+  .hdr-row-list { display: flex; flex-direction: column; gap: 8px; }
+  .hdr-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hdr-row-field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border-radius: 12px;
+    padding: 8px 8px 8px 12px;
+  }
+  .hdr-row-badge {
+    flex-shrink: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .hdr-row-scroll {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .hdr-row-scroll::-webkit-scrollbar { display: none; }
+  .hdr-row-remove {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .hdr-row-remove svg { width: 20px; height: 20px; display: block; }
+  .hdr-row-remove:active, .hdr-row-remove.pressed { color: #ff6b6b; }
+
+  .hdr-text-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    padding: 7px 10px;
+  }
+  .hdr-text-input:focus { outline: none; border-color: var(--accent); }
+  /* When a plain text field (T, C, K, or an unrecognized field) is the only
+     thing in the scroll strip, let it fill the row instead of shrinking to
+     content width like the chip controls do. */
+  .hdr-row-scroll > .hdr-text-input:only-child { flex: 1; min-width: 120px; }
+
+  /* Custom-value entry for a field that normally uses buttons (M, L):
+     replaces the buttons with one full-width control that reads as a
+     single pill — a text input with an adjoining clear button, separated
+     by a hairline divider instead of looking like two things. Same
+     white-monospace styling as every other field input. */
+  .hdr-custom-full-wrap {
+    flex: 1;
+    min-width: 120px;
+    display: flex;
+    align-items: stretch;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .hdr-custom-full-input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 7px 10px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+  }
+  .hdr-custom-full-input:focus { outline: none; }
+  .hdr-custom-clear {
+    flex-shrink: 0;
+    width: 34px;
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hdr-custom-clear:active, .hdr-custom-clear.pressed { background: var(--surface3); color: #ff6b6b; }
+
+  .chip-option {
+    flex-shrink: 0;
+    white-space: nowrap;
+    background: var(--surface3);
+    border: none;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .chip-option.selected { background: var(--accent); color: #1a1a1a; }
+  .chip-option.icon-chip { padding: 4px 11px; }
+  .chip-option.icon-chip svg.dur-icon { width: 15px; height: 20px; display: block; }
+  .chip-option.icon-chip svg.dur-icon * { vector-effect: non-scaling-stroke; }
+
+  .add-header-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .add-chip {
+    background: transparent;
+    border: 1.5px dashed var(--btn-border);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .add-chip:active, .add-chip.pressed { background: var(--surface2); border-color: var(--accent); }
+  .add-chip .plus { color: var(--accent); font-weight: 700; }
+
+  .other-field-wrap {
+    display: flex;
+    align-items: stretch;
+    width: 84px;
+    flex-shrink: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .other-field-input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 7px 0 7px 10px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+  }
+  .other-field-input::placeholder { color: var(--text-dim); text-transform: none; }
+  .other-field-input:focus { outline: none; }
+  .other-field-confirm {
+    flex-shrink: 0;
+    width: 34px;
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .other-field-confirm:active, .other-field-confirm.pressed { background: var(--surface3); color: var(--accent); }
+
+  .hdr-catchall-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    padding: 8px 10px;
+    resize: vertical;
+    min-height: 70px;
+  }
+  .hdr-catchall-textarea:focus { outline: none; border-color: var(--accent); }
+  .hdr-catchall-hint {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    line-height: 1.4;
+  }
 </style>
 </head>
 <body>
@@ -1658,6 +1902,37 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Song Info modal -->
+<div id="songinfo-overlay">
+  <div id="songinfo-box">
+    <div class="modal-header">
+      <span class="modal-title">Song Info</span>
+      <button class="modal-close" id="songinfoClose">✕</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Current headers</div>
+      <div class="hdr-row-list" id="hdrRowList"></div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Add header</div>
+      <div class="add-header-chips" id="addHeaderChips"></div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Other text (comments &amp; directives)</div>
+      <div class="hdr-catchall-hint">Lines like %%score or %%MIDI, kept as-is and placed after the fields above.</div>
+      <textarea class="hdr-catchall-textarea" id="hdrCatchall" rows="3"></textarea>
+    </div>
+
+    <div class="confirm-actions">
+      <button class="action-btn confirm-btn" data-action="cancelSongInfo">Cancel</button>
+      <button class="action-btn confirm-btn" data-action="saveSongInfo" style="background: var(--accent); color: #1a1a1a;">Save</button>
+    </div>
   </div>
 </div>
 
@@ -1853,13 +2128,24 @@
   <div id="notation-display" aria-hidden="true"></div>
   <textarea id="notation" placeholder="Type or tap to enter ABC notation…"
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-  <div class="float-pills">
-    <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
+  <div class="float-pills-row">
+    <div class="float-pills">
+      <button class="action-btn btn-info" id="songInfoBtn" data-action="openSongInfo" data-keepfocus="1" aria-label="Song info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9" stroke="white" stroke-width="2"/>
+          <line x1="12" y1="11" x2="12" y2="16.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="12" cy="7.6" r="1.2" fill="white"/>
+        </svg>
+      </button>
+    </div>
+    <div class="float-pills">
+      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <!-- Quick-insert row + open-keyboard button. Floats over the bottom of the
@@ -5145,6 +5431,424 @@
     if (e.target === document.getElementById('settings-overlay')) closeSettings();
   });
 
+  // ---- Song Info modal ----
+  // SHELL ONLY: songHeaderRows below is placeholder sample data standing in
+  // for "what we parsed out of the ABC header block". Reading the real
+  // header on open and serializing back into ta.value on close is the next
+  // step, deliberately deferred until this interaction feels right.
+
+  // Canonical slot order used only to decide where a *newly added* field
+  // lands by default — rows stay freely draggable afterward, existing rows
+  // keep whatever order they were found in. K is intentionally absent: it
+  // is always forced last on close no matter where it sits here.
+  const HDR_FIELD_ORDER = ['T', 'C', 'M', 'L', 'Q'];
+  // Fields that may only appear once each (T is handled separately below —
+  // multiple T rows are allowed and dynamically relabeled Title/Subtitle/…).
+  const HDR_SINGLETON_FIELDS = ['C', 'M', 'K', 'L', 'X', 'Q'];
+  const HDR_FIELD_NAMES = { C: 'Composer', M: 'Meter', K: 'Key signature', L: 'Default note length', X: 'Tune number', Q: 'Tempo' };
+  const METER_PRESETS = ['4/4', '3/4', '2/4', '6/8', '12/8', 'C', 'C|'];
+  const DURATION_PRESETS = ['1/16', '1/8', '1/4', '1/2', '1'];
+
+  let hdrRowSeq = 0;
+  function makeHdrRow(field, value) {
+    const row = { id: 'hdr' + (hdrRowSeq++), field, value: value || '' };
+    if (field === 'M' || field === 'L') row.customMode = false;
+    return row;
+  }
+
+  // Overwritten every time the modal opens, by parsing the real ABC header.
+  let songHeaderRows = [];
+
+  function tRowLabel(indexAmongT) {
+    if (indexAmongT === 0) return 'Title';
+    if (indexAmongT === 1) return 'Subtitle';
+    return 'Subtitle ' + (indexAmongT); // indexAmongT is 0-based; 2 -> "Subtitle 2"
+  }
+  function fieldPresentCount(field) {
+    return songHeaderRows.filter(r => r.field === field).length;
+  }
+
+  // ---- Parsing: ABC header block -> songHeaderRows / catchall text ----
+  // Reads the same header block findHeaderEndPos already uses elsewhere
+  // (field lines, %/%% lines, blank lines, run from the very top). Field
+  // lines become rows; blank lines are dropped; everything else
+  // (comments/directives) goes into the catchall textarea, in order.
+  function parseFieldRow(field, rawValue) {
+    const value = rawValue.trim();
+    const row = makeHdrRow(field, value);
+    if (field === 'M') row.customMode = value !== '' && !METER_PRESETS.includes(value);
+    if (field === 'L') row.customMode = value !== '' && !DURATION_PRESETS.includes(value);
+    return row;
+  }
+
+  function parseHeaderFromText(text) {
+    const header = text.slice(0, findHeaderEndPos(text));
+    const rows = [];
+    const catchallLines = [];
+    header.split('\n').forEach(line => {
+      if (line.trim() === '') return; // blank lines dropped
+      const m = /^([A-Za-z]):(.*)$/.exec(line);
+      if (m) rows.push(parseFieldRow(m[1].toUpperCase(), m[2]));
+      else if (line.startsWith('%')) catchallLines.push(line);
+    });
+    return { rows, catchallText: catchallLines.join('\n') };
+  }
+
+  // ---- Serializing: songHeaderRows / catchall text -> ABC header block ----
+  // Blank-valued rows are dropped. X (if present) is forced first, K (if
+  // present) is forced last — everything else keeps whatever order it's in.
+  // Catchall lines are appended after the fields, blank lines dropped.
+  function serializeHeaderRows() {
+    const lines = [];
+    let kLine = null, xLine = null;
+    songHeaderRows.forEach(row => {
+      const val = (row.value || '').trim();
+      if (!val) return;
+      const line = row.field + ':' + val;
+      if (row.field === 'X') xLine = line;
+      else if (row.field === 'K') kLine = line;
+      else lines.push(line);
+    });
+    if (kLine) lines.push(kLine);
+    if (xLine) lines.unshift(xLine);
+    return lines;
+  }
+  function serializeCatchallLines() {
+    return document.getElementById('hdrCatchall').value.split('\n').filter(l => l.trim() !== '');
+  }
+  function buildHeaderBlockText() {
+    const allLines = serializeHeaderRows().concat(serializeCatchallLines());
+    return allLines.length ? allLines.join('\n') + '\n' : '';
+  }
+
+  // Snapshot of songHeaderRows/catchall text taken when the modal opens, so
+  // Cancel (and dismissing via ✕ or the backdrop, which count as the same
+  // thing) can revert this editing session's changes. Save writes the
+  // current in-memory state back into ta.value's header block.
+  let songInfoSnapshot = null;
+  let songInfoCatchallSnapshot = '';
+
+  function openSongInfo() {
+    const parsed = parseHeaderFromText(ta.value);
+    songHeaderRows = parsed.rows;
+    document.getElementById('hdrCatchall').value = parsed.catchallText;
+    songInfoSnapshot = JSON.parse(JSON.stringify(songHeaderRows));
+    songInfoCatchallSnapshot = parsed.catchallText;
+    renderHdrRows();
+    renderAddChips();
+    document.getElementById('songinfo-overlay').classList.add('open');
+    modalOpened('songinfo-overlay');
+  }
+  function closeSongInfoUI() {
+    document.getElementById('songinfo-overlay').classList.remove('open');
+    modalClosed('songinfo-overlay');
+  }
+  function saveSongInfo() {
+    const oldText = ta.value;
+    const oldHeaderEnd = findHeaderEndPos(oldText);
+    const newHeaderBlock = buildHeaderBlockText();
+    const newText = newHeaderBlock + oldText.slice(oldHeaderEnd);
+    if (newText !== oldText) {
+      pushUndo();
+      const delta = newHeaderBlock.length - oldHeaderEnd;
+      ta.value = newText;
+      if (savedStart >= oldHeaderEnd) savedStart = Math.max(newHeaderBlock.length, savedStart + delta);
+      if (savedEnd >= oldHeaderEnd) savedEnd = Math.max(newHeaderBlock.length, savedEnd + delta);
+      if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+      else syncDisplayIfUnfocused();
+      updateClearBtn();
+      schedulePreview();
+      updateActionBar();
+    }
+    closeSongInfoUI();
+  }
+  function cancelSongInfo() {
+    if (songInfoSnapshot) songHeaderRows = JSON.parse(JSON.stringify(songInfoSnapshot));
+    document.getElementById('hdrCatchall').value = songInfoCatchallSnapshot;
+    closeSongInfoUI();
+  }
+  document.getElementById('songinfoClose').addEventListener('click', cancelSongInfo);
+  document.getElementById('songinfo-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('songinfo-overlay')) cancelSongInfo();
+  });
+
+  // Enter finishes editing a text field (in Current Headers or a field's
+  // Custom entry) and blurs it, rather than doing nothing/inserting a
+  // newline. Delegated so it covers rows added after the modal opened.
+  document.getElementById('hdrRowList').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.target.classList.contains('hdr-text-input') || e.target.classList.contains('hdr-custom-full-input'))) {
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+
+  function insertNewHdrRow(field, value) {
+    const row = makeHdrRow(field, value);
+    if (field === 'T') {
+      let lastT = -1;
+      songHeaderRows.forEach((r, i) => { if (r.field === 'T') lastT = i; });
+      songHeaderRows.splice(lastT + 1, 0, row);
+    } else {
+      const myRank = HDR_FIELD_ORDER.indexOf(field);
+      let insertAt = songHeaderRows.length;
+      for (let i = 0; i < songHeaderRows.length; i++) {
+        if (songHeaderRows[i].field === 'K') { insertAt = i; break; }
+        if (myRank === -1) continue; // custom/unranked fields default to just before K
+        const theirRank = HDR_FIELD_ORDER.indexOf(songHeaderRows[i].field);
+        if (theirRank !== -1 && theirRank <= myRank) insertAt = i + 1;
+      }
+      songHeaderRows.splice(insertAt, 0, row);
+    }
+    return row;
+  }
+
+  function removeHdrRow(btn) {
+    const row = btn.closest('.hdr-row');
+    songHeaderRows = songHeaderRows.filter(r => r.id !== row.dataset.rowId);
+    renderHdrRows();
+    renderAddChips();
+  }
+
+  function addHdrField(btn) {
+    const field = btn.dataset.field;
+    if (field === 'CUSTOM') { showCustomFieldInline(btn); return; }
+    addFieldByLetter(field);
+  }
+
+  // Shared by the dedicated Add Header chips (T, C, M, L, K, X) and the
+  // Other… free-letter entry — same insertion rules, same default values,
+  // same UI (preset buttons for M/L, plain text otherwise) either way.
+  function addFieldByLetter(field) {
+    let defaultValue = '';
+    if (field === 'M') defaultValue = '4/4';
+    if (field === 'L') defaultValue = '1/8';
+    const row = insertNewHdrRow(field, defaultValue);
+    renderHdrRows();
+    renderAddChips();
+    // M and L land on a preset button already selected, nothing to focus.
+    // Every other field is a plain text input — focus it straight away.
+    if (field !== 'M' && field !== 'L') {
+      const input = document.querySelector(`#hdrRowList .hdr-row[data-row-id="${row.id}"] .hdr-text-input`);
+      if (input) input.focus();
+    }
+  }
+
+  // Replaces the "Other…" chip in place with a letter input + tick
+  // (confirm) button, styled the same way the per-field Custom control is:
+  // one pill, a hairline divider before the trailing button.
+  function showCustomFieldInline(btn) {
+    const wrap = document.createElement('div');
+    wrap.className = 'other-field-wrap';
+    wrap.innerHTML =
+      '<input type="text" class="other-field-input" maxlength="1" placeholder="A-Z">' +
+      '<button class="action-btn other-field-confirm" data-action="confirmCustomField" aria-label="Add header">✓</button>';
+    btn.replaceWith(wrap);
+
+    const input = wrap.querySelector('.other-field-input');
+    input.focus();
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); confirmCustomField(wrap.querySelector('.other-field-confirm')); }
+    });
+    // Blurring away with nothing typed reverts back to the "Other…" chip —
+    // deferred slightly so a tap on the tick button (which also blurs the
+    // input) gets to register as a click first.
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (document.body.contains(wrap) && !input.value.trim()) renderAddChips();
+      }, 150);
+    });
+  }
+
+  function confirmCustomField(btn) {
+    const wrap = btn.closest('.other-field-wrap');
+    const input = wrap.querySelector('.other-field-input');
+    const letter = input.value.trim().toUpperCase();
+    if (!/^[A-Z]$/.test(letter)) {
+      showToast('Enter a single letter, A–Z');
+      input.focus();
+      return;
+    }
+    if (letter !== 'T' && songHeaderRows.some(r => r.field === letter)) {
+      showToast(letter + ': is already in Current Headers');
+      input.focus();
+      return;
+    }
+    addFieldByLetter(letter);
+  }
+
+  function selectChipOption(btn) {
+    const row = btn.closest('.hdr-row');
+    const rowData = songHeaderRows.find(r => r.id === row.dataset.rowId);
+    const group = btn.dataset.group;
+    if (group === 'meter' || group === 'duration') {
+      if (btn.dataset.value === 'CUSTOM') {
+        rowData.customMode = true;
+      } else {
+        rowData.customMode = false;
+        rowData.value = btn.dataset.value;
+      }
+    }
+    renderHdrRows();
+    if (rowData.customMode) {
+      const input = document.querySelector(`#hdrRowList .hdr-row[data-row-id="${rowData.id}"] .hdr-custom-full-input`);
+      if (input) input.focus();
+    }
+  }
+
+  function renderAddChips() {
+    const wrap = document.getElementById('addHeaderChips');
+    wrap.innerHTML = '';
+    addChip(wrap, 'T', tRowLabel(fieldPresentCount('T')));
+    HDR_FIELD_ORDER.filter(f => f !== 'T').forEach(f => {
+      if (HDR_SINGLETON_FIELDS.includes(f) && fieldPresentCount(f) > 0) return;
+      addChip(wrap, f, HDR_FIELD_NAMES[f] || f);
+    });
+    if (fieldPresentCount('K') === 0) addChip(wrap, 'K', 'Key signature');
+    if (fieldPresentCount('X') === 0) addChip(wrap, 'X', 'Tune number');
+    addChip(wrap, 'CUSTOM', 'Other…');
+  }
+  function addChip(wrap, field, label) {
+    const btn = document.createElement('button');
+    btn.className = 'action-btn add-chip';
+    btn.dataset.action = 'addHdrField';
+    btn.dataset.field = field;
+    btn.textContent = field === 'CUSTOM' ? label : (field + ': ' + label);
+    wrap.appendChild(btn);
+  }
+
+  function renderHdrRows() {
+    const list = document.getElementById('hdrRowList');
+    list.innerHTML = '';
+    let tSeen = 0;
+    songHeaderRows.forEach(rowData => {
+      const label = rowData.field === 'T' ? tRowLabel(tSeen++) : (HDR_FIELD_NAMES[rowData.field] || 'Field');
+      list.appendChild(buildHdrRowEl(rowData, label));
+    });
+  }
+
+  // Single-line row: `X:` badge, a horizontally-scrollable strip holding
+  // whatever controls this field needs (plain text input, or preset chips /
+  // dropdowns plus a trailing Custom toggle), and an `x` remove button.
+  // The field's human name (label) is used only for the badge's
+  // aria-label — it's never shown as visible text here, only in Add Header.
+  function buildHdrRowEl(rowData, label) {
+    const el = document.createElement('div');
+    el.className = 'hdr-row';
+    el.dataset.rowId = rowData.id;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'action-btn hdr-row-remove';
+    removeBtn.dataset.action = 'removeHdrRow';
+    removeBtn.setAttribute('aria-label', 'Remove ' + label);
+    removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.14"/>' +
+      '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/>' +
+      '<line x1="7.5" y1="12" x2="16.5" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+      '</svg>';
+    el.appendChild(removeBtn);
+
+    const field = document.createElement('div');
+    field.className = 'hdr-row-field';
+
+    const badge = document.createElement('span');
+    badge.className = 'hdr-row-badge';
+    badge.textContent = rowData.field + ':';
+    badge.setAttribute('aria-label', label);
+    field.appendChild(badge);
+
+    const scroll = document.createElement('div');
+    scroll.className = 'hdr-row-scroll';
+    buildHdrValueInto(scroll, rowData);
+    field.appendChild(scroll);
+
+    el.appendChild(field);
+    return el;
+  }
+
+  function buildHdrValueInto(scroll, rowData) {
+    if (rowData.field === 'M') { buildChipRowInto(scroll, rowData, METER_PRESETS, 'meter'); return; }
+    if (rowData.field === 'L') { buildChipRowInto(scroll, rowData, DURATION_PRESETS, 'duration'); return; }
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'hdr-text-input';
+    input.value = rowData.value || '';
+    input.addEventListener('input', () => { rowData.value = input.value; });
+    scroll.appendChild(input);
+  }
+
+  // Reverts a customMode field back to its normal buttons/dropdowns when
+  // the inline custom input is blurred while still empty.
+  function revertCustomOnEmptyBlur(input, rowData) {
+    input.addEventListener('blur', () => {
+      if (!input.value.trim()) { rowData.customMode = false; renderHdrRows(); }
+    });
+  }
+
+  // The full-width custom-value control for a field that normally shows
+  // buttons/dropdowns (M, L, K) — replaces all of those with a single input
+  // plus an adjoining clear button, styled to read as one pill.
+  function buildCustomFullInput(scroll, rowData) {
+    const wrap = document.createElement('div');
+    wrap.className = 'hdr-custom-full-wrap';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'hdr-custom-full-input';
+    input.value = rowData.value || '';
+    input.addEventListener('input', () => { rowData.value = input.value; });
+    revertCustomOnEmptyBlur(input, rowData);
+    wrap.appendChild(input);
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'action-btn hdr-custom-clear';
+    clearBtn.dataset.action = 'clearCustomField';
+    clearBtn.setAttribute('aria-label', 'Clear');
+    clearBtn.textContent = '×';
+    wrap.appendChild(clearBtn);
+
+    scroll.appendChild(wrap);
+    return input;
+  }
+
+  function clearCustomField(btn) {
+    const row = btn.closest('.hdr-row');
+    const rowData = songHeaderRows.find(r => r.id === row.dataset.rowId);
+    rowData.value = '';
+    rowData.customMode = false;
+    renderHdrRows();
+  }
+
+  function buildChipRowInto(scroll, rowData, presets, group) {
+    if (rowData.customMode) {
+      buildCustomFullInput(scroll, rowData);
+      return;
+    }
+    presets.forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'action-btn chip-option' + (rowData.value === v ? ' selected' : '');
+      btn.dataset.action = 'selectChipOption';
+      btn.dataset.group = group;
+      btn.dataset.value = v;
+      if (group === 'duration') {
+        btn.classList.add('icon-chip');
+        btn.innerHTML = durationIconSVG(v, false, false);
+        btn.setAttribute('aria-label', v + ' note');
+        btn.title = v + ' note';
+      } else {
+        btn.textContent = v;
+      }
+      scroll.appendChild(btn);
+    });
+    const customBtn = document.createElement('button');
+    customBtn.className = 'action-btn chip-option';
+    customBtn.dataset.action = 'selectChipOption';
+    customBtn.dataset.group = group;
+    customBtn.dataset.value = 'CUSTOM';
+    customBtn.textContent = 'Custom';
+    scroll.appendChild(customBtn);
+  }
+
+
   // ---- View Options sidebar ----
   function openViewOptions() {
     document.getElementById('view-options-overlay').classList.add('open');
@@ -5955,7 +6659,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport };
+  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, confirmCustomField, selectChipOption, clearCustomField };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
