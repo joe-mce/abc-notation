@@ -252,7 +252,6 @@
     flex-direction: column;
     gap: 6px;
   }
-  .modal-wrap-fields.disabled { opacity: 0.4; pointer-events: none; }
   .modal-field-label {
     font-size: 0.72rem;
     color: var(--text-dim);
@@ -349,6 +348,7 @@
   }
   #notation-display .hl-mod   { color: var(--hl-modifier); }
   #notation-display .hl-rest  { color: var(--hl-rest); }
+  #notation-display .hl-note  { color: var(--hl-note); }
   #notation-display .hl-dur   { color: var(--hl-duration); }
   #notation-display .hl-bar   { color: var(--hl-barline); }
   #notation-display .hl-chord { color: var(--hl-chord); }
@@ -362,7 +362,6 @@
   .btn-undo { opacity: 1; transition: opacity 0.15s; }
   .btn-undo:disabled { opacity: 0.25; cursor: default; }
   .btn-undo svg { display: block; }
-  .btn-copy-icon svg { display: block; }
   #preview { padding: 8px 10px; overflow-x: auto; overflow-y: hidden; }
   #preview svg { display: block; }
   #preview svg path, #preview svg rect, #preview svg ellipse,
@@ -818,26 +817,6 @@
     white-space: nowrap;
   }
 
-  .action-scroll .action-pill {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--surface);
-    border: none;
-    color: var(--text);
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 8px 14px;
-    border-radius: 999px;
-    white-space: nowrap;
-  }
-  /* Quick-insert pills that reuse the on-screen-key insert mechanism */
-  .action-scroll .key.action-pill {
-    height: auto;
-    font-weight: 500;
-  }
-
   /* "Tools" / "Copy" / "Paste" items shown in the action bar while text is selected */
   .action-scroll .sel-bar-btn {
     flex: 0 0 auto;
@@ -930,18 +909,6 @@
   }
   #notation::placeholder { color: var(--text-dim); }
 
-  .editor-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 5px 8px;
-    border-top: 1px solid var(--border);
-    background: var(--surface2);
-    gap: 6px;
-  }
-  .footer-left { display: flex; gap: 6px; }
-  .footer-right { display: flex; gap: 6px; }
-
   .action-btn {
     font-family: 'IBM Plex Sans', sans-serif;
     font-size: 0.75rem;
@@ -956,74 +923,6 @@
   }
   .btn-copy { background: var(--accent); color: #111; }
   .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-  .btn-templates { background: transparent; color: var(--text); border: 1px solid var(--border); font-size: 1.1rem; padding: 4px 9px; }
-  .btn-templates.active { background: var(--surface2); border-color: var(--text-dim); }
-
-  .arrow-btns { display: flex; gap: 3px; }
-  .btn-arrow {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: var(--radius-sm);
-    padding: 5px 8px;
-    font-size: 0.7rem;
-    cursor: pointer;
-    touch-action: manipulation;
-    font-family: 'IBM Plex Sans', sans-serif;
-    line-height: 1;
-  }
-
-  /* Arrow key row — below keyboard, left-aligned */
-  .row-arrows {
-    justify-content: flex-start;
-    gap: 4px;
-  }
-  .row-arrows .key {
-    flex: 0 0 auto;
-    width: 48px;
-    height: 36px;
-    font-size: 1rem;
-    font-family: 'IBM Plex Mono', monospace;
-  }
-
-  /* Chord + text insert buttons */
-  .btn-chord {
-    background: transparent;
-    color: var(--text);
-    border: none;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-weight: 700;
-    font-size: 1rem;
-    letter-spacing: 0;
-    padding: 4px 8px;
-    line-height: 1;
-  }
-  .btn-chord sup {
-    font-size: 0.6em;
-    font-style: normal;
-    vertical-align: super;
-    font-weight: 600;
-  }
-  .btn-addtext {
-    background: transparent;
-    color: var(--text);
-    border: none;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 1rem;
-    font-weight: 700;
-    padding: 4px 8px;
-    line-height: 1;
-  }
-  .btn-addtext .t-arrow {
-    font-style: normal;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.52em;
-    font-weight: 400;
-    position: relative;
-    margin-left: 1px;
-    color: var(--text);
-  }
-  .btn-addtext .t-arrow-up   { top: -0.2em; }
 
   /* Insert popups */
   .insert-overlay {
@@ -1115,152 +1014,6 @@
   .menu-wrap {
     position: relative;
   }
-  .menu-dropdown {
-    display: none;
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: visible;
-    z-index: 50;
-    white-space: nowrap;
-    min-width: 170px;
-  }
-  .menu-dropdown.open { display: block; }
-  .menu-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 9px 14px;
-    text-align: left;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    touch-action: manipulation;
-    box-sizing: border-box;
-  }
-  .menu-item:hover { background: var(--surface2); }
-  .menu-item.danger { color: #e06060; }
-  .menu-item-arrow { opacity: 0.5; font-size: 0.7rem; margin-left: 12px; }
-  .menu-divider { height: 1px; background: var(--border); margin: 3px 0; }
-
-  /* Template popover overlay */
-  #tmpl-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  #tmpl-overlay.open { display: flex; }
-  #tmpl-box {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    width: 100%;
-    max-width: 400px;
-    padding: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    max-height: 80vh;
-    overflow-y: auto;
-  }
-  #tmpl-box .insert-title { margin-bottom: 2px; }
-  .tmpl-overlay-grid { display: flex; flex-wrap: wrap; gap: 5px; }
-
-  /* Split copy button */
-  .copy-split {
-    display: flex;
-    position: relative;
-  }
-  .copy-split .btn-copy-main {
-    background: var(--accent);
-    color: #111;
-    border: none;
-    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-    padding: 5px 12px;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-  .copy-split-divider {
-    width: 1px;
-    background: rgba(0,0,0,0.25);
-    flex-shrink: 0;
-  }
-  .copy-split .btn-copy-arrow {
-    background: var(--accent);
-    color: #111;
-    border: none;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    padding: 5px 7px;
-    font-size: 0.6rem;
-    cursor: pointer;
-    touch-action: manipulation;
-    display: flex;
-    align-items: center;
-  }
-  .copy-dropdown {
-    display: none;
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    z-index: 50;
-    white-space: nowrap;
-    min-width: 100%;
-  }
-  .copy-dropdown.open { display: block; }
-  .copy-dropdown-item {
-    display: block;
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 8px 14px;
-    text-align: left;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    touch-action: manipulation;
-  }
-  .copy-dropdown-item:hover { background: var(--surface2); }
-
-  /* Template panel - removed (now a popover overlay) */
-  .tmpl-btn {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: clamp(0.65rem, 2.4vw, 0.8rem);
-    font-weight: 600;
-    background: var(--btn-bg);
-    color: var(--accent2);
-    border: 1.5px solid #2a5a4a;
-    border-radius: var(--radius-sm);
-    padding: 7px 10px;
-    cursor: pointer;
-    transition: background 0.08s, transform 0.08s;
-    white-space: nowrap;
-    touch-action: manipulation;
-  }
 
   .copy-toast {
     position: fixed;
@@ -1310,32 +1063,6 @@
     overflow: hidden;
     touch-action: manipulation;
   }
-  @keyframes keyflash {
-    0%   { background: var(--surface3); transform: scale(0.88); }
-    100% { background: var(--surface2); transform: scale(1); }
-  }
-  @keyframes keyflash-primary {
-    0%   { background: var(--surface3); transform: scale(0.88); }
-    100% { background: var(--surface2); transform: scale(1); }
-  }
-  @keyframes keyflash-bksp {
-    0%   { background: #4a2a2a; transform: scale(0.88); }
-    100% { background: var(--surface3); transform: scale(1); }
-  }
-  @keyframes btnflash {
-    0%   { opacity: 0.6; transform: scale(0.94); }
-    100% { opacity: 1;   transform: scale(1); }
-  }
-  @keyframes tmplflash {
-    0%   { background: #0d3d2a; transform: scale(0.92); }
-    100% { background: var(--btn-bg); transform: scale(1); }
-  }
-  .key.flash               { animation: keyflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
-  .row-1 .key.flash        { animation: keyflash-primary 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
-  .key-bksp.flash          { animation: keyflash-bksp 0.25s cubic-bezier(0.2, 0, 0.4, 1) !important; }
-  .tmpl-btn.flash          { animation: tmplflash 0.25s cubic-bezier(0.2, 0, 0.4, 1); }
-  .action-btn.flash        { animation: btnflash 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
-
   .row-1 .key {
     flex: 1 1 0;
     max-width: 48px;
@@ -1429,8 +1156,8 @@
     0%   { transform: scale(1.18); }
     100% { transform: scale(1); }
   }
-  .key.pressed, .tmpl-btn.pressed, .keyboard-toggle-btn.pressed, .row-2 .action-btn.pressed, .row-3 .action-btn.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
-  .key.shrink, .tmpl-btn.shrink, .keyboard-toggle-btn.shrink, .row-2 .action-btn.shrink, .row-3 .action-btn.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
+  .key.pressed, .keyboard-toggle-btn.pressed, .row-2 .action-btn.pressed, .row-3 .action-btn.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
+  .key.shrink, .keyboard-toggle-btn.shrink, .row-2 .action-btn.shrink, .row-3 .action-btn.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
   /* Gesture note badge */
   #gesture-badge {
@@ -1763,7 +1490,6 @@
     gap: 5px;
   }
   .add-chip:active, .add-chip.pressed { background: var(--surface2); border-color: var(--accent); }
-  .add-chip .plus { color: var(--accent); font-weight: 700; }
 
   .other-field-wrap {
     display: flex;
@@ -2075,19 +1801,6 @@
   </div>
 </div>
 
-<!-- Legacy menu: Insert-template + Tools submenu + kept here so the functionality
-     stays wired up (toggleMenu/openTmplOverlay/transposeUp/etc still reference these
-     ids). Hidden until we give it a new home in the redesign. -->
-<div style="display:none" aria-hidden="true">
-  <div class="menu-wrap">
-    <button class="action-btn btn-templates" id="menuBtn" data-action="toggleMenu">&#9776;</button>
-    <div class="menu-dropdown" id="menuDropdown">
-      <button class="menu-item action-btn" data-action="openTmplOverlay" data-keepfocus="1">Insert template…</button>
-    </div>
-  </div>
-  <div class="copy-dropdown" id="copyDropdown"></div>
-</div>
-
 <div id="preview-wrap">
   <div class="preview-pill pill-left">
     <button id="viewOptionsBtn" aria-label="View options">
@@ -2171,47 +1884,7 @@
   </div>
 </div>
 
-<!-- Template insert overlay -->
-<div class="insert-overlay" id="tmpl-overlay">
-  <div class="insert-box" id="tmpl-box">
-    <div class="insert-title">Insert template</div>
-    <div class="tmpl-overlay-grid">
-      <!-- %% directives -->
-      <button class="tmpl-btn" data-insert="%%score ">%%score</button>
-      <button class="tmpl-btn" data-insert="%%score {1 | 2}">%%score {1|2}</button>
-      <button class="tmpl-btn" data-insert="%%score {(1 2) | (3 4)}">%%score {(1 2)|(3 4)}</button>
-      <button class="tmpl-btn" data-insert="%%staffSep 60">%%staffSep 60</button>
-      <button class="tmpl-btn" data-insert="%%printTempo false">%%printTempo false</button>
-      <!-- Header fields -->
-      <button class="tmpl-btn" data-insert="T:">T:</button>
-      <button class="tmpl-btn" data-insert="Q:1/4=">Q:1/4=</button>
-      <button class="tmpl-btn" data-insert="L:1/16">L:1/16</button>
-      <button class="tmpl-btn" data-insert="L:1/4">L:1/4</button>
-      <button class="tmpl-btn" data-insert="L:1/2">L:1/2</button>
-      <button class="tmpl-btn" data-insert="L:1">L:1</button>
-      <!-- Inline fields -->
-      <button class="tmpl-btn" data-insert="[V:1]">[V:1]</button>
-      <button class="tmpl-btn" data-insert="[V:2]">[V:2]</button>
-      <!-- Barlines -->
-      <button class="tmpl-btn" data-insert="|:">|:</button>
-      <button class="tmpl-btn" data-insert=":|">:|</button>
-      <button class="tmpl-btn" data-insert=":||:">:||:</button>
-      <!-- Note prefixes -->
-      <button class="tmpl-btn" data-insert="(3">(3</button>
-      <button class="tmpl-btn" data-insert="!mark!">!mark!</button>
-      <button class="tmpl-btn" data-insert="!>!">!&gt;!</button>
-      <button class="tmpl-btn" data-insert="!style=x!">!style=x!</button>
-      <button class="tmpl-btn" data-insert="!style=rhythm!">!style=rhythm!</button>
-      <!-- Complex -->
-      <button class="tmpl-btn" data-insert="%%score {1 | 2}&#10;V:1 clef=treble&#10;V:2 clef=bass&#10;[V:1]&#10;[V:2]">Grand Staff</button>
-    </div>
-    <div class="insert-footer">
-      <button class="action-btn btn-clear" data-action="closeTmplOverlay">Cancel</button>
-    </div>
-  </div>
-</div>
 
-<!-- Tools modal — opened from the "Tools" action-bar item while text is selected -->
 <div class="insert-overlay" id="toolsOverlay">
   <div class="tools-modal-box">
     <button class="modal-close tools-modal-close" id="toolsModalClose" aria-label="Close">&times;</button>
@@ -2426,6 +2099,8 @@
     // whitespace (including \n), barlines, complete quoted strings "...",
     // unclosed/partial quoted strings (e.g. user mid-typing "G7),
     // and decorations !...!
+    // Barline forms recognized while stripping (longest match first).
+    const trailingBarlineRe = /(:\|::|::\|:|:\|\|:|:\|\||\|\|:|\|\||::\||::\||\[\|\||:\||:\]|\|\]|\[?\||\|:|:])$/;
     let progress = true;
     while (progress) {
       progress = false;
@@ -2455,9 +2130,9 @@
         s = s.replace(/![^!]*$/, '');
         progress = true; continue;
       }
-      // Trailing barlines (various forms, longest match first)
-      if (/(:\|::|::\|:|:\|\|:|:\|\||\|\|:|\|\||::\||::\||\[\|\||:\||:\]|\|\]|\[?\||\|:|:])$/.test(s)) {
-        s = s.replace(/(:\|::|::\|:|:\|\|:|:\|\||\|\|:|\|\||::\||::\||\[\|\||:\||:\]|\|\]|\[?\||\|:|:])$/, '');
+      // Trailing barlines
+      if (trailingBarlineRe.test(s)) {
+        s = s.replace(trailingBarlineRe, '');
         progress = true; continue;
       }
     }
@@ -2507,7 +2182,6 @@
     } else {
       syncDisplayIfUnfocused();
     }
-    updateClearBtn();
     schedulePreview();
     undoBtn.disabled = undoStack.length === 0;
     updateActionBar();
@@ -2585,7 +2259,9 @@
         if (t.startsWith('"'))                          type = 'chord';
         else if (t.startsWith('!'))                     type = 'decoration';
         else if (t.startsWith('[') && t.includes(':'))  type = 'inline-field';
-        else if (/^(\|\||:\||\|:|:\:|\\[\\|\\||\[\\|\|\\]|::)/.test(t)) type = 'barline';
+        // Barline forms the tokenizer above can produce as a single token:
+        // || |: :| :: (thin/thick combos, repeats) and [| [|| |] (thick barlines).
+        else if (/^(\|\||\|:|:\||::|\[\|\||\[\||\|\])$/.test(t)) type = 'barline';
         else if (t === '|')                             type = 'barline';
         else if (/^[a-gA-G]$/.test(t))                 type = 'note';
         else if (/^[zxZ]$/.test(t))                    type = 'rest';
@@ -2791,15 +2467,14 @@
     requestAnimationFrame(() => { ta.scrollTop = scroll; });
   }
 
-  // ---- Tap / double-tap on the static display ----
+  // ---- Tap on the static display ----
   // Single tap or click: move the cursor to the tapped position.
   // A touch that moves more than a few px is treated as a scroll, not a
   // tap, and is left alone entirely so native scrolling still works.
   // Mouse and touch are unified via Pointer Events so both behave identically.
   //
-  // Double-tap-to-focus was removed (switching to textarea mode is now
-  // solely via the keyboard-toggle button) but the logic is kept below,
-  // commented out, in case we want to reinstate it later.
+  // (Double-tap-to-focus was removed — switching to textarea mode is now
+  // solely via the keyboard-toggle button.)
 
   // Measures the true top/bottom (viewport coordinates) of the actually
   // rendered text inside taDisplay, by walking its text nodes directly.
@@ -2963,13 +2638,6 @@
   // inputs/textareas (Settings, chord/text popups, share-link box, etc).
   taDisplay.addEventListener('selectstart', e => e.preventDefault());
 
-  /* Double-tap state — unused while double-tap-to-focus is disabled, kept for reinstatement:
-  const DOUBLE_TAP_MS = 350;
-  const DOUBLE_TAP_DIST = 25;
-  let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
-  let preTapStart = 0, preTapEnd = 0;
-  */
-
   // Selecting text by tap-and-drag: `#notation-display` has `touch-action: pan-y`
   // (see CSS), which tells the browser it's free to handle vertical dragging
   // natively as a scroll, but must never claim horizontal movement as a
@@ -3048,27 +2716,6 @@
     // g.type is still 'pending' — never moved past the tap threshold: a plain tap.
     e.preventDefault();
 
-    /* Double-tap-to-focus — disabled, kept for reinstatement:
-    const now = Date.now();
-    const isDouble = (now - lastTapTime) < DOUBLE_TAP_MS &&
-      Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < DOUBLE_TAP_DIST;
-    lastTapX = e.clientX; lastTapY = e.clientY;
-
-    if (isDouble) {
-      lastTapTime = 0; // don't chain a third tap into another "double"
-      savedStart = preTapStart;
-      savedEnd = preTapEnd;
-      hideStaticDisplay();
-      ta.focus();
-      ta.setSelectionRange(savedStart, savedEnd);
-      return;
-    }
-
-    lastTapTime = now;
-    preTapStart = savedStart;
-    preTapEnd = savedEnd;
-    */
-
     const off = charOffsetFromPoint(e.clientX, e.clientY);
     if (savedStart === savedEnd && off === savedStart) {
       // Tapped exactly where the cursor already is — same as any mobile text
@@ -3096,7 +2743,6 @@
 
   const buttonArea = document.querySelector('.button-area');
   const previewWrap = document.getElementById('preview-wrap');
-  const vDivider = document.getElementById('vDivider');
   const vv = window.visualViewport;
 
   // Pin the preview area's height to a literal px value from the very start.
@@ -3170,10 +2816,6 @@
       updateActionBar();
     }
   });
-  function updateClearBtn() {
-    // Reset menu item greyed out when empty
-    // (no clearBtn DOM element anymore — just keep for callers)
-  }
   (function hydrateFromShareLink() {
     const m = /#abc=(.+)$/.exec(location.hash);
     if (!m) return;
@@ -3185,7 +2827,6 @@
       schedulePreview();
     }
   })();
-  updateClearBtn();
   syncDisplayIfUnfocused();
   setTypingRows(false);
   updateActionBar();
@@ -3692,7 +3333,20 @@
     } catch(e) { currentTuneObj = null; }
   }
 
-  // Core insert — used by both key buttons and template buttons
+  // Shared tail for edits made to ta.value from outside the textarea's own
+  // input events (buttons, popups, modals): restores focus + selection when
+  // `refocus` is true (otherwise re-renders the static display), then
+  // refreshes the preview and action bar. Callers with extra steps between
+  // the mutation and this sequence (e.g. doInsert's scroll-to-end) inline
+  // their own variant instead.
+  function commitEditAndRefresh(refocus) {
+    if (refocus) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
+    else syncDisplayIfUnfocused();
+    schedulePreview();
+    updateActionBar();
+  }
+
+  // Core insert — used by on-screen key buttons and various programmatic inserts
   function doInsert(text, refocus) {
     pushUndo();
     const s = savedStart;
@@ -3708,7 +3362,6 @@
       syncDisplayIfUnfocused();
     }
     if (atEnd) ta.scrollTop = ta.scrollHeight;
-    updateClearBtn();
     schedulePreview();
     if (text === '-') {
       maybeAutoCompleteTie();
@@ -3724,11 +3377,6 @@
     return [f[0] / g, f[1] / g];
   }
   function mulFrac(a, b) { return reduceFrac([a[0] * b[0], a[1] * b[1]]); }
-  function parseFrac(str) {
-    const m = /^(\d+)(?:\/(\d+))?$/.exec(str.trim());
-    if (!m) return [1, 8];
-    return [parseInt(m[1], 10), m[2] ? parseInt(m[2], 10) : 1];
-  }
 
   // Find the last "L:<num>[/<den>]" before the cursor; default to 1/8
   function getCurrentLValue() {
@@ -4232,7 +3880,7 @@
   // ============================================================
   // MODAL SYSTEM
   // Every full overlay (chord popup, text popup, settings, reset
-  // confirm, template grid) registers here on open/close, so
+  // confirm) registers here on open/close, so
   // cross-cutting concerns — like pausing the div-mode cursor's blink
   // while something is covering it — only need to be handled once,
   // rather than per-modal. (The lightweight share/hamburger dropdowns
@@ -4392,11 +4040,7 @@
         savedStart = s;
         savedEnd = s + wrapped.length;
       }
-      if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-      else syncDisplayIfUnfocused();
-      updateClearBtn();
-      schedulePreview();
-      updateActionBar();
+      commitEditAndRefresh(taFocused);
       return;
     }
     const ch = inUnclosedPair(openChar, closeChar) ? closeChar : openChar;
@@ -4454,11 +4098,7 @@
       ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
       savedStart = s + text.length;
       savedEnd = savedStart;
-      if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-      else syncDisplayIfUnfocused();
-      updateClearBtn();
-      schedulePreview();
-      updateActionBar();
+      commitEditAndRefresh(taFocused);
     }).catch(() => {});
   }
 
@@ -4614,12 +4254,7 @@
       newPos = slot.durStart; // was right before the duration — stays before
     }
     savedStart = savedEnd = newPos;
-
-    if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-    else syncDisplayIfUnfocused();
-    updateClearBtn();
-    schedulePreview();
-    updateActionBar();
+    commitEditAndRefresh(taFocused);
   }
 
   function openNativeKeyboard() {
@@ -4628,6 +4263,8 @@
     ta.setSelectionRange(savedStart, savedEnd);
   }
 
+  // On-screen backspace key: deletes the character before a collapsed
+  // cursor, or the whole selection if one exists.
   function bksp() {
     pushUndo();
     const wasActive = taFocused;
@@ -4642,11 +4279,14 @@
     if (wasActive) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
     else syncDisplayIfUnfocused();
     if (atEnd) ta.scrollTop = ta.scrollHeight;
-    updateClearBtn();
     schedulePreview();
     updateActionBar();
   }
 
+  // On-screen arrow keys: moves the (collapsed) cursor one character
+  // left/right, or one line up/down keeping the same column where possible
+  // — reimplemented on savedStart/savedEnd so it also works in static-
+  // display mode, where the real textarea isn't focused.
   function moveCursor(key) {
     const wasFocused = taFocused;
     const s = savedStart;
@@ -4693,62 +4333,7 @@
   function arrowUp()    { moveCursor('ArrowUp');    }
   function arrowDown()  { moveCursor('ArrowDown');  }
 
-  // --- Context menu ---
-  function toggleMenu() {
-    document.getElementById('menuDropdown').classList.toggle('open');
-    if (taFocused) ta.blur();
-  }
-  function closeMenu() {
-    document.getElementById('menuDropdown').classList.remove('open');
-  }
-
-  // Close menu on outside click/tap
-  document.addEventListener('mousedown', e => {
-    if (!e.target.closest('.menu-wrap')) closeMenu();
-  });
-  document.addEventListener('touchstart', e => {
-    if (!e.target.closest('.menu-wrap')) closeMenu();
-  }, { passive: true });
-
-  // Template overlay
-  let tmplPrevFocused = false;
-  function openTmplOverlay() {
-    closeMenu();
-    tmplPrevFocused = taFocused;
-    if (taFocused) {
-      savedStart = ta.selectionStart;
-      savedEnd = ta.selectionEnd;
-      ta.blur();
-    }
-    document.getElementById('tmpl-overlay').classList.add('open');
-    modalOpened('tmpl-overlay');
-  }
-  function closeTmplOverlay() {
-    document.getElementById('tmpl-overlay').classList.remove('open');
-    modalClosed('tmpl-overlay');
-    if (tmplPrevFocused) {
-      hideStaticDisplay();
-      ta.focus();
-      ta.setSelectionRange(savedStart, savedEnd);
-    }
-  }
-  // Prevent overlay buttons from stealing focus on mousedown
-  document.getElementById('tmpl-overlay').addEventListener('mousedown', e => {
-    if (tmplPrevFocused) e.preventDefault();
-  });
-  document.getElementById('tmpl-overlay').addEventListener('click', e => {
-    if (e.target === document.getElementById('tmpl-overlay')) closeTmplOverlay();
-  });
-  // Template buttons in overlay insert and close
-  document.getElementById('tmpl-box').addEventListener('click', e => {
-    const btn = e.target.closest('.tmpl-btn');
-    if (!btn) return;
-    closeTmplOverlay();
-    doInsert(btn.dataset.insert, tmplPrevFocused);
-  });
-
   function copyText() {
-    closeCopyDropdown();
     const before = document.getElementById('wrapBefore').value;
     const after = document.getElementById('wrapAfter').value;
     const text = before + '\n' + ta.value + '\n' + after;
@@ -4757,27 +4342,26 @@
     });
   }
 
-  function copyTextRaw() {
-    navigator.clipboard.writeText(ta.value).then(showToast).catch(() => {
-      try { document.execCommand('copy'); showToast(); } catch(e) {}
-    });
-    closeCopyDropdown();
-  }
-
-  function toggleCopyDropdown() {
-    document.getElementById('copyDropdown').classList.toggle('open');
-  }
-
-  function closeCopyDropdown() {
-    document.getElementById('copyDropdown').classList.remove('open');
-  }
-
   // ---- Export: shared share-sheet / download helper ----
   function isMobileDevice() {
     if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
       return navigator.userAgentData.mobile;
     }
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  // Programmatic "download this blob" via a temporary anchor click. The
+  // object URL is revoked shortly afterwards, once the download has had
+  // time to start.
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
   async function shareOrDownloadFile(blob, filename, mimeType) {
@@ -4792,14 +4376,7 @@
         if (err && err.name === 'AbortError') return false; // user cancelled the share sheet
       }
     }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    triggerDownload(blob, filename);
     return true;
   }
 
@@ -4822,16 +4399,7 @@
       }
     }
     files.forEach((f, i) => {
-      setTimeout(() => {
-        const url = URL.createObjectURL(f.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = f.filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
-      }, i * 300);
+      setTimeout(() => triggerDownload(f.blob, f.filename), i * 300);
     });
     return true;
   }
@@ -4893,7 +4461,6 @@
   });
 
   function exportAbcFile() {
-    closeCopyDropdown();
     if (!ta.value.trim()) { showToast('Nothing to export'); return; }
     const blob = new Blob([ta.value], { type: 'text/plain' });
     shareOrDownloadFile(blob, getTuneFilename() + '.abc', 'text/plain');
@@ -5284,7 +4851,6 @@
   // other part of the "normal" page.
 
   function openExportPdfModal() {
-    closeCopyDropdown();
     exportPdfState.parts = new Set([selectedPart]);
     exportPreviewPageIndex = 0;
     syncExportPdfUI();
@@ -5370,13 +4936,6 @@
     if (e.target === document.getElementById('export-pdf-overlay')) closeExportPdfModal();
   });
 
-  document.addEventListener('mousedown', e => {
-    if (!e.target.closest('.copy-split')) closeCopyDropdown();
-  });
-  document.addEventListener('touchstart', e => {
-    if (!e.target.closest('.copy-split')) closeCopyDropdown();
-  }, { passive: true });
-
   let toastHideTimer = null;
   function showToast(msg) {
     toast.textContent = msg || 'Copied ✓';
@@ -5386,7 +4945,6 @@
   }
 
   function resetStep1() {
-    closeMenu();
     document.getElementById('hamburgerMenu').classList.remove('open');
     if (!ta.value) return;
     activeBtn = null;
@@ -5402,7 +4960,6 @@
     previewDiv.innerHTML = '';
     previewDiv.removeAttribute('style');
     clearTimeout(debounceTimer);
-    updateClearBtn();
     syncDisplayIfUnfocused();
     updateActionBar();
     applyPartSelection('concert');
@@ -5432,10 +4989,10 @@
   });
 
   // ---- Song Info modal ----
-  // SHELL ONLY: songHeaderRows below is placeholder sample data standing in
-  // for "what we parsed out of the ABC header block". Reading the real
-  // header on open and serializing back into ta.value on close is the next
-  // step, deliberately deferred until this interaction feels right.
+  // Opening the modal parses the real ABC header block out of ta.value into
+  // songHeaderRows (see openSongInfo/parseHeaderFromText); Save serializes
+  // the rows back into ta.value's header block (saveSongInfo/
+  // buildHeaderBlockText), and Cancel restores the snapshot taken on open.
 
   // Canonical slot order used only to decide where a *newly added* field
   // lands by default — rows stay freely draggable afterward, existing rows
@@ -5554,11 +5111,7 @@
       ta.value = newText;
       if (savedStart >= oldHeaderEnd) savedStart = Math.max(newHeaderBlock.length, savedStart + delta);
       if (savedEnd >= oldHeaderEnd) savedEnd = Math.max(newHeaderBlock.length, savedEnd + delta);
-      if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-      else syncDisplayIfUnfocused();
-      updateClearBtn();
-      schedulePreview();
-      updateActionBar();
+      commitEditAndRefresh(taFocused);
     }
     closeSongInfoUI();
   }
@@ -5910,6 +5463,10 @@
     }
   }
 
+  // Re-assert the wrap-field defaults on load. These duplicate the
+  // textareas' own HTML content — kept (rather than relying on the HTML
+  // alone) so a browser's form-value restoration on reload can't leave a
+  // stale value behind. Keep both in sync if the default changes.
   document.getElementById('wrapBefore').value = "```abc\n{\"staffwidth\": 500}\n---\n%%MIDI gchord \"none\"";
   document.getElementById('wrapAfter').value = "```";
 
@@ -5964,7 +5521,6 @@
     savedEnd   = s + result.length;
     if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
     else syncDisplayIfUnfocused();
-    updateClearBtn();
     schedulePreview();
   }
   // Splits into quoted/unquoted segments, applies fn only to unquoted ones.
@@ -5976,21 +5532,20 @@
   }
 
   function transposeUp() {
-    closeMenu();
     transformSelection(sel => transformSkippingQuotes(sel, ch =>
       ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteUp(acc, letter, octs))));
   }
 
   function transposeDown() {
-    closeMenu();
     transformSelection(sel => transformSkippingQuotes(sel, ch =>
       ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteDown(acc, letter, octs))));
   }
 
-  // Note length token: optional multiplier digit(s) OR slash notation
-  // e.g. C2 → C4, C → C2, C/ → C, C3/2 → C3 (double: *2 numerator)
-  // Halve: C2 → C, C → C/, C/ → C/2 (but C/ means /2 so halving = /4 → use C/4? spec says C/)
-  // We handle: bare note, noteN, note/N, noteN/M
+  // Doubles (multiply=true) or halves every note/rest length in the
+  // selection. Length suffix forms handled: bare note (implied 1), "N",
+  // "/N", "N/M", and the bare "/" shorthand for /2.
+  //   Double: C → C2, C2 → C4, C/ → C, C/4 → C/2, C3/2 → C6/2
+  //   Halve:  C → C/, C2 → C, C/ → C/4, C/N → C/2N, odd N → N/2
   function scaleLengths(sel, multiply) {
     // Match note letter + octave markers, then optional length suffix
     // Length suffix patterns: number, /number, number/number, /  (bare slash = /2)
@@ -6001,12 +5556,11 @@
         else          return notePart + '/';
       }
       if (len === '/') {
-        // /2 shorthand
-        if (multiply) return notePart; // /2 * 2 = 1, back to bare
-        else          return notePart + '/2'; // /2 / 2 = /4... spec says use /2 for halving bare, so /2/2 = leave as /2? Use explicit /4
-        // Actually: / means /2. Halving /2 → /4
-        // But user said halving C → C/. So halving C/ → C/4 seems right.
-        // Re-reading: user said halving plain note = C/. So / = /2. Halving that = /4.
+        // Bare "/" is shorthand for /2.
+        // Doubling: /2 × 2 = 1 → back to a bare note.
+        // Halving: /2 / 2 = /4, same rule as the /N branch below.
+        if (multiply) return notePart;
+        else          return notePart + '/4';
       }
       if (len.includes('/') && !len.startsWith('/')) {
         // N/M form
@@ -6037,23 +5591,19 @@
   }
 
   function doubleLength() {
-    closeMenu();
     transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, true)));
   }
 
   function halveLength() {
-    closeMenu();
     transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, false)));
   }
 
   function removeText() {
-    closeMenu();
     // Remove quoted strings (chord symbols / annotations): "..."
     transformSelection(sel => sel.replace(/"[^"]*"/g, ''));
   }
 
   function removeAccidentals() {
-    closeMenu();
     // Strip ^ _ = outside of quoted strings
     transformSelection(sel => {
       let result = '';
@@ -6125,7 +5675,6 @@
   }
 
   function wrapRepeats() {
-    closeMenu();
     const s = savedStart, e = savedEnd;
     if (s === e) return;
     pushUndo();
@@ -6137,12 +5686,10 @@
     savedStart = s + open.length;
     savedEnd   = s + open.length + sel.length;
     if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-    updateClearBtn();
     schedulePreview();
     syncDisplayIfUnfocused();
   }
   function markNotes() {
-    closeMenu();
     transformSelection(sel => transformSkippingQuotes(sel, ch =>
       ch.replace(NOTE_RE, (match, acc, letter, octs) => '!mark!' + acc + letter + octs)));
   }
@@ -6172,8 +5719,7 @@
   // Equivalently: (num/den) / 3 = 2^n, i.e. num == 3 * den * 2^k for some integer k,
   // or after simplification num/den in lowest terms has num = 3 * 2^a, den = 2^b.
   function isTripletDuration(num, den) {
-    // Simplify num/den
-    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+    // Simplify num/den (uses the shared gcd from the fraction helpers above)
     const g = gcd(num, den);
     let n = num / g, d = den / g;
     // d must be a power of 2
@@ -6192,10 +5738,8 @@
   // where text is the group content (or separator content for spaces/barlines).
   // We process in two passes: first tokenise into notes/rests vs separators.
   function addTriplets() {
-    closeMenu();
     const s = savedStart, e = savedEnd;
     if (s === e) return;
-    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
 
     const val = ta.value;
     const sel = val.slice(s, e);
@@ -6319,12 +5863,10 @@
     savedEnd   = s + result.length;
     if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
     else syncDisplayIfUnfocused();
-    updateClearBtn();
     schedulePreview();
   }
 
   function respellEnharmonic() {
-    closeMenu();
     // NOTE_RE captures (accidentals)(letter)(octave markers) — duration is untouched.
     transformSelection(sel => transformSkippingQuotes(sel, ch =>
       ch.replace(NOTE_RE, (match, acc, letter, octs) =>
@@ -6449,7 +5991,6 @@
   }
 
   function removeRedundantAccidentals() {
-    closeMenu();
     const BARLINE_RE = new RegExp(BARLINE_RE_SRC, 'g');
 
     transformSelection(sel => {
@@ -6552,11 +6093,7 @@
       } else {
         savedStart = savedEnd = editRange.start + newText.length;
       }
-      if (popupPrevFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-      else syncDisplayIfUnfocused();
-      updateClearBtn();
-      schedulePreview();
-      updateActionBar();
+      commitEditAndRefresh(popupPrevFocused);
       return;
     }
     if (!val) return;
@@ -6627,11 +6164,7 @@
       } else {
         savedStart = savedEnd = editRange.start + newText.length;
       }
-      if (popupPrevFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
-      else syncDisplayIfUnfocused();
-      updateClearBtn();
-      schedulePreview();
-      updateActionBar();
+      commitEditAndRefresh(popupPrevFocused);
       return;
     }
     if (!val) return;
@@ -6659,7 +6192,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, toggleMenu, openSettings, copyText, copyTextRaw, exportAbcFile, toggleCopyDropdown, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openTmplOverlay, closeTmplOverlay, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, confirmCustomField, selectChipOption, clearCustomField };
+  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, confirmCustomField, selectChipOption, clearCustomField };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -6677,15 +6210,10 @@
       if (fn) fn(btn);
     } else if (btn.dataset.insert !== undefined) {
       const isKey = btn.classList.contains('key');
-      if (btn.classList.contains('tmpl-btn')) {
-        closeTmplOverlay();
-        doInsert(btn.dataset.insert, taFocused);
-      } else {
-        const insertText = (btn.dataset.insert === ' ') ? spaceOrBarline()
-          : (btn.dataset.insert === '\n') ? newlineOrBarline()
-          : btn.dataset.insert;
-        doInsert(insertText, isKey && taFocused);
-      }
+      const insertText = (btn.dataset.insert === ' ') ? spaceOrBarline()
+        : (btn.dataset.insert === '\n') ? newlineOrBarline()
+        : btn.dataset.insert;
+      doInsert(insertText, isKey && taFocused);
     }
 
     if (inButtonArea) updateActionBar();
@@ -7106,7 +6634,6 @@
       savedEnd = savedStart;
       if (taFocused) ta.setSelectionRange(savedStart, savedEnd);
       else syncDisplayIfUnfocused();
-      updateClearBtn();
       schedulePreview();
     } else {
       void btn.offsetWidth;
@@ -7298,7 +6825,7 @@
   // Touch handling — press on touchstart, fire on touchend
   let activeBtn = null;
   document.addEventListener('touchstart', e => {
-    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    const btn = e.target.closest('.key, .action-btn');
     if (!btn) return;
 
     if (isNoteKey(btn)) {
@@ -7316,7 +6843,7 @@
     }
 
     const inActionScroll = !!btn.closest('.action-scroll');
-    if (!inActionScroll && (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus)) {
+    if (!inActionScroll && (btn.classList.contains('key') || btn.dataset.keepfocus)) {
       e.preventDefault();
     }
     const action = btn.dataset.action;
@@ -7375,7 +6902,7 @@
   let activeMouseBtn = null;
 
   document.addEventListener('mousedown', e => {
-    const btn = e.target.closest('.key, .tmpl-btn, .action-btn');
+    const btn = e.target.closest('.key, .action-btn');
     if (!btn) return;
 
     if (isNoteKey(btn)) {
@@ -7392,7 +6919,7 @@
       return;
     }
 
-    if (btn.classList.contains('key') || btn.classList.contains('tmpl-btn') || btn.dataset.keepfocus) {
+    if (btn.classList.contains('key') || btn.dataset.keepfocus) {
       e.preventDefault();
     }
     const action = btn.dataset.action;
