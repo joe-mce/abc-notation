@@ -166,7 +166,7 @@
     padding: 10px 0;
     text-align: center;
   }
-  .confirm-btn-danger { color: #ff6b6b; }
+  .action-btn.confirm-btn.confirm-btn-danger { color: #ff6b6b; }
 
   /* Fullscreen sheet on mobile */
   @media (max-width: 600px) {
@@ -1670,10 +1670,10 @@
 <!-- Clear confirm modal -->
 <div id="clear-overlay" class="confirm-overlay" style="display:none;">
   <div class="confirm-card">
-    <div class="confirm-title">Clear all text?</div>
+    <div class="confirm-title">Discard current song?</div>
     <div class="confirm-actions">
       <button class="action-btn confirm-btn" data-action="clearCancel">Cancel</button>
-      <button class="action-btn confirm-btn confirm-btn-danger" data-action="clearStep2">Clear</button>
+      <button class="action-btn confirm-btn confirm-btn-danger" data-action="clearStep2">Reset</button>
     </div>
   </div>
 </div>
