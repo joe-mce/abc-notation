@@ -1347,44 +1347,120 @@
       border: none;
       padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
     }
-    .hdr-text-input, .hdr-custom-full-input, .other-field-input, .hdr-catchall-textarea { font-size: 16px !important; }
+    .hdr-value-input, .hdr-key-input { font-size: 16px !important; }
   }
 
-  .hdr-row-list { display: flex; flex-direction: column; gap: 8px; }
-  .hdr-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .hdr-row-field {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  /* ---- Current Headers: minimalist two-column table ----
+     A real CSS table (not flex) so the two columns share one width per
+     column across all rows — column 2 always starts at the same X,
+     regardless of how long any given row's column-1 content is. */
+  .hdr-table {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
     background: var(--surface2);
-    border-radius: 12px;
-    padding: 8px 8px 8px 12px;
+    border-radius: 14px;
+    overflow: hidden;
   }
-  .hdr-row-badge {
-    flex-shrink: 0;
+  .hdr-row { display: table-row; }
+  .hdr-cell-key, .hdr-cell-value {
+    display: table-cell;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+  }
+  .hdr-row:last-child > .hdr-cell-key,
+  .hdr-row:last-child > .hdr-cell-value { border-bottom: none; }
+  .hdr-cell-key {
+    width: 1%;
+    max-width: 45%;
+    padding: 10px 8px 10px 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hdr-cell-key .hdr-code {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--accent);
+    margin-right: 5px;
   }
-  .hdr-row-scroll {
-    flex: 1;
+  .hdr-cell-key .hdr-title {
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+  /* The "Other…" row's column 1 is itself a free-text input, not a fixed
+     code+title label — same visual footprint, monospace like other codes. */
+  .hdr-key-input {
     min-width: 0;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    padding: 0;
+  }
+  .hdr-key-input:focus { outline: none; }
+  .hdr-key-input::placeholder { color: var(--text-dim); }
+
+  .hdr-cell-value {
+    padding: 10px 14px 10px 8px;
+  }
+  .hdr-value-input {
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hdr-value-input:focus { outline: none; }
+  .hdr-value-input::placeholder { color: var(--text-dim); }
+  /* Complex-type fields (M, L for now): the value cell is a full-width
+     button that looks like plain text — no visible chrome except a
+     trailing chevron — and opens the editing tray when tapped anywhere. */
+  .hdr-complex-trigger {
+    width: 100%;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 6px;
-    overflow-x: auto;
-    scrollbar-width: none;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    color: var(--text);
+    text-align: left;
   }
-  .hdr-row-scroll::-webkit-scrollbar { display: none; }
+  .hdr-complex-trigger-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hdr-complex-trigger-placeholder { color: var(--text-dim); }
+  .hdr-chevron {
+    flex-shrink: 0;
+    color: var(--text);
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+
   .hdr-row-remove {
     flex-shrink: 0;
+    align-self: center;
     background: transparent;
     border: none;
     color: var(--text-dim);
@@ -1399,64 +1475,48 @@
   .hdr-row-remove svg { width: 20px; height: 20px; display: block; }
   .hdr-row-remove:active, .hdr-row-remove.pressed { color: #ff6b6b; }
 
-  .hdr-text-input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.85rem;
-    padding: 7px 10px;
+  .hdr-section-head { display: flex; align-items: center; justify-content: space-between; }
+  .hdr-edit-toggle {
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    color: var(--accent);
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
-  .hdr-text-input:focus { outline: none; border-color: var(--accent); }
-  /* When a plain text field (T, C, K, or an unrecognized field) is the only
-     thing in the scroll strip, let it fill the row instead of shrinking to
-     content width like the chip controls do. */
-  .hdr-row-scroll > .hdr-text-input:only-child { flex: 1; min-width: 120px; }
+  .hdr-edit-toggle:active, .hdr-edit-toggle.pressed { opacity: 0.6; }
 
-  /* Custom-value entry for a field that normally uses buttons (M, L):
-     replaces the buttons with one full-width control that reads as a
-     single pill — a text input with an adjoining clear button, separated
-     by a hairline divider instead of looking like two things. Same
-     white-monospace styling as every other field input. */
-  .hdr-custom-full-wrap {
-    flex: 1;
-    min-width: 120px;
-    display: flex;
-    align-items: stretch;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
+  /* Edit-mode-only columns — only present in the DOM while editing, so
+     they don't affect column alignment the rest of the time. */
+  .hdr-cell-remove, .hdr-cell-reorder {
+    display: table-cell;
+    vertical-align: middle;
+    width: 1%;
+    border-bottom: 1px solid var(--border);
   }
-  .hdr-custom-full-input {
-    flex: 1;
-    min-width: 0;
-    width: auto;
+  .hdr-row:last-child > .hdr-cell-remove,
+  .hdr-row:last-child > .hdr-cell-reorder { border-bottom: none; }
+  .hdr-cell-remove { padding: 10px 4px 10px 10px; }
+  .hdr-cell-reorder { padding: 10px 10px 10px 4px; }
+  .hdr-reorder-btns { display: flex; flex-direction: column; gap: 2px; }
+  .hdr-reorder-btn {
+    width: 24px;
+    height: 18px;
     background: transparent;
     border: none;
-    border-radius: 0;
-    padding: 7px 10px;
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.85rem;
-  }
-  .hdr-custom-full-input:focus { outline: none; }
-  .hdr-custom-clear {
-    flex-shrink: 0;
-    width: 34px;
-    background: transparent;
-    border: none;
-    border-left: 1px solid var(--border);
     color: var(--text-dim);
-    font-size: 1.1rem;
-    line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
   }
-  .hdr-custom-clear:active, .hdr-custom-clear.pressed { background: var(--surface3); color: #ff6b6b; }
+  .hdr-reorder-btn svg { width: 14px; height: 14px; display: block; }
+  .hdr-reorder-btn:disabled { opacity: 0.25; }
+  .hdr-reorder-btn:active:not(:disabled), .hdr-reorder-btn.pressed:not(:disabled) { color: var(--accent); }
+  /* Disabled inputs/triggers (rows can't be edited while reordering/deleting) */
+  .hdr-value-input:disabled, .hdr-key-input:disabled, .hdr-complex-trigger:disabled { opacity: 0.5; }
 
   .chip-option {
     flex-shrink: 0;
@@ -1475,81 +1535,106 @@
   .chip-option.icon-chip svg.dur-icon { width: 15px; height: 20px; display: block; }
   .chip-option.icon-chip svg.dur-icon * { vector-effect: non-scaling-stroke; }
 
-  .add-header-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .add-chip {
-    background: transparent;
-    border: 1.5px dashed var(--btn-border);
-    border-radius: 999px;
-    padding: 7px 14px;
-    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .add-chip:active, .add-chip.pressed { background: var(--surface2); border-color: var(--accent); }
-
-  .other-field-wrap {
-    display: flex;
-    align-items: stretch;
-    width: 84px;
-    flex-shrink: 0;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
+  /* ---- Add Headers: one-column table, whole row tappable ---- */
+  .add-hdr-table {
+    background: var(--surface2);
+    border-radius: 14px;
     overflow: hidden;
   }
-  .other-field-input {
-    flex: 1;
-    min-width: 0;
-    width: auto;
+  .add-hdr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
     background: transparent;
     border: none;
-    border-radius: 0;
-    padding: 7px 0 7px 10px;
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
+    border-bottom: 1px solid var(--border);
+    padding: 11px 14px;
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
     font-size: 0.85rem;
-    text-transform: uppercase;
+    color: var(--text);
+    text-align: left;
   }
-  .other-field-input::placeholder { color: var(--text-dim); text-transform: none; }
-  .other-field-input:focus { outline: none; }
-  .other-field-confirm {
+  .add-hdr-row:last-child { border-bottom: none; }
+  .add-hdr-row:active, .add-hdr-row.pressed { background: var(--surface3); }
+  .add-hdr-row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .add-hdr-row-label .hdr-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .add-hdr-row-plus {
     flex-shrink: 0;
-    width: 34px;
-    background: transparent;
-    border: none;
-    border-left: 1px solid var(--border);
-    color: var(--text-dim);
-    font-size: 1.05rem;
-    line-height: 1;
+    width: 22px;
+    height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--accent);
+    font-size: 1.1rem;
+    line-height: 1;
   }
-  .other-field-confirm:active, .other-field-confirm.pressed { background: var(--surface3); color: var(--accent); }
 
-  .hdr-catchall-textarea {
+  /* ---- Header field editing tray: bottom sheet, dimmed backdrop ---- */
+  #hdr-tray-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 300;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  #hdr-tray-overlay.open { display: flex; }
+  #hdr-tray-sheet {
+    background: var(--surface2);
+    width: 100%;
+    max-width: 500px;
+    border-radius: 20px 20px 0 0;
+    padding: 8px 20px calc(54px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.4);
+    transform: translateY(100%);
+    transition: transform 0.22s ease;
+  }
+  #hdr-tray-overlay.open #hdr-tray-sheet { transform: translateY(0); }
+  .hdr-tray-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    margin: 6px auto 0;
+  }
+  .hdr-tray-title {
+    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+  }
+  .hdr-tray-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .hdr-tray-custom-input {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 10px;
     color: var(--text);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem;
-    line-height: 1.5;
-    padding: 8px 10px;
-    resize: vertical;
-    min-height: 70px;
+    font-size: 0.85rem;
+    padding: 10px 12px;
   }
-  .hdr-catchall-textarea:focus { outline: none; border-color: var(--accent); }
-  .hdr-catchall-hint {
-    font-size: 0.78rem;
-    color: var(--text-dim);
-    font-family: -apple-system, 'IBM Plex Sans', sans-serif;
-    line-height: 1.4;
+  .hdr-tray-custom-input:focus { outline: none; border-color: var(--accent); }
+  .hdr-tray-custom-input::placeholder { color: var(--text-dim); }
+  @media (max-width: 600px) {
+    .hdr-tray-custom-input { font-size: 16px !important; }
   }
 </style>
 </head>
@@ -1639,26 +1724,37 @@
       <button class="modal-close" id="songinfoClose">✕</button>
     </div>
 
-    <div class="settings-section">
-      <div class="settings-section-label">Current headers</div>
-      <div class="hdr-row-list" id="hdrRowList"></div>
+    <div class="settings-section" id="currentHeadersSection">
+      <div class="hdr-section-head">
+        <div class="settings-section-label">Current headers</div>
+        <button class="action-btn hdr-edit-toggle" id="hdrEditToggle" data-action="toggleHdrEditMode">Edit</button>
+      </div>
+      <div class="hdr-table" id="hdrRowList"></div>
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-label">Add header</div>
-      <div class="add-header-chips" id="addHeaderChips"></div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section-label">Other text (comments &amp; directives)</div>
-      <div class="hdr-catchall-hint">Lines like %%score or %%MIDI, kept as-is and placed after the fields above.</div>
-      <textarea class="hdr-catchall-textarea" id="hdrCatchall" rows="3"></textarea>
+      <div class="settings-section-label">Add headers</div>
+      <div class="add-hdr-table" id="addHeaderChips"></div>
     </div>
 
     <div class="confirm-actions">
       <button class="action-btn confirm-btn" data-action="cancelSongInfo">Cancel</button>
       <button class="action-btn confirm-btn" data-action="saveSongInfo" style="background: var(--accent); color: #1a1a1a;">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- Header field editing tray — a bottom sheet used by complex header
+     types (M, L for now). No Done/Cancel: every change is reflected into
+     the row immediately, and dismissing (tap the dimmed backdrop) either
+     leaves things as they are, or — if this row was just added and never
+     got a value — quietly removes the row (see closeHdrTray). -->
+<div id="hdr-tray-overlay">
+  <div id="hdr-tray-sheet">
+    <div class="hdr-tray-handle"></div>
+    <div class="hdr-tray-title" id="hdrTrayTitle"></div>
+    <div class="hdr-tray-body" id="hdrTrayBody"></div>
+    <input type="text" id="hdrTrayCustomInput" class="hdr-tray-custom-input" placeholder="Custom">
   </div>
 </div>
 
@@ -4999,18 +5095,50 @@
   // keep whatever order they were found in. K is intentionally absent: it
   // is always forced last on close no matter where it sits here.
   const HDR_FIELD_ORDER = ['T', 'C', 'M', 'L', 'Q'];
+  // On mobile (coarse pointer), a simple header's text field always places
+  // the cursor at the end of its content on focus, rather than wherever
+  // the tap happened to land — reuses the same coarse-pointer check as the
+  // hold-gesture grace area further down (HOLD_IS_COARSE_POINTER).
+  function placeCursorAtEndOnMobileFocus(input) {
+    input.addEventListener('focus', () => {
+      if (!HOLD_IS_COARSE_POINTER) return;
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    });
+  }
   // Fields that may only appear once each (T is handled separately below —
   // multiple T rows are allowed and dynamically relabeled Title/Subtitle/…).
   const HDR_SINGLETON_FIELDS = ['C', 'M', 'K', 'L', 'X', 'Q'];
-  const HDR_FIELD_NAMES = { C: 'Composer', M: 'Meter', K: 'Key signature', L: 'Default note length', X: 'Tune number', Q: 'Tempo' };
+  const HDR_FIELD_NAMES = { C: 'Composer', M: 'Meter', K: 'Key signature', L: 'Default duration', X: 'Tune number', Q: 'Tempo', V: 'Voice' };
   const METER_PRESETS = ['4/4', '3/4', '2/4', '6/8', '12/8', 'C', 'C|'];
   const DURATION_PRESETS = ['1/16', '1/8', '1/4', '1/2', '1'];
 
+  // ---- Row model ----
+  // Every line in the header block (field lines, %% directives, % comments)
+  // becomes one row in songHeaderRows, IN THE ORDER THEY APPEAR — this list
+  // is the single source of truth for both display order and (mostly)
+  // serialization order. Each row has a `kind` discriminator:
+  //   'field'     — a letter-header line, e.g. T:/C:/K:/F:  { field, value }
+  //   'directive' — a %%-prefixed line, e.g. %%score { 1 2 }  { name, value }
+  //   'comment'   — a bare %-prefixed line (not %%)           { value }
+  //   'raw'       — a freshly-added "Other…" row with independent, unvalidated
+  //                 text in both columns; only exists transiently in-session
+  //                 (before Save, a raw row is never produced by parsing —
+  //                 once saved+reparsed it becomes whatever kind its own
+  //                 serialized text matches, field/directive/comment)
+  //                                                   { keyText, valueText }
   let hdrRowSeq = 0;
-  function makeHdrRow(field, value) {
-    const row = { id: 'hdr' + (hdrRowSeq++), field, value: value || '' };
-    if (field === 'M' || field === 'L') row.customMode = false;
-    return row;
+  function makeFieldRow(field, value) {
+    return { id: 'hdr' + (hdrRowSeq++), kind: 'field', field, value: value || '' };
+  }
+  function makeDirectiveRow(name, value) {
+    return { id: 'hdr' + (hdrRowSeq++), kind: 'directive', name: name || '', value: value || '' };
+  }
+  function makeCommentRow(value) {
+    return { id: 'hdr' + (hdrRowSeq++), kind: 'comment', value: value || '' };
+  }
+  function makeRawRow() {
+    return { id: 'hdr' + (hdrRowSeq++), kind: 'raw', keyText: '', valueText: '' };
   }
 
   // Overwritten every time the modal opens, by parsing the real ABC header.
@@ -5025,57 +5153,82 @@
     return songHeaderRows.filter(r => r.field === field).length;
   }
 
-  // ---- Parsing: ABC header block -> songHeaderRows / catchall text ----
+  // ---- Parsing: ABC header block -> songHeaderRows ----
   // Reads the same header block findHeaderEndPos already uses elsewhere
-  // (field lines, %/%% lines, blank lines, run from the very top). Field
-  // lines become rows; blank lines are dropped; everything else
-  // (comments/directives) goes into the catchall textarea, in order.
+  // (field lines, %/%% lines, blank lines, run from the very top). Every
+  // non-blank line becomes exactly one row, in the order it appears —
+  // field lines, %% directives, and % comments are no longer separated
+  // into different buckets.
   function parseFieldRow(field, rawValue) {
-    const value = rawValue.trim();
-    const row = makeHdrRow(field, value);
-    if (field === 'M') row.customMode = value !== '' && !METER_PRESETS.includes(value);
-    if (field === 'L') row.customMode = value !== '' && !DURATION_PRESETS.includes(value);
-    return row;
+    return makeFieldRow(field, rawValue.trim());
+  }
+  // A %%-directive line's "name" is its first whitespace-delimited token
+  // (e.g. "score" out of "%%score { 1 2 }"); the rest is its value, trimmed.
+  function parseDirectiveRow(rest) {
+    const m = /^(\S+)\s*([\s\S]*)$/.exec(rest);
+    return m ? makeDirectiveRow(m[1], m[2].trim()) : makeDirectiveRow('', '');
   }
 
   function parseHeaderFromText(text) {
     const header = text.slice(0, findHeaderEndPos(text));
     const rows = [];
-    const catchallLines = [];
     header.split('\n').forEach(line => {
       if (line.trim() === '') return; // blank lines dropped
       const m = /^([A-Za-z]):(.*)$/.exec(line);
-      if (m) rows.push(parseFieldRow(m[1].toUpperCase(), m[2]));
-      else if (line.startsWith('%')) catchallLines.push(line);
+      if (m) { rows.push(parseFieldRow(m[1].toUpperCase(), m[2])); return; }
+      if (line.startsWith('%%')) { rows.push(parseDirectiveRow(line.slice(2))); return; }
+      if (line.startsWith('%')) { rows.push(makeCommentRow(line.slice(1))); return; }
+      // Shouldn't happen — findHeaderEndPos already restricts the header
+      // block to blank/field/%/%% lines — but ignore defensively if it does.
     });
-    return { rows, catchallText: catchallLines.join('\n') };
+    return { rows };
   }
 
-  // ---- Serializing: songHeaderRows / catchall text -> ABC header block ----
-  // Blank-valued rows are dropped. X (if present) is forced first, K (if
-  // present) is forced last — everything else keeps whatever order it's in.
-  // Catchall lines are appended after the fields, blank lines dropped.
+  // ---- Serializing: songHeaderRows -> ABC header block ----
+  // songHeaderRows is emitted in array order (i.e. the order rows sit in
+  // Current Headers) EXCEPT for field rows X and K: X (if present, non-
+  // blank) is always forced first and K (if present, non-blank) is always
+  // forced last, regardless of where they were dragged/added in the UI.
+  // Every other row — including comments and directives — keeps its exact
+  // position relative to every other non-X/K row.
+  function serializeRow(row) {
+    if (row.kind === 'field') {
+      const val = (row.value || '').trim();
+      return val ? (row.field + ':' + val) : null;
+    }
+    if (row.kind === 'directive') {
+      const name = (row.name || '').trim();
+      if (!name) return null;
+      const val = (row.value || '').trim();
+      return '%%' + name + (val ? ' ' + val : '');
+    }
+    if (row.kind === 'comment') {
+      return '%' + (row.value || '');
+    }
+    if (row.kind === 'raw') {
+      const key = row.keyText || '';
+      const val = row.valueText || '';
+      return (key.trim() || val.trim()) ? (key + val) : null;
+    }
+    return null;
+  }
   function serializeHeaderRows() {
     const lines = [];
     let kLine = null, xLine = null;
     songHeaderRows.forEach(row => {
-      const val = (row.value || '').trim();
-      if (!val) return;
-      const line = row.field + ':' + val;
-      if (row.field === 'X') xLine = line;
-      else if (row.field === 'K') kLine = line;
-      else lines.push(line);
+      const line = serializeRow(row);
+      if (line === null) return;
+      if (row.kind === 'field' && row.field === 'X') { xLine = line; return; }
+      if (row.kind === 'field' && row.field === 'K') { kLine = line; return; }
+      lines.push(line);
     });
     if (kLine) lines.push(kLine);
     if (xLine) lines.unshift(xLine);
     return lines;
   }
-  function serializeCatchallLines() {
-    return document.getElementById('hdrCatchall').value.split('\n').filter(l => l.trim() !== '');
-  }
   function buildHeaderBlockText() {
-    const allLines = serializeHeaderRows().concat(serializeCatchallLines());
-    return allLines.length ? allLines.join('\n') + '\n' : '';
+    const lines = serializeHeaderRows();
+    return lines.length ? lines.join('\n') + '\n' : '';
   }
 
   // Snapshot of songHeaderRows/catchall text taken when the modal opens, so
@@ -5083,20 +5236,28 @@
   // thing) can revert this editing session's changes. Save writes the
   // current in-memory state back into ta.value's header block.
   let songInfoSnapshot = null;
-  let songInfoCatchallSnapshot = '';
 
   function openSongInfo() {
+    // Dismiss the native keyboard: this button carries data-keepfocus (see
+    // the global action-dispatch code) so the textarea wouldn't otherwise
+    // lose focus just from tapping "Song info" — force it here instead.
+    ta.blur();
     const parsed = parseHeaderFromText(ta.value);
     songHeaderRows = parsed.rows;
-    document.getElementById('hdrCatchall').value = parsed.catchallText;
     songInfoSnapshot = JSON.parse(JSON.stringify(songHeaderRows));
-    songInfoCatchallSnapshot = parsed.catchallText;
+    hdrEditMode = false;
+    document.getElementById('hdrEditToggle').textContent = 'Edit';
     renderHdrRows();
     renderAddChips();
     document.getElementById('songinfo-overlay').classList.add('open');
     modalOpened('songinfo-overlay');
   }
   function closeSongInfoUI() {
+    if (document.getElementById('hdr-tray-overlay').classList.contains('open')) {
+      document.getElementById('hdr-tray-overlay').classList.remove('open');
+      modalClosed('hdr-tray-overlay');
+      hdrTrayRowId = null;
+    }
     document.getElementById('songinfo-overlay').classList.remove('open');
     modalClosed('songinfo-overlay');
   }
@@ -5117,7 +5278,6 @@
   }
   function cancelSongInfo() {
     if (songInfoSnapshot) songHeaderRows = JSON.parse(JSON.stringify(songInfoSnapshot));
-    document.getElementById('hdrCatchall').value = songInfoCatchallSnapshot;
     closeSongInfoUI();
   }
   document.getElementById('songinfoClose').addEventListener('click', cancelSongInfo);
@@ -5129,29 +5289,20 @@
   // Custom entry) and blurs it, rather than doing nothing/inserting a
   // newline. Delegated so it covers rows added after the modal opened.
   document.getElementById('hdrRowList').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (e.target.classList.contains('hdr-text-input') || e.target.classList.contains('hdr-custom-full-input'))) {
+    if (e.key === 'Enter' && (e.target.classList.contains('hdr-value-input') || e.target.classList.contains('hdr-key-input'))) {
       e.preventDefault();
       e.target.blur();
     }
   });
 
+  // Current Headers reflects pure insertion order — a newly added row
+  // (whatever its field) always lands at the end of the list. K/X are the
+  // only fields ever repositioned, and that happens purely at serialize
+  // time (see serializeHeaderRows), not here. HDR_FIELD_ORDER is used only
+  // to order the *Add Headers* list, not to place new Current Header rows.
   function insertNewHdrRow(field, value) {
-    const row = makeHdrRow(field, value);
-    if (field === 'T') {
-      let lastT = -1;
-      songHeaderRows.forEach((r, i) => { if (r.field === 'T') lastT = i; });
-      songHeaderRows.splice(lastT + 1, 0, row);
-    } else {
-      const myRank = HDR_FIELD_ORDER.indexOf(field);
-      let insertAt = songHeaderRows.length;
-      for (let i = 0; i < songHeaderRows.length; i++) {
-        if (songHeaderRows[i].field === 'K') { insertAt = i; break; }
-        if (myRank === -1) continue; // custom/unranked fields default to just before K
-        const theirRank = HDR_FIELD_ORDER.indexOf(songHeaderRows[i].field);
-        if (theirRank !== -1 && theirRank <= myRank) insertAt = i + 1;
-      }
-      songHeaderRows.splice(insertAt, 0, row);
-    }
+    const row = makeFieldRow(field, value);
+    songHeaderRows.push(row);
     return row;
   }
 
@@ -5162,92 +5313,184 @@
     renderAddChips();
   }
 
+  // ---- Edit mode: ⊖ remove + ▲▼ reorder handles on Current Headers ----
+  // While active, rows can only be removed or reordered — every other
+  // control in the table (text inputs, complex-field triggers) is
+  // disabled (see buildHdrRowEl).
+  let hdrEditMode = false;
+  function toggleHdrEditMode() {
+    hdrEditMode = !hdrEditMode;
+    document.getElementById('hdrEditToggle').textContent = hdrEditMode ? 'Done' : 'Edit';
+    renderHdrRows();
+  }
+  // Adding a header from Add Headers always proceeds as a normal add — if
+  // Current Headers happened to be in Edit mode, drop out of it first so
+  // the freshly-added row isn't immediately disabled/unfocusable.
+  function exitHdrEditModeIfActive() {
+    if (!hdrEditMode) return;
+    hdrEditMode = false;
+    document.getElementById('hdrEditToggle').textContent = 'Edit';
+  }
+  function moveHdrRowUp(btn) {
+    const row = btn.closest('.hdr-row');
+    const idx = songHeaderRows.findIndex(r => r.id === row.dataset.rowId);
+    if (idx <= 0) return;
+    [songHeaderRows[idx - 1], songHeaderRows[idx]] = [songHeaderRows[idx], songHeaderRows[idx - 1]];
+    renderHdrRows();
+  }
+  function moveHdrRowDown(btn) {
+    const row = btn.closest('.hdr-row');
+    const idx = songHeaderRows.findIndex(r => r.id === row.dataset.rowId);
+    if (idx === -1 || idx >= songHeaderRows.length - 1) return;
+    [songHeaderRows[idx], songHeaderRows[idx + 1]] = [songHeaderRows[idx + 1], songHeaderRows[idx]];
+    renderHdrRows();
+  }
+
   function addHdrField(btn) {
     const field = btn.dataset.field;
-    if (field === 'CUSTOM') { showCustomFieldInline(btn); return; }
+    if (field === 'CUSTOM') { addRawRow(); return; }
     addFieldByLetter(field);
   }
 
-  // Shared by the dedicated Add Header chips (T, C, M, L, K, X) and the
-  // Other… free-letter entry — same insertion rules, same default values,
-  // same UI (preset buttons for M/L, plain text otherwise) either way.
+  // Fields with a dedicated tray editor rather than an inline text input.
+  const HDR_COMPLEX_FIELDS = ['M', 'L'];
+
+  // Shared by the dedicated Add Header rows (T, C, M, L, Q, K, X, V) — same
+  // insertion rule (append to the end — see insertNewHdrRow). Complex
+  // fields (M, L) start with no value and immediately open their tray;
+  // everything else is a plain text input, focused straight away.
   function addFieldByLetter(field) {
-    let defaultValue = '';
-    if (field === 'M') defaultValue = '4/4';
-    if (field === 'L') defaultValue = '1/8';
-    const row = insertNewHdrRow(field, defaultValue);
+    exitHdrEditModeIfActive();
+    const row = insertNewHdrRow(field, '');
+    if (HDR_COMPLEX_FIELDS.includes(field)) row._isNew = true;
     renderHdrRows();
     renderAddChips();
-    // M and L land on a preset button already selected, nothing to focus.
-    // Every other field is a plain text input — focus it straight away.
-    if (field !== 'M' && field !== 'L') {
-      const input = document.querySelector(`#hdrRowList .hdr-row[data-row-id="${row.id}"] .hdr-text-input`);
+    if (HDR_COMPLEX_FIELDS.includes(field)) {
+      openHdrTray(row.id);
+    } else {
+      const input = document.querySelector(`#hdrRowList .hdr-row[data-row-id="${row.id}"] .hdr-value-input`);
       if (input) input.focus();
     }
   }
 
-  // Replaces the "Other…" chip in place with a letter input + tick
-  // (confirm) button, styled the same way the per-field Custom control is:
-  // one pill, a hairline divider before the trailing button.
-  function showCustomFieldInline(btn) {
-    const wrap = document.createElement('div');
-    wrap.className = 'other-field-wrap';
-    wrap.innerHTML =
-      '<input type="text" class="other-field-input" maxlength="1" placeholder="A-Z">' +
-      '<button class="action-btn other-field-confirm" data-action="confirmCustomField" aria-label="Add header">✓</button>';
-    btn.replaceWith(wrap);
-
-    const input = wrap.querySelector('.other-field-input');
-    input.focus();
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); confirmCustomField(wrap.querySelector('.other-field-confirm')); }
-    });
-    // Blurring away with nothing typed reverts back to the "Other…" chip —
-    // deferred slightly so a tap on the tick button (which also blurs the
-    // input) gets to register as a click first.
-    input.addEventListener('blur', () => {
-      setTimeout(() => {
-        if (document.body.contains(wrap) && !input.value.trim()) renderAddChips();
-      }, 150);
-    });
-  }
-
-  function confirmCustomField(btn) {
-    const wrap = btn.closest('.other-field-wrap');
-    const input = wrap.querySelector('.other-field-input');
-    const letter = input.value.trim().toUpperCase();
-    if (!/^[A-Z]$/.test(letter)) {
-      showToast('Enter a single letter, A–Z');
-      input.focus();
-      return;
-    }
-    if (letter !== 'T' && songHeaderRows.some(r => r.field === letter)) {
-      showToast(letter + ': is already in Current Headers');
-      input.focus();
-      return;
-    }
-    addFieldByLetter(letter);
-  }
-
-  function selectChipOption(btn) {
-    const row = btn.closest('.hdr-row');
-    const rowData = songHeaderRows.find(r => r.id === row.dataset.rowId);
-    const group = btn.dataset.group;
-    if (group === 'meter' || group === 'duration') {
-      if (btn.dataset.value === 'CUSTOM') {
-        rowData.customMode = true;
-      } else {
-        rowData.customMode = false;
-        rowData.value = btn.dataset.value;
-      }
-    }
+  // "Other…" adds a brand-new row with independent, unvalidated text in
+  // BOTH columns (no letter restriction, no singleton checks) — focuses
+  // column 1 immediately so the user can type the header code straight in.
+  function addRawRow() {
+    exitHdrEditModeIfActive();
+    const row = makeRawRow();
+    songHeaderRows.push(row);
     renderHdrRows();
-    if (rowData.customMode) {
-      const input = document.querySelector(`#hdrRowList .hdr-row[data-row-id="${rowData.id}"] .hdr-custom-full-input`);
-      if (input) input.focus();
-    }
+    renderAddChips();
+    const input = document.querySelector(`#hdrRowList .hdr-row[data-row-id="${row.id}"] .hdr-key-input`);
+    if (input) input.focus();
   }
 
+  // ---- Header field editing tray (complex fields: M, L for now) ----
+  // hdrTrayRowId tracks which row the open tray is editing. There's no
+  // Done/Cancel: every change is written straight into the row (and the
+  // main Current Headers list is re-rendered to match) as it happens.
+  let hdrTrayRowId = null;
+
+  // Opens (or re-opens) the tray for a given row id — used both when a
+  // complex field is freshly added (see addFieldByLetter) and when an
+  // existing complex-field row is tapped (see openHdrComplexTray).
+  function openHdrTray(rowId) {
+    const rowData = songHeaderRows.find(r => r.id === rowId);
+    if (!rowData) return;
+    // Dismiss the native keyboard if anything is currently focused (e.g.
+    // this row's own value input, or another row's, mid-edit).
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+    ta.blur();
+    hdrTrayRowId = rowId;
+    document.getElementById('hdrTrayTitle').textContent = HDR_FIELD_NAMES[rowData.field] || rowData.field;
+    renderHdrTrayBody(rowData);
+    document.getElementById('hdrTrayCustomInput').value = rowData.value || '';
+    document.getElementById('hdr-tray-overlay').classList.add('open');
+    modalOpened('hdr-tray-overlay');
+  }
+  // Tapping anywhere in a complex-field row (or its trailing chevron —
+  // same element) opens the tray for that row.
+  function openHdrComplexTray(btn) {
+    if (hdrEditMode) return; // rows aren't editable while Current Headers is in Edit mode
+    const rowEl = btn.closest('.hdr-row');
+    if (rowEl) openHdrTray(rowEl.dataset.rowId);
+  }
+  // Dismissing the tray (backdrop tap) never needs an explicit Cancel:
+  // if this row was just added and never got a value in this session,
+  // quietly drop it (cancelled add) — otherwise leave everything as-is,
+  // since every change was already reflected into the row as it happened.
+  function closeHdrTray() {
+    const rowData = songHeaderRows.find(r => r.id === hdrTrayRowId);
+    document.getElementById('hdr-tray-overlay').classList.remove('open');
+    modalClosed('hdr-tray-overlay');
+    if (rowData) {
+      if (rowData._isNew && !(rowData.value || '').trim()) {
+        songHeaderRows = songHeaderRows.filter(r => r.id !== rowData.id);
+      }
+      delete rowData._isNew;
+    }
+    hdrTrayRowId = null;
+    renderHdrRows();
+    renderAddChips();
+  }
+  document.getElementById('hdr-tray-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('hdr-tray-overlay')) closeHdrTray();
+  });
+
+  // Preset buttons for the row's field (M -> meter, L -> duration). A
+  // preset shows as selected only when the row's value exactly matches it
+  // — so typing in the Custom field naturally deselects every preset the
+  // moment the value stops matching, with no separate "custom mode" flag.
+  function renderHdrTrayBody(rowData) {
+    const body = document.getElementById('hdrTrayBody');
+    body.innerHTML = '';
+    const isDuration = rowData.field === 'L';
+    const presets = isDuration ? DURATION_PRESETS : METER_PRESETS;
+    presets.forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'action-btn chip-option' + (rowData.value === v ? ' selected' : '');
+      btn.dataset.action = 'selectHdrTrayPreset';
+      btn.dataset.value = v;
+      if (isDuration) {
+        btn.classList.add('icon-chip');
+        btn.innerHTML = durationIconSVG(v, false, false);
+        btn.setAttribute('aria-label', v + ' note');
+        btn.title = v + ' note';
+      } else {
+        btn.textContent = v;
+      }
+      body.appendChild(btn);
+    });
+  }
+  function selectHdrTrayPreset(btn) {
+    const rowData = songHeaderRows.find(r => r.id === hdrTrayRowId);
+    if (!rowData) return;
+    rowData.value = btn.dataset.value;
+    document.getElementById('hdrTrayCustomInput').value = rowData.value;
+    renderHdrTrayBody(rowData);
+    renderHdrRows();
+  }
+  // The Custom field is always visible and always the eventual source of
+  // truth for the row's value — using a preset button just writes that
+  // preset's value into it (see selectHdrTrayPreset above).
+  document.getElementById('hdrTrayCustomInput').addEventListener('input', e => {
+    const rowData = songHeaderRows.find(r => r.id === hdrTrayRowId);
+    if (!rowData) return;
+    rowData.value = e.target.value;
+    renderHdrTrayBody(rowData);
+    renderHdrRows();
+  });
+  document.getElementById('hdrTrayCustomInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+  });
+
+  // Add Headers uses the "standard" order: T's next dynamic label first,
+  // then the other ranked fields (skipping ones that are singleton AND
+  // already present), then V (repeatable, always offered — same spirit as
+  // T), then K/X only if absent, then Other… last.
   function renderAddChips() {
     const wrap = document.getElementById('addHeaderChips');
     wrap.innerHTML = '';
@@ -5256,150 +5499,193 @@
       if (HDR_SINGLETON_FIELDS.includes(f) && fieldPresentCount(f) > 0) return;
       addChip(wrap, f, HDR_FIELD_NAMES[f] || f);
     });
+    addChip(wrap, 'V', HDR_FIELD_NAMES.V);
     if (fieldPresentCount('K') === 0) addChip(wrap, 'K', 'Key signature');
     if (fieldPresentCount('X') === 0) addChip(wrap, 'X', 'Tune number');
     addChip(wrap, 'CUSTOM', 'Other…');
   }
   function addChip(wrap, field, label) {
     const btn = document.createElement('button');
-    btn.className = 'action-btn add-chip';
+    btn.className = 'action-btn add-hdr-row';
     btn.dataset.action = 'addHdrField';
     btn.dataset.field = field;
-    btn.textContent = field === 'CUSTOM' ? label : (field + ': ' + label);
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'add-hdr-row-label';
+    if (field === 'CUSTOM') {
+      labelSpan.textContent = label;
+    } else {
+      labelSpan.innerHTML = '';
+      const code = document.createElement('span');
+      code.className = 'hdr-code';
+      code.textContent = field + ':';
+      labelSpan.appendChild(code);
+      labelSpan.appendChild(document.createTextNode(label));
+    }
+    btn.appendChild(labelSpan);
+    const plus = document.createElement('span');
+    plus.className = 'add-hdr-row-plus';
+    plus.setAttribute('aria-hidden', 'true');
+    plus.textContent = '+';
+    btn.appendChild(plus);
     wrap.appendChild(btn);
+  }
+
+  // Hides the Current Headers section entirely when there are no rows.
+  function updateCurrentHeadersVisibility() {
+    document.getElementById('currentHeadersSection').style.display = songHeaderRows.length ? '' : 'none';
   }
 
   function renderHdrRows() {
     const list = document.getElementById('hdrRowList');
     list.innerHTML = '';
+    list.classList.toggle('editing', hdrEditMode);
     let tSeen = 0;
-    songHeaderRows.forEach(rowData => {
-      const label = rowData.field === 'T' ? tRowLabel(tSeen++) : (HDR_FIELD_NAMES[rowData.field] || 'Field');
-      list.appendChild(buildHdrRowEl(rowData, label));
+    songHeaderRows.forEach((rowData, index) => {
+      const label = rowData.kind === 'field'
+        ? (rowData.field === 'T' ? tRowLabel(tSeen++) : (HDR_FIELD_NAMES[rowData.field] || ''))
+        : '';
+      list.appendChild(buildHdrRowEl(rowData, label, index, songHeaderRows.length));
     });
+    updateCurrentHeadersVisibility();
   }
 
-  // Single-line row: `X:` badge, a horizontally-scrollable strip holding
-  // whatever controls this field needs (plain text input, or preset chips /
-  // dropdowns plus a trailing Custom toggle), and an `x` remove button.
-  // The field's human name (label) is used only for the badge's
-  // aria-label — it's never shown as visible text here, only in Add Header.
-  function buildHdrRowEl(rowData, label) {
+  // Two-column row: `T:` code (+ title if known) in column 1, editable
+  // value in column 2. Complex fields (M, L for now) get a horizontally-
+  // scrollable strip of preset chips in column 2 instead of a plain input
+  // (a dedicated tray replaces this — Stage 4). "Other…" rows (kind
+  // 'raw') get a free-text input in column 1 too, instead of a fixed code.
+  // In Edit mode, a ⊖ remove cell and a ▲▼ reorder cell flank the row,
+  // and every other control inside it is disabled.
+  function buildHdrRowEl(rowData, label, index, total) {
     const el = document.createElement('div');
     el.className = 'hdr-row';
     el.dataset.rowId = rowData.id;
 
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'action-btn hdr-row-remove';
-    removeBtn.dataset.action = 'removeHdrRow';
-    removeBtn.setAttribute('aria-label', 'Remove ' + label);
-    removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-      '<circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.14"/>' +
-      '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/>' +
-      '<line x1="7.5" y1="12" x2="16.5" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
-      '</svg>';
-    el.appendChild(removeBtn);
+    if (hdrEditMode) {
+      const removeCell = document.createElement('div');
+      removeCell.className = 'hdr-cell-remove';
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'action-btn hdr-row-remove';
+      removeBtn.dataset.action = 'removeHdrRow';
+      removeBtn.setAttribute('aria-label', 'Remove ' + (label || hdrRowBadgeText(rowData)));
+      removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.14"/>' +
+        '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/>' +
+        '<line x1="7.5" y1="12" x2="16.5" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+        '</svg>';
+      removeCell.appendChild(removeBtn);
+      el.appendChild(removeCell);
+    }
 
-    const field = document.createElement('div');
-    field.className = 'hdr-row-field';
+    const keyCell = document.createElement('div');
+    keyCell.className = 'hdr-cell-key';
+    if (rowData.kind === 'raw') {
+      const keyInput = document.createElement('input');
+      keyInput.type = 'text';
+      keyInput.className = 'hdr-key-input';
+      keyInput.placeholder = 'Field';
+      keyInput.value = rowData.keyText || '';
+      keyInput.addEventListener('input', () => { rowData.keyText = keyInput.value; });
+      placeCursorAtEndOnMobileFocus(keyInput);
+      keyCell.appendChild(keyInput);
+    } else {
+      const code = document.createElement('span');
+      code.className = 'hdr-code';
+      code.textContent = hdrRowBadgeText(rowData);
+      keyCell.appendChild(code);
+      if (label) {
+        const title = document.createElement('span');
+        title.className = 'hdr-title';
+        title.textContent = label;
+        keyCell.appendChild(title);
+      }
+    }
+    el.appendChild(keyCell);
 
-    const badge = document.createElement('span');
-    badge.className = 'hdr-row-badge';
-    badge.textContent = rowData.field + ':';
-    badge.setAttribute('aria-label', label);
-    field.appendChild(badge);
+    const valueCell = document.createElement('div');
+    valueCell.className = 'hdr-cell-value';
+    buildHdrValueInto(valueCell, rowData);
+    el.appendChild(valueCell);
 
-    const scroll = document.createElement('div');
-    scroll.className = 'hdr-row-scroll';
-    buildHdrValueInto(scroll, rowData);
-    field.appendChild(scroll);
+    if (hdrEditMode) {
+      const reorderCell = document.createElement('div');
+      reorderCell.className = 'hdr-cell-reorder';
+      const btns = document.createElement('div');
+      btns.className = 'hdr-reorder-btns';
+      const upBtn = document.createElement('button');
+      upBtn.className = 'action-btn hdr-reorder-btn';
+      upBtn.dataset.action = 'moveHdrRowUp';
+      upBtn.setAttribute('aria-label', 'Move up');
+      upBtn.disabled = index === 0;
+      upBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const downBtn = document.createElement('button');
+      downBtn.className = 'action-btn hdr-reorder-btn';
+      downBtn.dataset.action = 'moveHdrRowDown';
+      downBtn.setAttribute('aria-label', 'Move down');
+      downBtn.disabled = index === total - 1;
+      downBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      btns.appendChild(upBtn);
+      btns.appendChild(downBtn);
+      reorderCell.appendChild(btns);
+      el.appendChild(reorderCell);
 
-    el.appendChild(field);
+      // Nothing else in the row is interactive while editing — textareas
+      // can't be focused, buttons (incl. the complex-field tray trigger)
+      // can't be tapped.
+      el.querySelectorAll('.hdr-cell-key input, .hdr-cell-key button, .hdr-cell-value input, .hdr-cell-value button')
+        .forEach(control => { control.disabled = true; });
+    }
+
     return el;
   }
 
-  function buildHdrValueInto(scroll, rowData) {
-    if (rowData.field === 'M') { buildChipRowInto(scroll, rowData, METER_PRESETS, 'meter'); return; }
-    if (rowData.field === 'L') { buildChipRowInto(scroll, rowData, DURATION_PRESETS, 'duration'); return; }
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'hdr-text-input';
-    input.value = rowData.value || '';
-    input.addEventListener('input', () => { rowData.value = input.value; });
-    scroll.appendChild(input);
+  // Field code shown in column 1: `T:`, `%%score`, or bare `%` for a plain
+  // comment line. "Other…" (raw) rows don't use this — they get a free
+  // text input in column 1 instead (see buildHdrRowEl).
+  function hdrRowBadgeText(rowData) {
+    if (rowData.kind === 'directive') return '%%' + (rowData.name || '');
+    if (rowData.kind === 'comment') return '%';
+    return rowData.field + ':';
   }
 
-  // Reverts a customMode field back to its normal buttons/dropdowns when
-  // the inline custom input is blurred while still empty.
-  function revertCustomOnEmptyBlur(input, rowData) {
-    input.addEventListener('blur', () => {
-      if (!input.value.trim()) { rowData.customMode = false; renderHdrRows(); }
-    });
-  }
-
-  // The full-width custom-value control for a field that normally shows
-  // buttons/dropdowns (M, L, K) — replaces all of those with a single input
-  // plus an adjoining clear button, styled to read as one pill.
-  function buildCustomFullInput(scroll, rowData) {
-    const wrap = document.createElement('div');
-    wrap.className = 'hdr-custom-full-wrap';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'hdr-custom-full-input';
-    input.value = rowData.value || '';
-    input.addEventListener('input', () => { rowData.value = input.value; });
-    revertCustomOnEmptyBlur(input, rowData);
-    wrap.appendChild(input);
-
-    const clearBtn = document.createElement('button');
-    clearBtn.className = 'action-btn hdr-custom-clear';
-    clearBtn.dataset.action = 'clearCustomField';
-    clearBtn.setAttribute('aria-label', 'Clear');
-    clearBtn.textContent = '×';
-    wrap.appendChild(clearBtn);
-
-    scroll.appendChild(wrap);
-    return input;
-  }
-
-  function clearCustomField(btn) {
-    const row = btn.closest('.hdr-row');
-    const rowData = songHeaderRows.find(r => r.id === row.dataset.rowId);
-    rowData.value = '';
-    rowData.customMode = false;
-    renderHdrRows();
-  }
-
-  function buildChipRowInto(scroll, rowData, presets, group) {
-    if (rowData.customMode) {
-      buildCustomFullInput(scroll, rowData);
+  function buildHdrValueInto(valueCell, rowData) {
+    if (rowData.kind === 'field' && HDR_COMPLEX_FIELDS.includes(rowData.field)) {
+      const trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.className = 'action-btn hdr-complex-trigger';
+      trigger.dataset.action = 'openHdrComplexTray';
+      const valSpan = document.createElement('span');
+      valSpan.className = 'hdr-complex-trigger-value';
+      if (rowData.value) {
+        valSpan.textContent = rowData.value;
+      } else {
+        valSpan.textContent = 'Tap to set';
+        valSpan.classList.add('hdr-complex-trigger-placeholder');
+      }
+      trigger.appendChild(valSpan);
+      const chevron = document.createElement('span');
+      chevron.className = 'hdr-chevron';
+      chevron.setAttribute('aria-hidden', 'true');
+      chevron.textContent = '›';
+      trigger.appendChild(chevron);
+      valueCell.appendChild(trigger);
       return;
     }
-    presets.forEach(v => {
-      const btn = document.createElement('button');
-      btn.className = 'action-btn chip-option' + (rowData.value === v ? ' selected' : '');
-      btn.dataset.action = 'selectChipOption';
-      btn.dataset.group = group;
-      btn.dataset.value = v;
-      if (group === 'duration') {
-        btn.classList.add('icon-chip');
-        btn.innerHTML = durationIconSVG(v, false, false);
-        btn.setAttribute('aria-label', v + ' note');
-        btn.title = v + ' note';
-      } else {
-        btn.textContent = v;
-      }
-      scroll.appendChild(btn);
-    });
-    const customBtn = document.createElement('button');
-    customBtn.className = 'action-btn chip-option';
-    customBtn.dataset.action = 'selectChipOption';
-    customBtn.dataset.group = group;
-    customBtn.dataset.value = 'CUSTOM';
-    customBtn.textContent = 'Custom';
-    scroll.appendChild(customBtn);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'hdr-value-input';
+    input.placeholder = 'Value';
+    if (rowData.kind === 'raw') {
+      input.value = rowData.valueText || '';
+      input.addEventListener('input', () => { rowData.valueText = input.value; });
+    } else {
+      input.value = rowData.value || '';
+      input.addEventListener('input', () => { rowData.value = input.value; });
+    }
+    placeCursorAtEndOnMobileFocus(input);
+    valueCell.appendChild(input);
   }
+
 
 
   // ---- View Options sidebar ----
@@ -6192,7 +6478,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, confirmCustomField, selectChipOption, clearCustomField };
+  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -6795,7 +7081,7 @@
   // duration icon in the (dynamic) action bar; see setNoteDuration().
 
   // Touch move — new listener needed for gesture dragging
-  const BTN_CANCEL_DIST = 10; // cumulative px of finger movement that cancels a pending action-bar tap
+  const BTN_CANCEL_DIST = 10; // cumulative px of finger movement that cancels a pending tap
   let activeBtnInScroll = false;
   let activeBtnLastX = 0, activeBtnLastY = 0, activeBtnCumDist = 0;
   document.addEventListener('touchmove', e => {
@@ -6809,7 +7095,11 @@
       updateHoldGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
     }
-    if (activeBtn && activeBtnInScroll) {
+    // Cumulative distance since touchdown (not simply end-start) — a
+    // touchdown/scroll/touchup on the same button must never register as
+    // a tap, whether that scroll is the action-bar strip or any other
+    // scrollable area (e.g. the Song Info modal body).
+    if (activeBtn) {
       const t = e.changedTouches[0];
       activeBtnCumDist += Math.hypot(t.clientX - activeBtnLastX, t.clientY - activeBtnLastY);
       activeBtnLastX = t.clientX;
@@ -6853,11 +7143,9 @@
     }
     activeBtn = btn;
     activeBtnInScroll = inActionScroll;
-    if (inActionScroll) {
-      activeBtnLastX = e.changedTouches[0].clientX;
-      activeBtnLastY = e.changedTouches[0].clientY;
-      activeBtnCumDist = 0;
-    }
+    activeBtnLastX = e.changedTouches[0].clientX;
+    activeBtnLastY = e.changedTouches[0].clientY;
+    activeBtnCumDist = 0;
     handleButtonPress(btn);
   }, { passive: false });
 
