@@ -1287,8 +1287,9 @@
     #hold-overlay { margin-top: -32px; } /* extra clearance on touch — room for the bottom grace zone before reaching the button */
   }
 
-  /* Paste-at-cursor tooltip — appears when tapping right on the existing
-     (collapsed) cursor in the static display, like the native OS pattern. */
+  /* Tap tooltip — appears when tapping right on the existing (collapsed)
+     cursor (Paste only) or anywhere inside an existing selection (Copy +
+     Paste), like the native OS text-field patterns. */
   .paste-tooltip {
     display: none;
     position: fixed;
@@ -2113,7 +2114,9 @@
 <div id="hold-overlay"></div>
 
 <div class="paste-tooltip" id="pasteTooltip">
-  <button class="action-btn paste-tooltip-btn" data-action="pasteAtCursor" data-keepfocus="1">Paste</button>
+  <button class="action-btn paste-tooltip-btn" data-action="copySelection" data-keepfocus="1" id="tooltipCopyBtn" style="display:none;">Copy</button>
+  <button class="action-btn paste-tooltip-btn" data-action="pasteOverSelection" data-keepfocus="1" id="tooltipPasteSelBtn" style="display:none;">Paste</button>
+  <button class="action-btn paste-tooltip-btn" data-action="pasteAtCursor" data-keepfocus="1" id="tooltipPasteCursorBtn">Paste</button>
 </div>
 
 <div class="copy-toast" id="toast">Copied ✓</div>
@@ -2750,6 +2753,25 @@
   // horizontal; raise further to narrow the selection cone even more.)
   const DRAG_DIRECTION_BIAS = 2.5;
 
+  // Double-tap/double-click on the static display switches into the real
+  // textarea (see the 'pending' tap branch of the pointerup handler below).
+  // Wider than TAP_MAX_DIST since two separate taps land less precisely on
+  // the same spot than one continuous touch does.
+  const DOUBLE_TAP_MAX_DELAY = 400; // ms between the two taps
+  const DOUBLE_TAP_MAX_DIST  = 25;  // px between the two taps
+  let lastDisplayTapTime = 0;
+  let lastDisplayTapX = 0;
+  let lastDisplayTapY = 0;
+
+  // Delay before the tap tooltip (Paste, or Copy/Paste over a selection)
+  // actually appears — gives a fast-following second tap (a double-tap,
+  // which switches into the textarea instead) a chance to land first and
+  // suppress it, rather than flashing the tooltip on screen for an instant.
+  // Deliberately shorter than DOUBLE_TAP_MAX_DELAY: a snappier tooltip for
+  // genuine single taps is worth an occasional flash on an unusually slow
+  // double-tap.
+  const TOOLTIP_SHOW_DELAY = 300;
+
   // Native selection (drag-select, double/triple-click) inside the static
   // display is suppressed via `selectstart` rather than `user-select: none` —
   // the latter also blocks Safari's caretRangeFromPoint() from resolving a
@@ -2759,6 +2781,7 @@
   // document — doesn't affect selection in the real textarea or in any modal
   // inputs/textareas (Settings, chord/text popups, share-link box, etc).
   taDisplay.addEventListener('selectstart', e => e.preventDefault());
+
 
   // Selecting text by tap-and-drag: `#notation-display` has `touch-action: pan-y`
   // (see CSS), which tells the browser it's free to handle vertical dragging
@@ -2831,6 +2854,7 @@
       savedEnd = Math.max(g.anchorOffset, curOffset);
       renderStaticDisplay();
       updateActionBar();
+      lastDisplayTapTime = 0; // a drag happened — don't chain into a double-tap
       return;
     }
     if (g.type === 'scroll') return; // was a scroll — leave the cursor/selection untouched
@@ -2839,6 +2863,45 @@
     e.preventDefault();
 
     const off = charOffsetFromPoint(e.clientX, e.clientY);
+    const hasSelection = savedEnd > savedStart;
+    const withinSelection = hasSelection && off >= savedStart && off <= savedEnd;
+
+    // Double-tap/double-click: a second quick tap landing close to the last
+    // one switches into the real textarea. If the tap landed inside an
+    // existing selection, that selection carries over into the textarea
+    // untouched (same as the single-tap case below); otherwise the cursor
+    // collapses to this tap's position, same as the first tap would have
+    // placed it via the plain-tap logic further down.
+    const now = Date.now();
+    const isDoubleTap = (now - lastDisplayTapTime) < DOUBLE_TAP_MAX_DELAY &&
+      Math.hypot(e.clientX - lastDisplayTapX, e.clientY - lastDisplayTapY) < DOUBLE_TAP_MAX_DIST;
+    lastDisplayTapTime = now;
+    lastDisplayTapX = e.clientX;
+    lastDisplayTapY = e.clientY;
+    if (isDoubleTap) {
+      lastDisplayTapTime = 0; // consumed — a third quick tap shouldn't chain further
+      hidePasteTooltip();
+      if (!withinSelection) savedStart = savedEnd = off;
+      openNativeKeyboard(); // same div-mode → textarea-mode handoff as the keyboard-toggle button
+      return;
+    }
+
+    if (withinSelection) {
+      // Tapped inside the existing selection — same as any mobile text
+      // field's "tap inside the highlighted range" pattern: keep the
+      // selection intact and offer Copy/Paste right there, rather than
+      // collapsing it to a cursor. Toggles exactly like the collapsed-
+      // cursor tooltip below: first tap shows it, a repeat tap dismisses
+      // it, and so on.
+      if (g.tooltipWasOpen) {
+        hidePasteTooltip();
+      } else {
+        const tapSelStart = savedStart, tapSelEnd = savedEnd;
+        setTimeout(() => { if (!taFocused) showSelectionTooltipAt(tapSelStart, tapSelEnd); }, TOOLTIP_SHOW_DELAY);
+      }
+      return;
+    }
+
     if (savedStart === savedEnd && off === savedStart) {
       // Tapped exactly where the cursor already is — same as any mobile text
       // field's "tap the caret" pattern. Toggle: first tap here shows the
@@ -2848,7 +2911,11 @@
       if (g.tooltipWasOpen) {
         hidePasteTooltip();
       } else {
-        showPasteTooltipAt(off);
+        // Small delay so a fast-following second tap — a double-tap, which
+        // switches into the textarea instead (see isDoubleTap above) — has
+        // switched taFocused before this fires, rather than flashing the
+        // tooltip on screen for an instant.
+        setTimeout(() => { if (!taFocused) showPasteTooltipAt(off); }, TOOLTIP_SHOW_DELAY);
       }
       return;
     }
@@ -4207,6 +4274,7 @@
 
   // ---- Copy / Paste (act on the current selection) ----
   function copySelection() {
+    hidePasteTooltip(); // no-op unless called from the selection tooltip's Copy button
     if (savedEnd <= savedStart) return;
     if (!navigator.clipboard || !navigator.clipboard.writeText) return;
     const text = ta.value.slice(savedStart, savedEnd);
@@ -4215,6 +4283,7 @@
     }).catch(() => {});
   }
   function pasteOverSelection() {
+    hidePasteTooltip(); // no-op unless called from the selection tooltip's Paste button
     if (savedEnd <= savedStart) return;
     if (!navigator.clipboard || !navigator.clipboard.readText) return;
     navigator.clipboard.readText().then(text => {
@@ -4229,25 +4298,26 @@
     }).catch(() => {});
   }
 
-  // ---- Paste-at-cursor tooltip ----
+  // ---- Tap tooltip (Paste at cursor, or Copy/Paste over a selection) ----
   // Shown when a plain tap lands on the position the (collapsed) cursor is
-  // already at — the same "tap the caret to reveal Paste" pattern used by
-  // mobile OS text fields. Div/static-display mode only; the real textarea
-  // (native keyboard open) already gets the OS's own paste UI for free.
+  // already at (Paste only), or anywhere inside an existing selection
+  // (Copy + Paste) — the same tap-to-reveal patterns used by mobile OS text
+  // fields. Div/static-display mode only; the real textarea (native
+  // keyboard open) already gets the OS's own selection/paste UI for free.
   const pasteTooltipEl = document.getElementById('pasteTooltip');
+  const tooltipCopyBtn = document.getElementById('tooltipCopyBtn');
+  const tooltipPasteSelBtn = document.getElementById('tooltipPasteSelBtn');
+  const tooltipPasteCursorBtn = document.getElementById('tooltipPasteCursorBtn');
   function hidePasteTooltip() {
     pasteTooltipEl.classList.remove('open');
   }
-  function showPasteTooltipAt(pos) {
-    if (savedStart !== savedEnd || savedStart !== pos) return; // stale — cursor moved since this was requested
-    const cursorEl = taDisplay.querySelector('.editor-cursor');
-    if (!cursorEl) return;
-    const rect = cursorEl.getBoundingClientRect();
-    pasteTooltipEl.style.left = (rect.left + rect.width / 2) + 'px';
-    pasteTooltipEl.style.top = rect.top + 'px';
+  // Shows the tooltip at (x, y) with only the given buttons visible, then
+  // clamps it horizontally within the app's own (centered, max-width)
+  // column rather than the full window, re-measuring now that it's visible.
+  function positionTooltip(x, y) {
+    pasteTooltipEl.style.left = x + 'px';
+    pasteTooltipEl.style.top = y + 'px';
     pasteTooltipEl.classList.add('open');
-    // Clamp horizontally within the app's own (centered, max-width) column
-    // rather than the full window, then re-measure now that it's visible.
     requestAnimationFrame(() => {
       if (!pasteTooltipEl.classList.contains('open')) return;
       const bodyRect = document.body.getBoundingClientRect();
@@ -4256,8 +4326,38 @@
       let shift = 0;
       if (tRect.left < bodyRect.left + pad) shift = (bodyRect.left + pad) - tRect.left;
       else if (tRect.right > bodyRect.right - pad) shift = (bodyRect.right - pad) - tRect.right;
-      if (shift) pasteTooltipEl.style.left = (rect.left + rect.width / 2 + shift) + 'px';
+      if (shift) pasteTooltipEl.style.left = (x + shift) + 'px';
     });
+  }
+  function showPasteTooltipAt(pos) {
+    if (savedStart !== savedEnd || savedStart !== pos) return; // stale — cursor moved since this was requested
+    const cursorEl = taDisplay.querySelector('.editor-cursor');
+    if (!cursorEl) return;
+    tooltipCopyBtn.style.display = 'none';
+    tooltipPasteSelBtn.style.display = 'none';
+    tooltipPasteCursorBtn.style.display = '';
+    const rect = cursorEl.getBoundingClientRect();
+    positionTooltip(rect.left + rect.width / 2, rect.top);
+  }
+  function showSelectionTooltipAt(selStart, selEnd) {
+    if (savedStart !== selStart || savedEnd !== selEnd) return; // stale — selection changed since this was requested
+    const selEls = taDisplay.querySelectorAll('.hl-sel');
+    if (!selEls.length) return;
+    // Anchor to the union of all rendered selection spans (each selected
+    // token gets its own .hl-sel), same as the cursor tooltip anchors to
+    // the rendered .editor-cursor element — not to the raw tap coordinates,
+    // which could be stale by the time this (delayed) call runs.
+    let left = Infinity, right = -Infinity, top = Infinity;
+    selEls.forEach(el => {
+      const r = el.getBoundingClientRect();
+      left = Math.min(left, r.left);
+      right = Math.max(right, r.right);
+      top = Math.min(top, r.top);
+    });
+    tooltipCopyBtn.style.display = '';
+    tooltipPasteSelBtn.style.display = '';
+    tooltipPasteCursorBtn.style.display = 'none';
+    positionTooltip((left + right) / 2, top);
   }
   function pasteAtCursor() {
     hidePasteTooltip();
