@@ -766,7 +766,7 @@
     min-height: 44px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     overflow-x: auto;
     padding: 0 16px;
     scrollbar-width: none;
@@ -2468,6 +2468,18 @@
 
   function esc(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Escapes s, then right-pads it to a minimum of 3 characters using
+  // non-breaking spaces — regular spaces collapse under normal HTML
+  // whitespace rules (including with white-space: nowrap), so plain padding
+  // wouldn't survive. Keeps .dur-current-note's other action-bar contents
+  // from shifting when the displayed note/selection code's length changes.
+  // Padding is measured against the raw (pre-escape) length so it reflects
+  // visible characters, not escaped-entity string length.
+  function escPadMin3(s) {
+    const pad = Math.max(0, 3 - s.length);
+    return esc(s) + '\u00A0'.repeat(pad);
   }
 
   function tokensToHTML(tokens, selStart, selEnd) {
@@ -4457,7 +4469,7 @@
     actionScrollEl.style.display = 'flex';
 
     const selText = ta.value.slice(savedStart, savedEnd);
-    let html = `<span class="dur-current-note sel-preview">${esc(truncateSelectionPreview(selText))}</span>`;
+    let html = `<span class="dur-current-note sel-preview">${escPadMin3(truncateSelectionPreview(selText))}</span>`;
     html += `<button class="action-btn sel-bar-btn" data-action="openToolsModal" data-keepfocus="1">Tools</button>`;
     html += `<button class="action-btn sel-bar-btn" data-action="copySelection" data-keepfocus="1">Copy</button>`;
     html += `<button class="action-btn sel-bar-btn" data-action="pasteOverSelection" data-keepfocus="1">Paste</button>`;
@@ -4505,7 +4517,7 @@
     const noteFrac = reduceFrac(mulFrac(parseDurationSuffix(slot.durStr), L));
 
     const noteText = ta.value.slice(slot.tokenStart, slot.durEnd);
-    const noteLabel = `<span class="dur-current-note">${esc(noteText)}</span>`;
+    const noteLabel = `<span class="dur-current-note">${escPadMin3(noteText)}</span>`;
 
     actionScrollEl.style.display = 'flex';
     actionScrollEl.innerHTML = noteLabel + DURATION_ICONS.map(icon => {
