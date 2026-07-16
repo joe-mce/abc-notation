@@ -27,7 +27,7 @@
     --radius: 8px;
     --radius-sm: 5px;
     /* Syntax highlighting */
-    --hl-note:       #e8c84a; /* accent - note letters A-G */
+    --hl-note:       var(--text); /* white   - note letters A-G */
     --hl-modifier:   #e8964a; /* orange  - accidentals ^ _ = , ' and dot */
     --hl-rest:       #4ae8b4; /* accent2 - z x Z */
     --hl-duration:   #7ab8e8; /* blue    - digits and / */
@@ -2349,9 +2349,12 @@
       // Order matters — longer/more-specific patterns first.
       const bodyRe = new RegExp(
         '"[^"]*"'          + '|' +  // chord symbols "Gm7"
+        '"[^"]*$'          + '|' +  // unclosed chord symbol mid-typing, e.g. "Gm7 with no closing " yet
         '![^!\\n]+!'       + '|' +  // decorations !trill!
+        '![^!\\n]*$'       + '|' +  // unclosed decoration mid-typing, e.g. !accent with no closing ! yet
         '\\[\\s*[A-Za-z]:' +         // inline fields [K:C] [V:1]
           '[^\\]]*\\]'     + '|' +
+        '\\[\\s*[A-Za-z]:[^\\]]*$' + '|' +  // unclosed inline field mid-typing, e.g. "[V:Soprano" with no ] yet
         '\\|\\||\\|:|:\\|' + '|' +  // double/repeat barlines
         '\\[\\|\\||\\[\\|' + '|' +  // thick-thin barlines
         '\\|\\]|::'        + '|' +  // thin-thick, double-repeat
