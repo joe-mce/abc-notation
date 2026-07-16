@@ -788,6 +788,22 @@
     justify-content: center;
   }
   .keyboard-toggle-btn svg { width: 26px; height: 26px; }
+  /* Only one of the two icons is shown at a time — whichever represents the
+     action tapping the button will perform, not the current state itself
+     (like a play/pause button). Toggled by body.kb-hidden below. */
+  .keyboard-toggle-btn .icon-hide-kb { display: block; }
+  .keyboard-toggle-btn .icon-show-kb { display: none; }
+  body.kb-hidden .keyboard-toggle-btn .icon-hide-kb { display: none; }
+  body.kb-hidden .keyboard-toggle-btn .icon-show-kb { display: block; }
+
+  /* Hiding the on-screen keyboard just removes .button-area and .action-scroll
+     from the layout — .editor-wrap (flex: 1) then grows to fill the freed
+     space, and .editor-toolbar (position: absolute, bottom: 10px, relative to
+     editor-wrap) naturally follows it down to the new bottom edge, with the
+     keyboard-toggle-btn staying right-aligned via justify-content: flex-end.
+     No extra positioning logic needed for either axis. */
+  body.kb-hidden .button-area { display: none; }
+  body.kb-hidden .action-scroll { display: none !important; } /* several call sites set style.display='flex' inline; this must always win while the keyboard is hidden */
 
   .action-scroll .dur-action-btn {
     flex: 0 0 40px;
@@ -1981,16 +1997,33 @@
     </div>
   </div>
 
-  <!-- Quick-insert row + open-keyboard button. Floats over the bottom of the
-       input area rather than being a flex neighbour, so its position never
-       depends on the divider. Hidden entirely while the native keyboard is
-       open (see body.typing rule). Populated dynamically with duration
-       icons when the cursor is touching a note/rest/chord's duration;
-       otherwise left empty. -->
+  <!-- Quick-insert row + show/hide-keyboard button. Floats over the bottom of
+       the input area rather than being a flex neighbour, so its position
+       never depends on the divider. Hidden entirely while the native
+       keyboard is open (see body.typing rule) — unrelated to the on-screen
+       keyboard's own show/hide state (see body.kb-hidden), which this
+       button toggles. Populated dynamically with duration icons when the
+       cursor is touching a note/rest/chord's duration; otherwise left empty. -->
   <div class="editor-toolbar">
     <div class="action-scroll" id="actionScroll"></div>
-    <button class="action-btn keyboard-toggle-btn" data-action="openNativeKeyboard" data-keepfocus="1" aria-label="Open keyboard">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <button class="action-btn keyboard-toggle-btn" data-action="toggleOnscreenKeyboard" data-keepfocus="1" aria-label="Hide keyboard">
+      <!-- Hide-keyboard icon (shown while the keyboard is visible — tapping
+           hides it): keyboard glyph shifted up 7 units from the show-icon
+           below to leave equal room for a down-pointing caret underneath,
+           mirroring the show-icon's up-pointing caret exactly. -->
+      <svg class="icon-hide-kb" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="3" width="20" height="11" rx="2" stroke="white" stroke-width="1.6"/>
+        <line x1="5.5" y1="6.3" x2="5.5" y2="6.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="9"   y1="6.3" x2="9"   y2="6.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="12.5" y1="6.3" x2="12.5" y2="6.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="16"  y1="6.3" x2="16"  y2="6.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="19"  y1="6.3" x2="19"  y2="6.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="6" y1="10.3" x2="18" y2="10.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M9 18.5 L12 22.5 L15 18.5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <!-- Show-keyboard icon (shown while the keyboard is hidden — tapping
+           shows it): the original icon, unchanged. -->
+      <svg class="icon-show-kb" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="10" width="20" height="11" rx="2" stroke="white" stroke-width="1.6"/>
         <line x1="5.5" y1="13.3" x2="5.5" y2="13.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
         <line x1="9"   y1="13.3" x2="9"   y2="13.3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
@@ -2127,6 +2160,20 @@
   const previewDiv = document.getElementById('preview');
 
   let taFocused = false;
+  // On-screen keyboard show/hide state — declared this early because
+  // setTypingRows(false) already runs synchronously during page init (see
+  // below), before toggleOnscreenKeyboard's own section would otherwise
+  // declare it; a `let` read before that point would throw. Always starts
+  // visible on page load — no persistence across reloads.
+  let onscreenKeyboardVisible = true;
+  // Divider clash-prevention constants (used by computeMaxPreviewHeight,
+  // defined near the divider code further down) — declared this early for
+  // the same reason as onscreenKeyboardVisible above: that function is
+  // called synchronously during page init, before the script would
+  // otherwise reach their declarations.
+  const FLOAT_PILLS_TOP = 8;
+  const EDITOR_TOOLBAR_BOTTOM = 10;
+  const CLUSTER_GAP = 10; // minimum breathing room between the two clusters
   let savedStart = 0, savedEnd = 0;
   let currentDurationSlot = null; // { durStart, durEnd, durStr, cursorPos } — used by updateActionBar/setNoteDuration
   let lastSuggestionSignature = null; // used by updateActionBar for the context-suggestion scroll-reset logic
@@ -2965,8 +3012,15 @@
   // visualViewport's height and the button-area is hidden.
   function setTypingRows(focused) {
     document.body.classList.toggle('typing', focused);
-    if (focused) lockViewportForKeyboard();
-    else unlockViewport();
+    if (focused) {
+      lockViewportForKeyboard();
+    } else {
+      unlockViewport();
+      // Leaving textarea mode re-reveals button-area/editor-toolbar (unless
+      // the on-screen keyboard was separately hidden via the toggle button)
+      // — same clash risk as toggleOnscreenKeyboard, so re-clamp here too.
+      if (onscreenKeyboardVisible) reclampDividerIfNeeded();
+    }
   }
 
   if (vv) {
@@ -4488,6 +4542,34 @@
     hideStaticDisplay();
     ta.focus();
     ta.setSelectionRange(savedStart, savedEnd);
+  }
+
+  // On-screen keyboard show/hide — independent of div-mode vs. textarea-mode
+  // (that's handled entirely by openNativeKeyboard/double-tap now). Hiding it
+  // just removes .button-area and .action-scroll from layout via the
+  // body.kb-hidden CSS; placing the cursor, selecting, and double-tapping to
+  // switch to textarea mode all keep working regardless of this state.
+  // (onscreenKeyboardVisible itself is declared earlier, near taFocused.)
+
+  // Whenever button-area/editor-toolbar go from hidden back to visible — via
+  // toggleOnscreenKeyboard, or via leaving textarea mode (see setTypingRows)
+  // — the divider may have since been dragged down past where it's now
+  // allowed. Snap it back up to the (possibly now-smaller) max rather than
+  // leaving it clashing until the next drag happens to re-clamp it.
+  function reclampDividerIfNeeded() {
+    const max = computeMaxPreviewHeight();
+    if (previewWrap.getBoundingClientRect().height > max) {
+      previewWrap.style.flexBasis = max + 'px';
+    }
+  }
+
+  function toggleOnscreenKeyboard() {
+    onscreenKeyboardVisible = !onscreenKeyboardVisible;
+    document.body.classList.toggle('kb-hidden', !onscreenKeyboardVisible);
+    document.querySelector('.keyboard-toggle-btn').setAttribute(
+      'aria-label', onscreenKeyboardVisible ? 'Hide keyboard' : 'Show keyboard'
+    );
+    if (onscreenKeyboardVisible) reclampDividerIfNeeded();
   }
 
   // On-screen backspace key: deletes the character before a collapsed
@@ -6629,7 +6711,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown, closeHdrTray, saveHdrTray };
+  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, toggleOnscreenKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown, closeHdrTray, saveHdrTray };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -7395,6 +7477,27 @@
   });
 
   // ---- Draggable divider between preview and editor ----
+  // The tallest the preview pane (previewWrap) is currently allowed to be —
+  // i.e. the lowest the divider can be dragged — without either squeezing
+  // the visible on-screen keyboard uncomfortably, or letting the
+  // float-pills-row/editor-toolbar clusters within editor-wrap clash.
+  // Shared by the divider drag below and by toggleOnscreenKeyboard, which
+  // needs to re-clamp the divider if the keyboard reappears somewhere the
+  // divider had since been dragged past.
+  function computeMaxPreviewHeight() {
+    const rect = document.body.getBoundingClientRect();
+    const divider = document.getElementById('vDivider');
+    const typing = document.body.classList.contains('typing');
+    // editor-toolbar (and the keyboard-toggle button it holds) is hidden
+    // entirely while typing, so there's no bottom cluster to clash with —
+    // same reasoning as buttonArea.offsetHeight already being 0 then.
+    const clusterFloor = typing ? 0 :
+      FLOAT_PILLS_TOP + document.querySelector('.float-pills-row').offsetHeight + CLUSTER_GAP +
+      document.querySelector('.editor-toolbar').offsetHeight + EDITOR_TOOLBAR_BOTTOM;
+    const reservedBottom = (typing ? 0 : buttonArea.offsetHeight) + divider.offsetHeight + clusterFloor;
+    return rect.height - reservedBottom;
+  }
+
   (function () {
     const divider = document.getElementById('vDivider');
     const previewWrap = document.getElementById('preview-wrap');
@@ -7409,9 +7512,7 @@
       if (!dragging) return;
       const rect = document.body.getBoundingClientRect();
       let newHeight = clientY - rect.top;
-      const typing = document.body.classList.contains('typing');
-      const reservedBottom = (typing ? 0 : buttonArea.offsetHeight) + divider.offsetHeight + 60;
-      const min = 70, max = rect.height - reservedBottom;
+      const min = 70, max = computeMaxPreviewHeight();
       if (newHeight < min) newHeight = min;
       if (newHeight > max) newHeight = max;
       previewWrap.style.flexBasis = newHeight + 'px';
