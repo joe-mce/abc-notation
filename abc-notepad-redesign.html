@@ -3525,6 +3525,19 @@
     return [4, 4];
   }
 
+  // Find the last "K:<value>" before `pos` (defaults to the cursor/savedStart) —
+  // matches both header lines ("K:...") and inline fields ("[K:...]"). Returns
+  // the trimmed raw field value (e.g. "A minor", "Bbm", "C mixolydian"), or
+  // null if no K: field precedes `pos`. Callers that need the parsed key
+  // signature (sharps/flats per letter) should hand this off to
+  // keySigMapForField() rather than re-parsing the raw value themselves.
+  function getCurrentKValue(pos = savedStart) {
+    const textBefore = ta.value.slice(0, pos);
+    const matches = [...textBefore.matchAll(/(?:^|\[)K:([^\]\n]*)/gm)];
+    if (matches.length === 0) return null;
+    return matches[matches.length - 1][1].trim();
+  }
+
   // duration and L are both [num, den] fractions. Returns the ABC text to insert.
   function formatDurationInsert(durFrac, LFrac) {
     const ratio = reduceFrac([durFrac[0] * LFrac[1], durFrac[1] * LFrac[0]]);
@@ -6229,17 +6242,9 @@
 
   function keyHasAccidentals() {
     // Returns true if the current key signature implies any sharps or flats.
-    // Scan backwards in the full textarea from savedStart for the last K: field.
-    const text = ta.value.slice(0, savedStart);
-
-    // Match both header lines (^K:...) and inline fields ([K:...])
-    const KEY_RE = /(?:^|\[)K:([^\]\n]*)/gm;
-    let lastKey = null;
-    let m;
-    KEY_RE.lastIndex = 0;
-    const matches = [...text.matchAll(/(?:^|\[)K:([^\]\n]*)/gm)];
-    if (matches.length === 0) return false; // no key found → assume C, naturals may be redundant
-    lastKey = matches[matches.length - 1][1].trim().toLowerCase();
+    const rawKey = getCurrentKValue();
+    if (rawKey === null) return false; // no key found → assume C, naturals may be redundant
+    const lastKey = rawKey.toLowerCase();
 
     // Keys with zero accidentals: C major and its relative/parallel minors declared as such
     const ZERO_ACC = new Set(['c', 'am', 'cmaj', 'aminor', 'amin', 'none', 'c major', 'a minor', 'a min']);
@@ -6658,17 +6663,22 @@
     const str = (raw || '').trim();
     if (!str || /^none$/i.test(str) || /^hp$/i.test(str)) return keySigMapFromFifths(0);
 
-    const tokens = str.split(/\s+/);
-    const tonicMode = tokens[0];
-    const extraTokens = tokens.slice(1).filter(t => /^[_^=][A-Ga-g]$/.test(t));
-
-    const tm = /^([A-Ga-g])(#|b)?/.exec(tonicMode);
+    // Parse the tonic straight off the front of the raw string rather than
+    // pre-splitting on whitespace first — the mode name can either be fused
+    // onto the tonic ("Am", "Cmix") or separated by a space ("A minor",
+    // "C mixolydian"), and both forms need to reach the same modeStr below.
+    const tm = /^([A-Ga-g])(#|b)?/.exec(str);
     let fifths = 0;
+    let rest = '';
     if (tm) {
       const tonicKey = tm[1].toUpperCase() + (tm[2] || '');
       fifths = MAJOR_TONIC_FIFTHS.hasOwnProperty(tonicKey) ? MAJOR_TONIC_FIFTHS[tonicKey] : 0;
 
-      const modeStr = tonicMode.slice(tm[0].length).toLowerCase();
+      rest = str.slice(tm[0].length).trim();
+      const modeMatch = /^[A-Za-z]+/.exec(rest);
+      const modeStr = modeMatch ? modeMatch[0].toLowerCase() : '';
+      if (modeMatch) rest = rest.slice(modeMatch[0].length).trim();
+
       let offset = 0;
       if (modeStr.startsWith('mix'))                              offset = -1;
       else if (modeStr.startsWith('maj') || modeStr.startsWith('ion')) offset = 0;
@@ -6679,6 +6689,7 @@
       else if (modeStr.startsWith('min') || modeStr.startsWith('aeo') || modeStr === 'm') offset = -3;
       fifths += offset;
     }
+    const extraTokens = rest.split(/\s+/).filter(t => /^[_^=][A-Ga-g]$/.test(t));
 
     const map = keySigMapFromFifths(fifths);
     extraTokens.forEach(t => {
@@ -6691,10 +6702,9 @@
   // Finds the last K: field (header line or inline [K:...]) before `pos` and
   // returns its accidental map; defaults to C major (no accidentals) if none found.
   function getKeySigMapAt(pos) {
-    const text = ta.value.slice(0, pos);
-    const matches = [...text.matchAll(/(?:^|\[)K:([^\]\n]*)/gm)];
-    if (matches.length === 0) return keySigMapFromFifths(0);
-    return keySigMapForField(matches[matches.length - 1][1]);
+    const rawKey = getCurrentKValue(pos);
+    if (rawKey === null) return keySigMapFromFifths(0);
+    return keySigMapForField(rawKey);
   }
 
   // Returns the music text of the current (unfinished) bar leading up to `pos` —
