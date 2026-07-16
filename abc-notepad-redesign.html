@@ -3544,7 +3544,16 @@
     highlightPreviewElement(elem, matchedOffset);
   }
 
+  // Reflects the T: field (if any) in the browser tab/window title, so
+  // sharing a link shows a meaningful preview instead of just "ABC Notepad".
+  function updatePageTitle() {
+    const m = /^T:\s*(.+)$/m.exec(ta.value);
+    const title = m ? m[1].trim() : '';
+    document.title = title ? title + ' - ABC Notepad' : 'ABC Notepad';
+  }
+
   function renderPreview() {
+    updatePageTitle();
     const raw = ta.value.trim();
     previewHighlightedNodes = []; // old DOM is about to be replaced wholesale
     if (!raw) {
