@@ -4078,11 +4078,6 @@
     return true;
   }
 
-  // A header line starts with a single capital letter followed by ':'.
-  function isHeaderLine(line) {
-    return /^[A-Z]:/.test(line);
-  }
-
   // True if the content of a "[...]" is an inline field (e.g. "[K:D]",
   // "[V:1]", "[r:remark]") rather than a chord — in ABC, inline fields
   // always start with a single letter followed by ':', which no chord
@@ -4091,40 +4086,22 @@
     return /^[A-Za-z]:/.test(bracketContent);
   }
 
-  // True if every line before the current one is either a header line or
-  // blank — i.e. we're still (plausibly) within the tune's header block,
-  // not yet into the notation body. Vacuously true if there are no
-  // previous lines (cursor on the document's first line).
-  function allPriorLinesHeaderOrBlank(lineStart) {
-    if (lineStart === 0) return true;
-    return ta.value.slice(0, lineStart).split('\n').every(line => isHeaderLine(line) || line.trim() === '');
+  // Voice ids defined by "V:<id>" header lines within the tune's header block
+  // (see findHeaderEndPos) — e.g. "V:1", "V:T1 name=\"Tenor\"" define ids "1",
+  // "T1". Falls back to ['1', '2'], the two most commonly used, when no
+  // voices have been defined yet.
+  function getDefinedVoiceIds() {
+    const header = ta.value.slice(0, findHeaderEndPos(ta.value));
+    const ids = [...new Set([...header.matchAll(/^V:(\S+)/gm)].map(m => m[1]))];
+    return ids.length ? ids : ['1', '2'];
   }
 
-  function isLineStart() {
-    if (savedStart !== savedEnd) return false;
-    const text = ta.value;
-    const pos = savedStart;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-    return pos === lineStart;
-  }
-  function isLineEnd() {
-    if (savedStart !== savedEnd) return false;
-    const text = ta.value;
-    const pos = savedStart;
-    let lineEnd = text.indexOf('\n', pos);
-    if (lineEnd === -1) lineEnd = text.length;
-    return pos === lineEnd;
-  }
-
-  // The five context-sensitive suggestion rules for the dynamic action
+  // The four context-sensitive suggestion rules for the dynamic action
   // bar. Evaluated in order; in the (normally impossible) case more than
   // one matches at once, their suggestions are simply concatenated in
   // rule order rather than one taking exclusive priority.
   function getContextSuggestions() {
     if (savedStart !== savedEnd) return [];
-    const text = ta.value;
-    const pos = savedStart;
-    const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
 
     let results = [];
 
@@ -4141,10 +4118,7 @@
       results = results.concat(['V:', 'L:']);
     }
     if (precedingChars('V:')) {
-      results = results.concat(['1', '2', '3', '4']);
-    }
-    if (isLineStart() && isLineEnd() && allPriorLinesHeaderOrBlank(lineStart)) {
-      results = results.concat(['X:', 'T:', 'M:', 'K:', 'L:', 'Q:']);
+      results = results.concat(getDefinedVoiceIds());
     }
 
     return results;
