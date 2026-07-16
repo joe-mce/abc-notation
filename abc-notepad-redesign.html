@@ -2053,7 +2053,7 @@
     <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
     <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
     <button class="key key-space" data-insert=" ">SPACE</button>
-    <button class="key" data-insert="|" data-hold-options="|| |: :| |]">|</button>
+    <button class="key" data-insert="|" data-hold-options="|| |: :| |] |1 |2">|</button>
     <button class="key key-nl" data-insert="&#10;">↵</button>
   </div>
 
@@ -3897,6 +3897,19 @@
     return n;
   }
 
+  // Like countCharOnLine for '[', but skips over nth-time-ending markers
+  // ("[1", "[2", "[1,2", etc.) — an opening bracket immediately followed by
+  // a digit is a repeat-ending marker, not the start of a bracketed section
+  // (chord/decoration/inline-field), so it shouldn't count as an "open" for
+  // the [] bracket-pair button/highlight.
+  function countRealOpenBrackets(text, from, to) {
+    let n = 0;
+    for (let i = from; i < to; i++) {
+      if (text[i] === '[' && /[0-9]/.test(text[i + 1] || '')) continue; // nth-time ending — skip
+      if (text[i] === '[') n++;
+    }
+    return n;
+  }
   // True if the cursor sits inside a not-yet-closed instance of the given
   // pair — highlighted (next tap inserts the close char) when there are
   // more opens than closes before the cursor on the current line, AND at
@@ -3920,8 +3933,13 @@
       return (before % 2 === 1) && (total % 2 === 1);
     }
     const isParen = openChar === '(' && closeChar === ')';
-    const beforeOpen  = isParen ? countRealOpenParens(text, lineStart, pos) : countCharOnLine(text, lineStart, pos, openChar);
-    const afterOpen   = isParen ? countRealOpenParens(text, pos, lineEnd)   : countCharOnLine(text, pos, lineEnd, openChar);
+    const isBracket = openChar === '[' && closeChar === ']';
+    const beforeOpen  = isParen ? countRealOpenParens(text, lineStart, pos)
+                       : isBracket ? countRealOpenBrackets(text, lineStart, pos)
+                       : countCharOnLine(text, lineStart, pos, openChar);
+    const afterOpen   = isParen ? countRealOpenParens(text, pos, lineEnd)
+                       : isBracket ? countRealOpenBrackets(text, pos, lineEnd)
+                       : countCharOnLine(text, pos, lineEnd, openChar);
     const beforeClose = countCharOnLine(text, lineStart, pos, closeChar);
     const afterClose  = countCharOnLine(text, pos, lineEnd, closeChar);
     return beforeOpen > beforeClose && afterOpen >= afterClose;
