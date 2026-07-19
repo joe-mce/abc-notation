@@ -2427,7 +2427,10 @@
         '\\[\\s*[A-Za-z]:' +         // inline fields [K:C] [V:1]
           '[^\\]]*\\]'     + '|' +
         '\\[\\s*[A-Za-z]:[^\\]]*$' + '|' +  // unclosed inline field mid-typing, e.g. "[V:Soprano" with no ] yet
+        '\\|[0-9]+(?:[,-][0-9]+)*' + '|' +  // nth-time ending attached to a barline, e.g. |1, |1,3-4
+        '\\[[0-9]+(?:[,-][0-9]+)*' + '|' +  // nth-time ending on its own (not attached to a barline), e.g. [1, [1,3-4
         '\\|\\||\\|:|:\\|' + '|' +  // double/repeat barlines
+        '\\[\\|\\]'        + '|' +  // invisible barline — must come before [| below, or that would match first and leave a stray "]"
         '\\[\\|\\||\\[\\|' + '|' +  // thick-thin barlines
         '\\|\\]|::'        + '|' +  // thin-thick, double-repeat
         '\\|'              + '|' +  // single barline
@@ -2454,8 +2457,11 @@
         else if (t.startsWith('!'))                     type = 'decoration';
         else if (t.startsWith('[') && t.includes(':'))  type = 'inline-field';
         // Barline forms the tokenizer above can produce as a single token:
-        // || |: :| :: (thin/thick combos, repeats) and [| [|| |] (thick barlines).
-        else if (/^(\|\||\|:|:\||::|\[\|\||\[\||\|\])$/.test(t)) type = 'barline';
+        // || |: :| :: (thin/thick combos, repeats), [| [|| |] [|] (thick/
+        // invisible barlines), and nth-time endings — either attached to a
+        // barline (|1, |1,3-4) or standalone ([1, [1,3-4).
+        else if (/^(\|\||\|:|:\||::|\[\|\]|\[\|\||\[\||\|\])$/.test(t)) type = 'barline';
+        else if (/^[|[][0-9]+(?:[,-][0-9]+)*$/.test(t)) type = 'barline';
         else if (t === '|')                             type = 'barline';
         else if (/^[a-gA-G]$/.test(t))                 type = 'note';
         else if (/^[zxZ]$/.test(t))                    type = 'rest';
@@ -3297,33 +3303,70 @@
     if (!abcElem || typeof abcElem.startChar !== 'number' || typeof abcElem.endChar !== 'number') return;
     if (abcElem.startChar < 0 || abcElem.endChar < 0) return;
     const text = ta.value;
-    let start = renderPosToTaPos(abcElem.startChar);
-    let end = renderPosToTaPos(abcElem.endChar);
 
     // A chord symbol or text annotation renders as its own <text> sibling
     // inside the SAME <g class="abcjs-note ..."> group as the notehead/stem
-    // it's attached to (confirmed by inspecting the actual rendered SVG), so
-    // abcjs reports one shared abcElem — same startChar/endChar spanning
-    // both — no matter which part was physically tapped. Figure out which
-    // one it really was from the actual DOM target: mouseEvent.target if
-    // abcjs passed it, falling back to the classes array (both are checked
-    // since it's undocumented which of these abcjs reliably provides).
+    // (or bar) it's attached to (confirmed by inspecting the actual rendered
+    // SVG) — and ABC allows *several* stacked on one note/bar (e.g.
+    // "^Text""G7"A), all sharing the same elemset. So abcjs reports one
+    // shared abcElem — same startChar/endChar spanning all of them — no
+    // matter which part was physically tapped. Figure out which one it
+    // really was from the actual DOM target: mouseEvent.target if abcjs
+    // passed it, falling back to the classes array (both are checked since
+    // it's undocumented which of these abcjs reliably provides).
     const target = mouseEvent && mouseEvent.target;
     const targetIsAnnotation = !!(target && target.closest && target.closest('.abcjs-chord, .abcjs-annotation'));
     const classesIsAnnotation = Array.isArray(classes) &&
       (classes.indexOf('abcjs-chord') !== -1 || classes.indexOf('abcjs-annotation') !== -1);
     const isAnnotationTap = targetIsAnnotation || classesIsAnnotation;
 
-    if (text[start] === '"') {
-      const closeIdx = text.indexOf('"', start + 1);
-      if (closeIdx !== -1) {
-        if (isAnnotationTap) {
-          end = closeIdx + 1; // tapped the annotation itself — select just "..."
-        } else {
-          start = closeIdx + 1; // tapped the note — skip the annotation, select just the note
+    // Work out the render-space span(s), same as highlighting does (see
+    // findAnnotationSpans) — necessary rather than reusing ta.value's own
+    // quote-scanning, since abcElem.startChar can include leading
+    // whitespace abcjs folded in (see findAnnotationSpans's own note).
+    const spans = findAnnotationSpans(previewRenderedText, abcElem.startChar, abcElem.endChar);
+    let renderStart = abcElem.startChar, renderEnd = abcElem.endChar;
+
+    if (spans.length) {
+      if (isAnnotationTap) {
+        // Figure out WHICH specific span was tapped — abcjs doesn't report
+        // that directly (abcElem/classes are identical for every stacked
+        // annotation) — by finding the tapped leaf's position among this
+        // element's own text leaves and mapping that back to a span index
+        // via computeSpanLeafOrder (leaf order doesn't always match source
+        // order — see its comment). Falls back to the first span if that
+        // can't be resolved for any reason.
+        let matchedIndex = 0;
+        const matchedLeaf = target && target.closest && target.closest('.abcjs-chord, .abcjs-annotation');
+        if (matchedLeaf) {
+          const elemsetTarget = Array.isArray(abcElem.elemset) ? abcElem
+            : (abcElem.abselem && Array.isArray(abcElem.abselem.elemset)) ? abcElem.abselem
+            : null;
+          const elemset = elemsetTarget && elemsetTarget.elemset;
+          if (Array.isArray(elemset)) {
+            const leaves = collectDrawableLeaves(elemset);
+            const textLeaves = leaves.filter(el => el.classList && (el.classList.contains('abcjs-chord') || el.classList.contains('abcjs-annotation')));
+            const leafIdx = textLeaves.indexOf(matchedLeaf);
+            if (leafIdx !== -1 && textLeaves.length === spans.length) {
+              const { leafIndexToSpanIndex } = computeSpanLeafOrder(previewRenderedText, spans);
+              const spanIdx = leafIndexToSpanIndex[leafIdx];
+              if (spanIdx !== undefined) matchedIndex = spanIdx;
+            }
+          }
         }
+        renderStart = spans[matchedIndex].quoteStart;
+        renderEnd = spans[matchedIndex].closeIdx + 1;
+      } else {
+        // Tapped the note/bar itself — skip past every stacked span, select
+        // just the note/bar (renderEnd is already abcElem.endChar).
+        renderStart = spans[spans.length - 1].closeIdx + 1;
       }
-    } else {
+    }
+
+    let start = renderPosToTaPos(renderStart);
+    let end = renderPosToTaPos(renderEnd);
+
+    if (!spans.length) {
       if (text[start] !== '[') {
         for (let i = start - 1; i >= 0 && text[i] !== '\n' && text[i] !== ']'; i--) {
           if (text[i] === '[') { start = i; break; }
@@ -3390,30 +3433,102 @@
   // actually parsed), not ta.value — see previewClickListener's comment.
   //
   // For a fused chord/annotation+note element (see the note above), startChar
-  // normally points straight at the opening quote of the chord symbol — but
-  // abcjs doesn't always attribute leading whitespace to the *previous*
+  // normally points straight at the opening quote of the first chord symbol —
+  // but abcjs doesn't always attribute leading whitespace to the *previous*
   // element; right after a barline in particular, the whitespace between the
   // barline and the quote gets folded into *this* element's startChar instead,
   // so trimmed[startChar] can be a space rather than '"'. Skip past any such
-  // leading whitespace before checking. Returns {quoteStart, closeIdx} (the
-  // real position of the opening and closing quotes), or null if this element
-  // doesn't begin with a quoted chord symbol at all.
-  function findAnnotationSpan(trimmed, startChar, endChar) {
-    if (typeof startChar !== 'number' || typeof endChar !== 'number') return null;
+  // leading whitespace before checking.
+  //
+  // ABC allows more than one chord symbol/annotation stacked on a single note
+  // (e.g. "^Text""G7"A — one placed "above" the staff, one the default chord
+  // name), all fused into the same abcElem/elemset alongside the note. So
+  // this finds *every* consecutive quoted span starting at startChar, not
+  // just the first, stopping at the first non-quote character (the note
+  // itself). Returns an array of {quoteStart, closeIdx} in source order —
+  // empty if this element doesn't begin with a quoted chord symbol at all.
+  function findAnnotationSpans(trimmed, startChar, endChar) {
+    if (typeof startChar !== 'number' || typeof endChar !== 'number') return [];
+    const spans = [];
     let i = startChar;
-    while (i < endChar && /\s/.test(trimmed[i])) i++;
-    if (i >= endChar || trimmed[i] !== '"') return null;
-    const closeIdx = trimmed.indexOf('"', i + 1);
-    if (closeIdx === -1 || closeIdx >= endChar) return null;
-    return { quoteStart: i, closeIdx };
+    while (i < endChar && /\s/.test(trimmed[i])) i++; // leading whitespace before the first quote only
+    while (i < endChar && trimmed[i] === '"') {
+      const closeIdx = trimmed.indexOf('"', i + 1);
+      if (closeIdx === -1 || closeIdx >= endChar) break;
+      spans.push({ quoteStart: i, closeIdx });
+      i = closeIdx + 1;
+    }
+    return spans;
   }
 
-  // Given one matched abcElem and whether its annotation sub-part and/or its
-  // note sub-part should be included (when the two are fused into one
+  // Classifies a single offset within a fused chord/annotation+note element
+  // as either one specific quoted span (by index into `spans`) or the note
+  // itself (once past every span).
+  function classifyOffsetInSpans(spans, offset) {
+    for (let i = 0; i < spans.length; i++) {
+      if (offset < spans[i].closeIdx + 1) return { type: 'span', index: i };
+    }
+    return { type: 'note' };
+  }
+
+  // The ABC position-prefix character right after a span's opening quote
+  // (see the ABC standard's chord symbol/annotation syntax) — '^'/'_'/'<'/'>'
+  // place it above/below/left/right of the note; no prefix is a plain chord
+  // symbol ("default" position). '@' (arbitrary x/y offset) is given a
+  // unique key per span rather than grouped with other '@' spans, since
+  // those aren't part of abcjs's auto-stacking/reversal behavior the same
+  // way same-position spans are (see computeSpanLeafOrder).
+  function classifySpanPositionKey(trimmed, span) {
+    const c = trimmed[span.quoteStart + 1];
+    if (c === '^') return 'above';
+    if (c === '_') return 'below';
+    if (c === '<') return 'left';
+    if (c === '>') return 'right';
+    if (c === '@') return 'at' + span.quoteStart;
+    return 'default';
+  }
+
+  // Computes the actual leaf order abcjs renders multiple stacked chord
+  // symbols/annotations in — confirmed empirically (by rendering test cases
+  // and comparing DOM order to each text's actual vertical position) that
+  // this does NOT always match source order: stacking several spans of the
+  // exact SAME position (e.g. two "^above" annotations) renders them in
+  // REVERSE of declaration order, while spans with DIFFERING positions keep
+  // their relative source order — groups (by exact position) appear in the
+  // order each distinct position was first used in the source, and within
+  // each group the members are reversed. Returns
+  // { spanIndexToLeafIndex, leafIndexToSpanIndex } — inverse permutations of
+  // each other, mapping between a span's index (in findAnnotationSpans'
+  // source order) and its actual leaf index (in collectDrawableLeaves' DOM/
+  // elemset order).
+  function computeSpanLeafOrder(trimmed, spans) {
+    const groups = new Map(); // positionKey -> span indices, source order
+    const groupKeysInOrder = [];
+    spans.forEach((span, i) => {
+      const key = classifySpanPositionKey(trimmed, span);
+      if (!groups.has(key)) { groups.set(key, []); groupKeysInOrder.push(key); }
+      groups.get(key).push(i);
+    });
+    const leafIndexToSpanIndex = [];
+    groupKeysInOrder.forEach(key => {
+      const idxs = groups.get(key).slice().reverse(); // reverse within the group
+      leafIndexToSpanIndex.push(...idxs);
+    });
+    const spanIndexToLeafIndex = new Array(spans.length);
+    leafIndexToSpanIndex.forEach((spanIdx, leafIdx) => { spanIndexToLeafIndex[spanIdx] = leafIdx; });
+    return { spanIndexToLeafIndex, leafIndexToSpanIndex };
+  }
+
+  // Given one matched abcElem and a selection describing which sub-part(s)
+  // to include (when multiple quoted spans and/or a note are fused into one
   // elemset — see the note above), returns the leaf DOM nodes to highlight.
-  // If both are wanted (or the element isn't a fused chord/annotation+note
-  // to begin with), that's just "everything".
-  function leavesForAbcElem(abcElem, wantsAnnotation, wantsNote) {
+  // `selection` is either 'all' (everything — used when the element isn't a
+  // fused chord/annotation+note to begin with, or the whole thing is
+  // wanted), or { spanIndices: [...], includeNote }, picking out specific
+  // quoted spans by index (mapped to their real DOM leaf position via
+  // computeSpanLeafOrder, since that doesn't always match source order)
+  // and/or the note.
+  function leavesForAbcElem(abcElem, selection) {
     // getElementFromChar(Fixed) can return the raw parsed abcelem data
     // (pitches, startChar, etc.) rather than the AbsoluteElement wrapper
     // that actually has .elemset — fall back to its .abselem back-reference
@@ -3427,36 +3542,49 @@
     if (!Array.isArray(elemset) || !elemset.length) return [];
     const leaves = collectDrawableLeaves(elemset);
 
+    if (selection === 'all') return leaves;
+
     const trimmed = previewRenderedText;
-    const span = findAnnotationSpan(trimmed, abcElem.startChar, abcElem.endChar);
-    if (span) {
-      const textLeaves = leaves.filter(el => el.classList && (el.classList.contains('abcjs-chord') || el.classList.contains('abcjs-annotation')));
-      if (textLeaves.length && textLeaves.length < leaves.length) {
-        if (wantsAnnotation && wantsNote) return leaves;
-        if (wantsAnnotation) return textLeaves;
-        if (wantsNote) return leaves.filter(el => textLeaves.indexOf(el) === -1);
-        return [];
-      }
+    const spans = findAnnotationSpans(trimmed, abcElem.startChar, abcElem.endChar);
+    const textLeaves = leaves.filter(el => el.classList && (el.classList.contains('abcjs-chord') || el.classList.contains('abcjs-annotation')));
+
+    // Only narrow down if the text leaves line up 1:1 with the quoted spans
+    // we found (by count) — otherwise we can't reliably tell which leaf is
+    // which, so fall back to everything rather than risk highlighting the
+    // wrong (or no) span. Deliberately does NOT also require there to be a
+    // separate non-text "note" leaf: when fused with an *invisible* barline
+    // (our own synthetic "[|]" fixup) rather than a real note, the bar draws
+    // zero paths, so leaves and textLeaves can legitimately be the same set
+    // — that doesn't stop us reliably picking out span 0 vs span 1 by index;
+    // it only means selection.includeNote (if ever requested here) would
+    // correctly resolve to nothing to add.
+    if (!spans.length || !textLeaves.length || textLeaves.length !== spans.length) {
+      return leaves;
     }
-    return leaves;
+
+    const noteLeaves = leaves.filter(el => textLeaves.indexOf(el) === -1);
+    const { spanIndexToLeafIndex } = computeSpanLeafOrder(trimmed, spans);
+    let result = selection.spanIndices.map(i => textLeaves[spanIndexToLeafIndex[i]]).filter(Boolean);
+    if (selection.includeNote) result = result.concat(noteLeaves);
+    return result;
   }
 
   // matchedOffset is the specific trimmed-string character position that
   // caused abcElem to be found (either the cursor's own position, or one
   // character back — see updatePreviewCursorHighlight) — needed to tell
-  // apart "cursor is within the annotation" from "cursor is within the note"
-  // when the two share one abcElem/elemset.
+  // apart which quoted span (if any) or the note itself the cursor is
+  // within, when several share one abcElem/elemset.
   function highlightPreviewElement(abcElem, matchedOffset) {
     clearPreviewHighlight();
     if (!abcElem) return;
     const trimmed = previewRenderedText; // abcElem.startChar is render-space — see leavesForAbcElem
-    let wantsAnnotation = true, wantsNote = true;
-    const span = findAnnotationSpan(trimmed, abcElem.startChar, abcElem.endChar);
-    if (span && matchedOffset !== undefined) {
-      wantsAnnotation = matchedOffset < span.closeIdx + 1;
-      wantsNote = !wantsAnnotation;
+    const spans = findAnnotationSpans(trimmed, abcElem.startChar, abcElem.endChar);
+    let selection = 'all';
+    if (spans.length && matchedOffset !== undefined) {
+      const c = classifyOffsetInSpans(spans, matchedOffset);
+      selection = c.type === 'note' ? { spanIndices: [], includeNote: true } : { spanIndices: [c.index], includeNote: false };
     }
-    const leaves = leavesForAbcElem(abcElem, wantsAnnotation, wantsNote);
+    const leaves = leavesForAbcElem(abcElem, selection);
     leaves.forEach(el => { if (el && el.classList) el.classList.add('preview-cursor-highlight'); });
     previewHighlightedNodes = leaves;
   }
@@ -3607,13 +3735,18 @@
     const elems = getElementsInRangeFixed(currentTuneObj, selStart, selEnd);
     let allLeaves = [];
     elems.forEach(elem => {
-      let wantsAnnotation = true, wantsNote = true;
-      const span = findAnnotationSpan(trimmed, elem.startChar, elem.endChar);
-      if (span) {
-        wantsAnnotation = selStart < span.closeIdx + 1 && selEnd > span.quoteStart;
-        wantsNote = selStart < elem.endChar && selEnd > span.closeIdx + 1;
+      const spans = findAnnotationSpans(trimmed, elem.startChar, elem.endChar);
+      let selection = 'all';
+      if (spans.length) {
+        const spanIndices = [];
+        for (let i = 0; i < spans.length; i++) {
+          if (selStart < spans[i].closeIdx + 1 && selEnd > spans[i].quoteStart) spanIndices.push(i);
+        }
+        const lastSpanEnd = spans[spans.length - 1].closeIdx + 1;
+        const includeNote = selStart < elem.endChar && selEnd > lastSpanEnd;
+        selection = { spanIndices, includeNote };
       }
-      allLeaves = allLeaves.concat(leavesForAbcElem(elem, wantsAnnotation, wantsNote));
+      allLeaves = allLeaves.concat(leavesForAbcElem(elem, selection));
     });
 
     const highlightedNoteGroups = new Set();
