@@ -2202,6 +2202,28 @@
   let previewInsertPos = -1;
   let previewInsertLen = 0;
 
+  // A second, independent stage of synthetic insertions — see
+  // ENABLE_MID_TUNE_SYNTHETIC_FIXUPS below. previewInsertPos/Len (above)
+  // describes the raw-space → previewRenderedText-space shift from
+  // getRenderableAbc's own K: splice; this describes the further
+  // previewRenderedText-space → final-textToRender-space shift from
+  // per-line fixups applied to lines other than the last (closing an
+  // unclosed pair, adding an invisible barline). Each entry's `origPos` is a
+  // position in the ORIGINAL previewRenderedText (i.e. before any of these
+  // per-line fixups — but after the K: splice, if any), sorted ascending.
+  // Kept as its own array/stage, composed with previewInsertPos/Len in
+  // taPosToRenderPos/renderPosToTaPos, rather than merged into one list,
+  // since the two describe shifts in different coordinate spaces.
+  let previewFixupInsertions = [];
+
+  // Feature flag: also apply the invisible-barline/unclosed-pair fixup to
+  // every non-header body line, not just the last one, so the preview stays
+  // responsive while editing a line in the middle of a tune (e.g. typing an
+  // unclosed "{" or "\"" partway through would otherwise be able to break
+  // parsing of everything after it). Set to false to revert to only ever
+  // fixing up the last line.
+  const ENABLE_MID_TUNE_SYNTHETIC_FIXUPS = true;
+
   // ---- Selection drag-gesture tracking (div/static-display mode) ----
   // A swipe's direction decides whether it's a scroll or a text-selection —
   // see the pointerdown/pointermove/pointerup handlers below.
@@ -3127,12 +3149,12 @@
       pushUndo();
       ta.value = decoded;
       savedStart = savedEnd = decoded.length;
-      schedulePreview();
     }
   })();
   syncDisplayIfUnfocused();
   setTypingRows(false);
   updateActionBar();
+  schedulePreview(); // initial render (also covers the empty-document synthetic-barline case) — deferred via setTimeout so it runs after the whole script has finished executing (renderPreview references consts declared later in the file)
 
   ta.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
@@ -3223,18 +3245,44 @@
   // chord notes are inconsistent about whether they already cover the whole
   // group, so this is done explicitly rather than relied upon.
   //
-  // ta.value position <-> previewRenderedText position, accounting for both
-  // the leading-whitespace trim already applied before rendering, and any
-  // synthetic K: field spliced in by getRenderableAbc.
+  // ta.value position <-> previewRenderedText position, accounting for the
+  // leading-whitespace trim already applied before rendering, any synthetic
+  // K: field spliced in by getRenderableAbc (previewInsertPos/Len — raw-space
+  // <-> pre-fixup-previewRenderedText-space), and any per-line synthetic
+  // fixups from ENABLE_MID_TUNE_SYNTHETIC_FIXUPS (previewFixupInsertions —
+  // pre-fixup-previewRenderedText-space <-> final previewRenderedText-space).
+  // These are composed as two independent sequential stages, in that order,
+  // rather than merged into one list, since each describes a shift in a
+  // different coordinate space.
   function taPosToRenderPos(pos) {
     const text = ta.value;
     const leadTrim = text.length - text.replace(/^\s+/, '').length;
     let rawPos = pos - leadTrim;
     if (previewInsertLen > 0 && rawPos >= previewInsertPos) rawPos += previewInsertLen;
+    const preFixupPos = rawPos; // freeze — fixups' origPos values are relative to this, not to the shifting rawPos below
+    for (const fx of previewFixupInsertions) {
+      if (fx.origPos <= preFixupPos) rawPos += fx.len;
+    }
     return rawPos;
   }
   function renderPosToTaPos(pos) {
+    // Undo the fixup stage: walk the fixups in order, tracking how much
+    // total length they've inserted so far (`cum`), so each one's true
+    // final-space range — [origPos + cum, origPos + cum + len) — can be
+    // checked against the frozen query position `pos` directly, rather than
+    // against a running value that's already been partly adjusted (which
+    // silently gives wrong answers once more than one fixup is involved).
     let rawPos = pos;
+    let cum = 0;
+    let resolved = false;
+    for (const fx of previewFixupInsertions) {
+      const finalStart = fx.origPos + cum;
+      if (pos < finalStart) { rawPos = pos - cum; resolved = true; break; } // before this fixup — done
+      if (pos < finalStart + fx.len) { rawPos = fx.origPos; resolved = true; break; } // inside this fixup — clamp to its boundary
+      cum += fx.len;
+    }
+    if (!resolved) rawPos = pos - cum; // past every fixup
+
     if (previewInsertLen > 0) {
       if (rawPos >= previewInsertPos + previewInsertLen) rawPos -= previewInsertLen;
       else if (rawPos >= previewInsertPos) rawPos = previewInsertPos; // inside the synthetic field itself — clamp to the boundary
@@ -3636,16 +3684,107 @@
     updatePageTitle();
     const raw = ta.value.trim();
     previewHighlightedNodes = []; // old DOM is about to be replaced wholesale
-    if (!raw) {
-      previewDiv.innerHTML = '';
-      currentTuneObj = null;
-      previewRenderedText = '';
-      previewInsertPos = -1;
-      previewInsertLen = 0;
-      return;
-    }
+
     const rendered = getRenderableAbc(raw);
-    previewRenderedText = rendered.text;
+    let textToRender = rendered.text;
+    previewFixupInsertions = [];
+
+    const PAIR_CHARS = [['[', ']'], ['"', '"'], ['{', '}'], ['!', '!']];
+
+    // Mid-tune fixups: apply the same "close any unclosed pair, then add an
+    // invisible barline if nothing renders" process to every non-header body
+    // line except the last one (which gets its own handling below — see the
+    // block after this, which has different rules for appending). This
+    // keeps the preview responsive while editing a line in the middle of a
+    // tune: an unclosed "{" or "\"" partway through could otherwise break
+    // parsing of everything after it, not just that one line. Gated behind
+    // ENABLE_MID_TUNE_SYNTHETIC_FIXUPS so it can be turned off in one place
+    // if it ever causes trouble, reverting to fixing up only the last line.
+    if (ENABLE_MID_TUNE_SYNTHETIC_FIXUPS) {
+      const srcLines = rendered.text.split('\n');
+      const outLines = [];
+      let origPos = 0; // position in the ORIGINAL rendered.text, before any of these fixups
+      for (let i = 0; i < srcLines.length - 1; i++) {
+        const line = srcLines[i];
+        const isHeaderOrComment = /^[A-Za-z]:/.test(line) || line.startsWith('%');
+        if (isHeaderOrComment) {
+          outLines.push(line);
+        } else {
+          let closingSuffix = '';
+          for (const [open, close] of PAIR_CHARS) {
+            if (isUnclosedPairAt(rendered.text, origPos + line.length, open, close)) closingSuffix += close;
+          }
+          let fixedLine = line + closingSuffix;
+          let extra = closingSuffix.length;
+          if (lineHasNothingToRender(fixedLine) || lineEndsWithClosedHookGroup(fixedLine)) { fixedLine += '[|]'; extra += 3; }
+          if (extra > 0) previewFixupInsertions.push({ origPos: origPos + line.length, len: extra });
+          outLines.push(fixedLine);
+        }
+        origPos += line.length + 1; // +1 for the consumed '\n'
+      }
+      outLines.push(srcLines[srcLines.length - 1]); // last line — handled separately below
+      textToRender = outLines.join('\n');
+    }
+
+    // If the last line ends inside an unclosed "[...]"/"..."/{...}/!...! pair
+    // — e.g. a half-typed chord symbol like "G7 — synthetically close it
+    // first (using the same smart detection inUnclosedPair uses elsewhere,
+    // which correctly excludes things like a tuplet "(3" or a repeat-ending
+    // "[1" from counting as an unclosed pair). Otherwise a stray unstripped
+    // letter inside the unclosed span could falsely look like a note to
+    // lineHasNothingToRender below, or abcjs could simply fail to parse the
+    // unterminated token.
+    let closingSuffix = '';
+    for (const [open, close] of PAIR_CHARS) {
+      if (isUnclosedPairAt(raw, raw.length, open, close)) closingSuffix += close;
+    }
+    textToRender += closingSuffix;
+
+    // The true last line has to come from the untrimmed ta.value, not from
+    // `raw` — raw's trim() would otherwise erase a genuinely blank trailing
+    // line before we ever got to look at it.
+    //
+    // The two checks below together ensure the preview never goes blank
+    // while the tune is still being typed, splicing in a synthetic
+    // invisible barline "[|]" wherever needed (invisible so it doesn't
+    // clutter the preview with a stray visible barline). This is purely a
+    // rendering-time concern — never written back into ta.value, and
+    // recomputed fresh on every render, so it only ever appears while the
+    // condition holds.
+    const trueLastLine = ta.value.slice(ta.value.lastIndexOf('\n') + 1);
+    const lastLine = raw.slice(raw.lastIndexOf('\n') + 1) + closingSuffix;
+    const lastLineIsHeaderOrComment = /^[A-Za-z]:/.test(lastLine) || lastLine.startsWith('%');
+
+    // Treat raw's own last line exactly like any other body line: leave a
+    // header/comment row untouched, otherwise give it its own bar if it has
+    // nothing renderable, or if it ends with a closed {}/""/!! group that
+    // would otherwise render as if it were never typed (see
+    // lineEndsWithClosedHookGroup). This also covers the case where the
+    // true last line is blank and this preceding content itself renders
+    // nothing — otherwise abcjs would silently merge/swallow it into
+    // whatever follows (confirmed empirically: a bare unattached "{C}" or
+    // "\"G7\"" line, with nothing else, produces zero elements and gets
+    // absorbed into the next line instead of being its own row).
+    if (!lastLineIsHeaderOrComment && (lineHasNothingToRender(lastLine) || lineEndsWithClosedHookGroup(lastLine))) {
+      textToRender += '[|]';
+    }
+
+    // Separately: if the true last line is genuinely a distinct blank line
+    // from raw's own last line above — i.e. raw's last line has content but
+    // trim() erased a blank line typed after it (e.g. right after pressing
+    // Enter) — or raw's own last line is a header/comment row, it needs its
+    // own additional bar on a new line — never appended directly onto it
+    // (blank has nothing to attach to; appending onto a header/comment line
+    // would corrupt it). The "lastLine !== ''" guard matters when the whole
+    // document is empty or blank: there, trueLastLine and lastLine are the
+    // same (nonexistent) line, not two distinct ones, so it shouldn't get
+    // a second bar on top of the one the check above already added.
+    if ((trueLastLine.trim() === '' && lastLine !== '') || lastLineIsHeaderOrComment) {
+      const needsLeadingNL = textToRender.length > 0 && !/\n$/.test(textToRender);
+      textToRender += (needsLeadingNL ? '\n' : '') + '[|]';
+    }
+
+    previewRenderedText = textToRender;
     previewInsertPos = rendered.insertPos;
     previewInsertLen = rendered.insertLen;
     try {
@@ -3659,7 +3798,7 @@
         clickListener: previewClickListener
       };
       if (rendered.transpose) options.visualTranspose = rendered.transpose;
-      const tunes = ABCJS.renderAbc('preview', rendered.text, options);
+      const tunes = ABCJS.renderAbc('preview', textToRender, options);
       currentTuneObj = (tunes && tunes[0]) || null;
       updatePreviewHighlight(); // re-apply to the freshly rendered SVG
     } catch(e) { currentTuneObj = null; }
@@ -4219,19 +4358,19 @@
     }
     return n;
   }
-  // True if the cursor sits inside a not-yet-closed instance of the given
-  // pair — highlighted (next tap inserts the close char) when there are
-  // more opens than closes before the cursor on the current line, AND at
-  // least as many opens as closes after the cursor on the line, i.e. an
-  // unclosed open before you, with nothing after left unbalanced. For
-  // symmetric pairs (open === close, e.g. quotes, "!") that asymmetric
-  // count doesn't apply, so it falls back to: odd count before the cursor
-  // AND odd count across the whole line — otherwise the "unclosed" one
-  // might actually be closed later on the same line.
-  function inUnclosedPair(openChar, closeChar) {
-    if (savedStart !== savedEnd) return false; // selection active — no highlight
-    const text = ta.value;
-    const pos = savedStart;
+  // Core logic behind inUnclosedPair, parameterized so it can be checked
+  // against an arbitrary text/position rather than only the live cursor
+  // (savedStart) — used by renderPreview's synthetic-barline logic to check
+  // the end of the content, not just wherever the cursor happens to be.
+  //
+  // True if `pos` sits inside a not-yet-closed instance of the given pair on
+  // its line — more opens than closes before pos, AND at least as many opens
+  // as closes after pos, i.e. an unclosed open before it, with nothing after
+  // left unbalanced. For symmetric pairs (open === close, e.g. quotes, "!")
+  // that asymmetric count doesn't apply, so it falls back to: odd count
+  // before pos AND odd count across the whole line — otherwise the
+  // "unclosed" one might actually be closed later on the same line.
+  function isUnclosedPairAt(text, pos, openChar, closeChar) {
     const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
     let lineEnd = text.indexOf('\n', pos);
     if (lineEnd === -1) lineEnd = text.length;
@@ -4252,6 +4391,20 @@
     const beforeClose = countCharOnLine(text, lineStart, pos, closeChar);
     const afterClose  = countCharOnLine(text, pos, lineEnd, closeChar);
     return beforeOpen > beforeClose && afterOpen >= afterClose;
+  }
+
+  // True if the cursor sits inside a not-yet-closed instance of the given
+  // pair — highlighted (next tap inserts the close char) when there are
+  // more opens than closes before the cursor on the current line, AND at
+  // least as many opens as closes after the cursor on the line, i.e. an
+  // unclosed open before you, with nothing after left unbalanced. For
+  // symmetric pairs (open === close, e.g. quotes, "!") that asymmetric
+  // count doesn't apply, so it falls back to: odd count before the cursor
+  // AND odd count across the whole line — otherwise the "unclosed" one
+  // might actually be closed later on the same line.
+  function inUnclosedPair(openChar, closeChar) {
+    if (savedStart !== savedEnd) return false; // selection active — no highlight
+    return isUnclosedPairAt(ta.value, savedStart, openChar, closeChar);
   }
 
   // True if the cursor sits between a matched open and close of the given
@@ -6605,8 +6758,11 @@
   // The key signature is taken from the last K: field before the selection (see
   // getKeySigMapAt), so key changes before the selection are respected.
 
-  // Barline pattern — same variants as used in addTriplets
-  const BARLINE_RE_SRC = '(?:::?\\|::|::\\|:|:\\|\\|:|:\\|\\||\\|\\|:|::\\|\\||::\\|:|:\\||:\\]|\\[\\|\\||\\|\\||\\[\\||\\|\\]|\\||:\\|)';
+  // Barline pattern — same variants as used in addTriplets, plus the
+  // invisible barline "[|]" (must come before the plain "[|" alternative so
+  // the longer match wins — otherwise "[|" would match first and leave the
+  // trailing "]" as a stray unmatched character).
+  const BARLINE_RE_SRC = '(?:::?\\|::|::\\|:|:\\|\\|:|:\\|\\||\\|\\|:|::\\|\\||::\\|:|:\\||:\\]|\\[\\|\\||\\|\\||\\[\\|\\]|\\[\\||\\|\\]|\\||:\\|)';
 
   function processBarForRedundantAccidentals(bar, keyMap) {
     // Scan the bar for all note occurrences, tracking positions.
@@ -7125,6 +7281,50 @@
   function hasHeaderKeyField(text) {
     const header = text.slice(0, findHeaderEndPos(text));
     return /^K:/m.test(header);
+  }
+
+  // True if this single line contains nothing that would actually cause
+  // abcjs to render anything visible — no real note/rest letter, and no
+  // barline either (even an empty measure still renders as something).
+  // Content that never renders on its own doesn't count: quoted chord
+  // symbols/annotations ("G7"), !decorations!, inline non-chord fields like
+  // "[K:D]"/"[V:1]" (real chord brackets like "[CEG]" are left alone, since
+  // those DO contain real notes), and a bare grace-note group "{CDE}" with
+  // no note attached after it — abcjs silently drops those, rendering
+  // nothing (confirmed empirically: "{CDE}" alone produces zero elements,
+  // while "{ga}f" attached to a real note "f" does render). Stripping the
+  // braces here still lets a genuinely-attached note right after them (e.g.
+  // the "f" in "{ga}f") get picked up normally, since that falls outside
+  // the stripped span. Used by renderPreview to decide whether to splice in
+  // a synthetic barline so the preview never goes blank while a tune is
+  // still being typed.
+  function lineHasNothingToRender(lineText) {
+    const stripped = lineText
+      .replace(/"[^"]*"/g, '')                // quoted chord symbols/annotations
+      .replace(/![^!]*!/g, '')                 // !decorations!
+      .replace(/\{[^}]*\}/g, '')                // grace-note groups, e.g. "{ga}"
+      .replace(/\[[A-Za-z]:[^\]]*\]/g, '');     // inline fields, e.g. "[K:D]", "[V:1]"
+    if (/[a-gA-GzZxX]/.test(stripped)) return false; // a real note/rest letter
+    const BARLINE_RE = new RegExp(BARLINE_RE_SRC);
+    return !BARLINE_RE.test(stripped);
+  }
+
+  // True if this line ends with a *closed* "{...}"/"..."/!...! group — a
+  // grace-note group, chord symbol/annotation, or decoration — as opposed
+  // to a chord bracket "[...]" or inline field, which render fine entirely
+  // on their own. These three specifically need a following note to attach
+  // to (confirmed empirically): if the line ends right there with nothing
+  // after the group, abcjs silently drops it from the render rather than
+  // showing it unattached — even when the rest of the line has real,
+  // visibly-rendered content (e.g. "C D E {fg}" renders the three real
+  // notes fine but the trailing grace-note group just vanishes without a
+  // trace). Giving it an invisible barline to attach to instead (see
+  // callers) fixes that. Only meaningful to check after any unclosed pair
+  // on the line has already been closed — a bare unmatched "}"/"\""/"!" at
+  // the true end of an *unclosed* group wouldn't reach here in the first
+  // place once that's been fixed up.
+  function lineEndsWithClosedHookGroup(lineText) {
+    return /[}"!]$/.test(lineText);
   }
 
   // ---- View Options: Parts (transposition) ----
