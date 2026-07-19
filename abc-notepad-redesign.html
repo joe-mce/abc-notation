@@ -3683,6 +3683,83 @@
     return matches[matches.length - 1][1].trim();
   }
 
+  // Find the voice in force at `pos` (defaults to the cursor/savedStart) — scans
+  // backward through V: fields (header lines or inline "[V:...]") for the most
+  // recent one, and returns its voice ID (the first token of the field value,
+  // e.g. "1", "T", "Bass"). Returns null if no V: field precedes `pos` (i.e. the
+  // tune has no voices, or the cursor is before the first V: field).
+  function getCurrentVoiceAt(pos = savedStart) {
+    const textBefore = ta.value.slice(0, pos);
+    const matches = [...textBefore.matchAll(/(?:^|\[)V:([^\]\n]*)/gm)];
+    if (matches.length === 0) return null;
+    const idMatch = /^(\S+)/.exec(matches[matches.length - 1][1].trim());
+    return idMatch ? idMatch[1] : null;
+  }
+
+  // Recognized clef names (ABC standard modifiers), aside from the "clef="-prefixed form.
+  const CLEF_NAMES = new Set([
+    'treble', 'bass', 'alto', 'tenor', 'soprano', 'mezzosoprano', 'baritone', 'perc', 'none'
+  ]);
+
+  // Looks for a clef modifier token within a K: or V: field value (e.g. "D clef=bass",
+  // "C bass", "1 clef=treble-8", "1 tenor+8"). Returns the clef name ('treble', 'bass', ...)
+  // or null if the field doesn't specify one. The "-8"/"+8" (ottava) suffix is stripped;
+  // this only tracks which clef is in force, not its octave transposition.
+  function parseClefFromFieldValue(value) {
+    const tokens = (value || '').trim().split(/\s+/);
+    for (const tok of tokens) {
+      const explicit = /^clef=([A-Za-z]+)(?:[+-]8)?$/i.exec(tok);
+      if (explicit) return explicit[1].toLowerCase();
+      const bare = tok.toLowerCase().replace(/[+-]8$/, '');
+      if (CLEF_NAMES.has(bare)) return bare;
+    }
+    return null;
+  }
+
+  // Find the clef in force at `pos` (defaults to the cursor/savedStart). Unlike a
+  // simple "most recent clef=... wins" scan, this tracks clefs per-voice: each V:
+  // field switches the active voice, and if that particular field doesn't restate
+  // a clef (e.g. a bare "[V:1]" voice switch), the voice's own previously-declared
+  // clef is restored instead of leaving whatever clef the last-seen voice was using.
+  // A K: field's clef (if any) applies to whatever voice is currently active, and
+  // is remembered for that voice too. Defaults to 'treble' if nothing is declared,
+  // or if a voice switch happens before that voice ever declared its own clef.
+  function getCurrentClefAt(pos = savedStart) {
+    const textBefore = ta.value.slice(0, pos);
+    const matches = [...textBefore.matchAll(/(?:^|\[)(K|V):([^\]\n]*)/gm)];
+
+    let currentVoice = null;
+    let currentClef = 'treble';
+    const voiceClef = new Map(); // voice ID → its own last-declared clef
+
+    for (const m of matches) {
+      const fieldType = m[1];
+      const value = m[2];
+
+      if (fieldType === 'V') {
+        const idMatch = /^(\S+)\s*(.*)$/.exec(value.trim());
+        if (!idMatch) continue;
+        const voiceId = idMatch[1];
+        const clefHere = parseClefFromFieldValue(idMatch[2]);
+        if (clefHere) {
+          voiceClef.set(voiceId, clefHere);
+          currentClef = clefHere;
+        } else {
+          currentClef = voiceClef.has(voiceId) ? voiceClef.get(voiceId) : 'treble';
+        }
+        currentVoice = voiceId;
+      } else { // 'K'
+        const clefHere = parseClefFromFieldValue(value);
+        if (clefHere) {
+          currentClef = clefHere;
+          if (currentVoice !== null) voiceClef.set(currentVoice, clefHere);
+        }
+      }
+    }
+
+    return currentClef;
+  }
+
   // duration and L are both [num, den] fractions. Returns the ABC text to insert.
   function formatDurationInsert(durFrac, LFrac) {
     const ratio = reduceFrac([durFrac[0] * LFrac[1], durFrac[1] * LFrac[0]]);
@@ -7026,12 +7103,14 @@
   // hasn't actually changed, since updateBadge() is called on every pointer
   // move just to reposition the badge.
   function renderBadgeAbc(note) {
-    if (note === lastBadgeNote) return;
-    lastBadgeNote = note;
+    const clef = getCurrentClefAt();
+    const cacheKey = clef + '|' + note;
+    if (cacheKey === lastBadgeNote) return;
+    lastBadgeNote = cacheKey;
     badgeNoteEl.textContent = note;
     const [n, d] = getCurrentLValue();
     try {
-      ABCJS.renderAbc(badgeAbcEl, `X:1\nK:C\nM:none\nL:${n}/${d}\n${note}`, {
+      ABCJS.renderAbc(badgeAbcEl, `X:1\nK:C clef=${clef}\nM:none\nL:${n}/${d}\n${note}`, {
         add_classes: false,
         staffwidth: 60,
         scale: 0.75,
