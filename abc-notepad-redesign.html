@@ -4039,14 +4039,27 @@
   // anywhere from just before the duration string, within it, to just after
   // it (inclusive) — or, if there's no explicit duration, exactly the point
   // right after the note/rest/chord where one would start.
+  // Given the position right after a note/rest letter, returns the position
+  // right after all of its (contiguous) octave markers — i.e. where a
+  // duration suffix would begin. Same forward-scan idiom used by
+  // computeBarDuration when tallying bar durations.
+  function noteTokenEndAfterLetter(text, afterLetterPos, limit = text.length) {
+    let j = afterLetterPos;
+    while (j < limit && (text[j] === "'" || text[j] === ',')) j++;
+    return j;
+  }
+
   function findDurationSlotAtCursor(pos) {
     const text = ta.value;
-    const lineStart0 = text.lastIndexOf('\n', pos - 1) + 1;
-    // Inside an unclosed chord (more '[' than ']' before the cursor on this
-    // line)? Individual notes within a chord don't carry their own duration
-    // — only the chord as a whole does, after its closing ']' — so there's
-    // no valid duration context anywhere inside the brackets.
-    if (countCharOnLine(text, lineStart0, pos, '[') > countCharOnLine(text, lineStart0, pos, ']')) {
+
+    // No valid duration context while inside a bracketed/quoted/decorated
+    // span — individual notes within a chord "[...]" don't carry their own
+    // duration (only the chord as a whole does, after its closing "]"), and
+    // duration-looking digits/slashes inside a quoted string, {grace notes},
+    // or !decoration! are just literal content, not a duration suffix. Covers
+    // both unclosed (still typing) and fully-closed spans.
+    const PAIR_CHARS = [['[', ']'], ['"', '"'], ['{', '}'], ['!', '!']];
+    if (PAIR_CHARS.some(([o, c]) => inUnclosedPair(o, c) || inClosedPair(o, c))) {
       return null;
     }
 
@@ -4082,6 +4095,12 @@
     if (letterEnd === 0 || !/[a-gA-GzZxX]/.test(text[letterEnd - 1])) return null;
     const letterPos = letterEnd - 1;
     const isRest = /[zZxX]/.test(text[letterPos]);
+
+    // The note/rest token's own end (letter + ALL of its octave marks,
+    // regardless of where the cursor sits within them) — if that's still
+    // ahead of the cursor (e.g. cursor between "c" and "'", or between two
+    // octave marks), the token isn't finished yet, so no duration context.
+    if (noteTokenEndAfterLetter(text, letterPos + 1) > pos) return null;
 
     const durStr = matchDurationSuffix(text, k, text.length);
     const durEnd = k + durStr.length;
