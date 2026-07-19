@@ -3290,6 +3290,28 @@
     return result;
   }
 
+  // abcElem.startChar/endChar are offsets into previewRenderedText (what abcjs
+  // actually parsed), not ta.value — see previewClickListener's comment.
+  //
+  // For a fused chord/annotation+note element (see the note above), startChar
+  // normally points straight at the opening quote of the chord symbol — but
+  // abcjs doesn't always attribute leading whitespace to the *previous*
+  // element; right after a barline in particular, the whitespace between the
+  // barline and the quote gets folded into *this* element's startChar instead,
+  // so trimmed[startChar] can be a space rather than '"'. Skip past any such
+  // leading whitespace before checking. Returns {quoteStart, closeIdx} (the
+  // real position of the opening and closing quotes), or null if this element
+  // doesn't begin with a quoted chord symbol at all.
+  function findAnnotationSpan(trimmed, startChar, endChar) {
+    if (typeof startChar !== 'number' || typeof endChar !== 'number') return null;
+    let i = startChar;
+    while (i < endChar && /\s/.test(trimmed[i])) i++;
+    if (i >= endChar || trimmed[i] !== '"') return null;
+    const closeIdx = trimmed.indexOf('"', i + 1);
+    if (closeIdx === -1 || closeIdx >= endChar) return null;
+    return { quoteStart: i, closeIdx };
+  }
+
   // Given one matched abcElem and whether its annotation sub-part and/or its
   // note sub-part should be included (when the two are fused into one
   // elemset — see the note above), returns the leaf DOM nodes to highlight.
@@ -3309,20 +3331,15 @@
     if (!Array.isArray(elemset) || !elemset.length) return [];
     const leaves = collectDrawableLeaves(elemset);
 
-    // abcElem.startChar is an offset into previewRenderedText (what abcjs
-    // actually parsed), not ta.value — see previewClickListener's comment.
     const trimmed = previewRenderedText;
-    const startChar = abcElem.startChar;
-    if (typeof startChar === 'number' && trimmed[startChar] === '"') {
-      const closeIdx = trimmed.indexOf('"', startChar + 1);
-      if (closeIdx !== -1) {
-        const textLeaves = leaves.filter(el => el.classList && (el.classList.contains('abcjs-chord') || el.classList.contains('abcjs-annotation')));
-        if (textLeaves.length && textLeaves.length < leaves.length) {
-          if (wantsAnnotation && wantsNote) return leaves;
-          if (wantsAnnotation) return textLeaves;
-          if (wantsNote) return leaves.filter(el => textLeaves.indexOf(el) === -1);
-          return [];
-        }
+    const span = findAnnotationSpan(trimmed, abcElem.startChar, abcElem.endChar);
+    if (span) {
+      const textLeaves = leaves.filter(el => el.classList && (el.classList.contains('abcjs-chord') || el.classList.contains('abcjs-annotation')));
+      if (textLeaves.length && textLeaves.length < leaves.length) {
+        if (wantsAnnotation && wantsNote) return leaves;
+        if (wantsAnnotation) return textLeaves;
+        if (wantsNote) return leaves.filter(el => textLeaves.indexOf(el) === -1);
+        return [];
       }
     }
     return leaves;
@@ -3337,14 +3354,11 @@
     clearPreviewHighlight();
     if (!abcElem) return;
     const trimmed = previewRenderedText; // abcElem.startChar is render-space — see leavesForAbcElem
-    const startChar = abcElem.startChar;
     let wantsAnnotation = true, wantsNote = true;
-    if (typeof startChar === 'number' && trimmed[startChar] === '"') {
-      const closeIdx = trimmed.indexOf('"', startChar + 1);
-      if (closeIdx !== -1 && matchedOffset !== undefined) {
-        wantsAnnotation = matchedOffset < closeIdx + 1;
-        wantsNote = !wantsAnnotation;
-      }
+    const span = findAnnotationSpan(trimmed, abcElem.startChar, abcElem.endChar);
+    if (span && matchedOffset !== undefined) {
+      wantsAnnotation = matchedOffset < span.closeIdx + 1;
+      wantsNote = !wantsAnnotation;
     }
     const leaves = leavesForAbcElem(abcElem, wantsAnnotation, wantsNote);
     leaves.forEach(el => { if (el && el.classList) el.classList.add('preview-cursor-highlight'); });
@@ -3498,13 +3512,10 @@
     let allLeaves = [];
     elems.forEach(elem => {
       let wantsAnnotation = true, wantsNote = true;
-      const startChar = elem.startChar;
-      if (typeof startChar === 'number' && trimmed[startChar] === '"') {
-        const closeIdx = trimmed.indexOf('"', startChar + 1);
-        if (closeIdx !== -1) {
-          wantsAnnotation = selStart < closeIdx + 1 && selEnd > startChar;
-          wantsNote = selStart < elem.endChar && selEnd > closeIdx + 1;
-        }
+      const span = findAnnotationSpan(trimmed, elem.startChar, elem.endChar);
+      if (span) {
+        wantsAnnotation = selStart < span.closeIdx + 1 && selEnd > span.quoteStart;
+        wantsNote = selStart < elem.endChar && selEnd > span.closeIdx + 1;
       }
       allLeaves = allLeaves.concat(leavesForAbcElem(elem, wantsAnnotation, wantsNote));
     });
@@ -3536,6 +3547,13 @@
   // there's no same-line preceding note to prefer, so that falls through to
   // the normal "note starting here" behavior instead of reaching back across
   // the line break.
+  //
+  // If the cursor sits right after a space (and isn't at true line-start),
+  // we show no highlight at all rather than doing either lookup: the cursor
+  // isn't really adjacent to real content on either side, and a backward
+  // lookup risks latching onto whichever token abcjs happened to attribute
+  // that whitespace to (which isn't always the token before it — e.g. right
+  // after a barline, the following chord+note element can absorb it instead).
   function updatePreviewCursorHighlight() {
     if (!currentTuneObj) { clearPreviewHighlight(); return; }
     const pos = taPosToRenderPos(savedStart);
@@ -3543,6 +3561,8 @@
 
     const trimmed = previewRenderedText; // same string abcjs actually parsed positions against
     const atLineStart = pos === 0 || trimmed[pos - 1] === '\n';
+    if (!atLineStart && /[ \t]/.test(trimmed[pos - 1])) { clearPreviewHighlight(); return; }
+
     let matchedOffset = pos;
     let elem = null;
     if (!atLineStart) {
