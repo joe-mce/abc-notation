@@ -2735,6 +2735,43 @@
     return rawPointToOffset(clientX, clientY);
   }
 
+  // True if (clientX, clientY) lands in genuinely empty space past the
+  // actual rendered content of the line that ends at `lineEndOffset` —
+  // either because clientY is below all rendered content entirely (tapping
+  // below the last line, anywhere horizontally), or because clientX is to
+  // the right of that line's last real character. Both of those, and an
+  // ordinary tap on/near the last real character, can all resolve to the
+  // same offset via caretRangeFromPoint (tapping anywhere right of or below
+  // a line's content collapses to that line's end position), so this is
+  // needed to tell them apart. Empty lines count as "past content" too,
+  // since there's nothing there to be on/near.
+  function isPastLineContent(clientX, clientY, lineEndOffset) {
+    const contentBounds = measureContentVerticalBounds();
+    if (contentBounds && clientY > contentBounds.bottom) return true; // below all content — empty space regardless of x
+
+    const lineStart = ta.value.lastIndexOf('\n', lineEndOffset - 1) + 1;
+    if (lineEndOffset <= lineStart) return true; // empty line
+    const walker = document.createTreeWalker(taDisplay, NodeFilter.SHOW_TEXT, null);
+    let total = 0, n;
+    while ((n = walker.nextNode())) {
+      const len = n.textContent.length;
+      const nodeStart = total, nodeEnd = total + len;
+      total += len;
+      const lastCharIdx = lineEndOffset - 1;
+      if (lastCharIdx >= nodeStart && lastCharIdx < nodeEnd) {
+        const localI = lastCharIdx - nodeStart;
+        const range = document.createRange();
+        range.setStart(n, localI);
+        range.setEnd(n, localI + 1);
+        const rects = range.getClientRects();
+        if (rects.length) return clientX > rects[0].right;
+        break;
+      }
+      if (total > lineEndOffset) break;
+    }
+    return false; // couldn't measure — be conservative, treat as "on content"
+  }
+
   // Finds the character offset within [lineStart, lineEnd] whose rendered
   // position is closest to clientX, by measuring each candidate position's
   // own actual x directly — rather than asking the browser to hit-test a
@@ -2923,7 +2960,18 @@
 
     const off = charOffsetFromPoint(e.clientX, e.clientY);
     const hasSelection = savedEnd > savedStart;
-    const withinSelection = hasSelection && off >= savedStart && off <= savedEnd;
+    let withinSelection = hasSelection && off >= savedStart && off <= savedEnd;
+
+    // Tapping in genuinely empty space past the end of a line — even one in
+    // the middle of a multi-line selection — should deselect and place the
+    // cursor there, like tapping past the end of any other line, rather than
+    // being treated as a tap on the selected text.
+    if (withinSelection) {
+      const isLineEnd = ta.value[off] === undefined || ta.value[off] === '\n';
+      if (isLineEnd && isPastLineContent(e.clientX, e.clientY, off)) {
+        withinSelection = false;
+      }
+    }
 
     // Double-tap/double-click: a second quick tap landing close to the last
     // one switches into the real textarea. If the tap landed inside an
