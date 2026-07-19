@@ -689,13 +689,69 @@
     border: 1.5px solid var(--border);
     border-radius: 20px;
     width: 100%;
-    max-width: 340px;
+    max-width: 380px;
     height: 70vh;
     max-height: 560px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .tools-modal-handle {
+    display: none; /* only used for the mobile draggable sheet */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    z-index: 2;
+    touch-action: none;
+    background: linear-gradient(to bottom, #000 0%, #000 45%, rgba(0,0,0,0) 100%);
+  }
+  .tools-modal-handle::after {
+    content: '';
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--text-dim);
+  }
+  @media (max-width: 600px) {
+    #toolsOverlay {
+      padding: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: flex-end;
+      transition: background-color 0.28s ease;
+    }
+    #toolsOverlay .tools-modal-box {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-width: none;
+      width: 100%;
+      height: 65vh;
+      max-height: none;
+      border-radius: 20px 20px 0 0;
+      border: none;
+      transition: height 0.28s cubic-bezier(.2,.8,.2,1);
+    }
+    #toolsOverlay .tools-modal-box.tools-sheet-full {
+      border-radius: 0;
+    }
+    .tools-modal-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #toolsOverlay .tools-modal-box.tools-sheet-full .tools-modal-handle {
+      display: none;
+    }
+    .tools-modal-close {
+      display: none;
+    }
+    #toolsOverlay .tools-modal-box.tools-sheet-full .tools-modal-close {
+      display: flex;
+    }
   }
   .tools-modal-close {
     position: absolute;
@@ -705,24 +761,80 @@
   }
   .tools-modal-scroll {
     overflow-y: auto;
-    padding: 54px 10px 16px;
+    padding: 54px 10px calc(16px + env(safe-area-inset-bottom, 0px));
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
   }
-  .tools-modal-item {
-    display: block;
+  .tool-card-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+  .tools-modal-scroll .tool-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     width: 100%;
+    min-width: 0;
     text-align: left;
-    background: transparent;
+    background: var(--surface2);
     border: none;
     color: var(--text);
     font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 500;
-    padding: 12px 14px;
-    border-radius: 10px;
-    letter-spacing: 0.02em;
+    padding: 0;
+    border-radius: 12px;
+    overflow: hidden;
   }
-  .tools-modal-item:active { background: var(--surface2); }
+  .tool-card:active { background: var(--surface3); }
+  .tool-card-disabled {
+    opacity: 0.35;
+  }
+  .tool-card-disabled:active { background: var(--surface2); }
+  .tool-card-preview {
+    height: 76px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    background: var(--surface3);
+    pointer-events: none;
+    user-select: none;
+  }
+  .tool-card-preview::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 22px;
+    z-index: 1;
+    background: linear-gradient(to right, rgba(51,51,51,0) 0%, var(--surface3) 100%);
+  }
+  .tool-card-preview svg {
+    display: block;
+    position: relative;
+    z-index: 0;
+  }
+  /* abcjs shapes resolve color via currentColor; force the app's on-screen
+     text color same as #preview does, since this sits on a dark card. */
+  .tool-card-preview svg path, .tool-card-preview svg rect, .tool-card-preview svg ellipse,
+  .tool-card-preview svg polygon, .tool-card-preview svg line, .tool-card-preview svg polyline {
+    fill: var(--text); stroke: var(--text);
+  }
+  .tool-card-preview svg text { fill: var(--text); }
+  .tool-card-preview svg [fill="none"] { fill: none; }
+  .tool-card-preview svg [stroke="none"] { stroke: none; }
+  .tool-card-name {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 8px 10px 10px;
+  }
 
   /* Divider between preview and editor */
   .v-divider {
@@ -2035,7 +2147,8 @@
 
 
 <div class="insert-overlay" id="toolsOverlay">
-  <div class="tools-modal-box">
+  <div class="tools-modal-box" id="toolsModalBox">
+    <div class="tools-modal-handle" id="toolsModalHandle"></div>
     <button class="modal-close tools-modal-close" id="toolsModalClose" aria-label="Close">&times;</button>
     <div class="tools-modal-scroll" id="toolsModalList"></div>
   </div>
@@ -2229,18 +2342,15 @@
   // while text is selected). `action` must match a key in the `actions`
   // dispatch map below.
   const TOOL_DEFS = [
-    { action: 'transposeUp',                label: 'Octave up' },
-    { action: 'transposeDown',              label: 'Octave down' },
-    { action: 'doubleLength',               label: 'Double lengths' },
-    { action: 'halveLength',                label: 'Halve lengths' },
-    { action: 'removeText',                 label: 'Remove text' },
-    { action: 'removeAccidentals',          label: 'Remove accidentals' },
-    { action: 'respellEnharmonic',          label: 'Respell enharmonic' },
-    { action: 'wrapRepeats',                label: 'Wrap in repeats' },
-    { action: 'markNotes',                  label: 'Mark notes' },
-    { action: 'addTriplets',                label: 'Add triplets' },
-    { action: 'removeRedundantAccidentals', label: 'Remove redundant accidentals' },
+    { action: 'transposeUp',                label: 'Octave up',                    section: 'Pitch',       preview: sel => toolTransposeUp(sel) },
+    { action: 'transposeDown',              label: 'Octave down',                  section: 'Pitch',       preview: sel => toolTransposeDown(sel) },
+    { action: 'halveLength',                label: 'Halve durations',              section: 'Rhythm',      preview: sel => toolHalveLength(sel) },
+    { action: 'doubleLength',               label: 'Double durations',             section: 'Rhythm',      preview: sel => toolDoubleLength(sel) },
+    { action: 'removeAccidentals',          label: 'Remove all accidentals',       section: 'Accidentals', preview: sel => toolRemoveAccidentals(sel) },
+    { action: 'removeRedundantAccidentals', label: 'Remove redundant accidentals', section: 'Accidentals', preview: sel => toolRemoveRedundantAccidentals(sel, getKeySigMapAt(savedStart)) },
+    { action: 'removeText',                 label: 'Remove text',                  section: 'Text',        preview: sel => toolRemoveText(sel) },
   ];
+  const TOOL_SECTION_ORDER = ['Pitch', 'Rhythm', 'Accidentals', 'Text'];
   const DURATION_ICONS = [
     { dur: '1/16', dotted: false, frac: [1, 16], title: 'Semiquaver' },
     { dur: '1/8',  dotted: false, frac: [1, 8],  title: 'Quaver' },
@@ -4774,17 +4884,196 @@
     applyTool(btn.dataset.tool);
     if (document.getElementById('toolsOverlay').classList.contains('open')) closeToolsModal();
   }
-  function renderToolsModalList() {
-    document.getElementById('toolsModalList').innerHTML = TOOL_DEFS.map(t =>
-      `<button class="action-btn tools-modal-item" data-action="toolExec" data-tool="${esc(t.action)}" data-keepfocus="1">${esc(t.label)}</button>`
-    ).join('');
+  // Finds the last K:/M:/L: field at or before `pos`, falling back to sane
+  // defaults — gives each card preview enough header context to render
+  // correctly (key signature, meter, default note length) without pulling
+  // in any of the surrounding tune body.
+  function toolPreviewHeaderAt(pos) {
+    const before = ta.value.slice(0, pos);
+    function lastField(letter, fallback) {
+      const re = new RegExp('^' + letter + ':.*$', 'gm');
+      let m, last = null;
+      while ((m = re.exec(before)) !== null) last = m[0];
+      return last || fallback;
+    }
+    return {
+      k: lastField('K', 'K:C'),
+      m: lastField('M', 'M:4/4'),
+      l: lastField('L', 'L:1/8'),
+    };
   }
+  function renderToolsModalList() {
+    const listEl = document.getElementById('toolsModalList');
+    const selText = ta.value.slice(savedStart, savedEnd);
+    const hdr = toolPreviewHeaderAt(savedStart);
+
+    // Compute each tool's transformed output up front so we know which ones
+    // are no-ops (output === input) before building the markup — those get
+    // greyed out and disabled rather than offered as if they'd do something.
+    const results = TOOL_DEFS.map(t => {
+      let transformed;
+      try { transformed = t.preview(selText); } catch (e) { transformed = selText; }
+      return { transformed, noEffect: transformed === selText };
+    });
+
+    listEl.innerHTML = TOOL_SECTION_ORDER.map(section => {
+      const indices = TOOL_DEFS.map((t, i) => i).filter(i => TOOL_DEFS[i].section === section);
+      if (!indices.length) return '';
+      const cards = indices.map(i => {
+        const t = TOOL_DEFS[i];
+        const disabled = results[i].noEffect;
+        return `<button class="action-btn tool-card${disabled ? ' tool-card-disabled' : ''}"${disabled ? ' disabled aria-disabled="true"' : ` data-action="toolExec" data-tool="${esc(t.action)}" data-keepfocus="1"`}>
+          <div class="tool-card-preview" id="toolCardPreview${i}" aria-hidden="true"></div>
+          <div class="tool-card-name">${esc(t.label)}</div>
+        </button>`;
+      }).join('');
+      return `<div class="settings-section">
+        <div class="settings-section-label">${esc(section)}</div>
+        <div class="tool-card-grid">${cards}</div>
+      </div>`;
+    }).join('');
+
+    TOOL_DEFS.forEach((t, i) => {
+      const host = document.getElementById('toolCardPreview' + i);
+      if (!host) return;
+      // Only the first line matters for a single-system preview — later
+      // lines would start a new system in ABCJS, or (if joined with a
+      // space) squeeze extra music into the same line, so just drop them.
+      const bodyText = results[i].transformed.split(/\r?\n/)[0];
+      const abcText = `X:1\n${hdr.k}\n${hdr.m}\n${hdr.l}\n${bodyText}`;
+      try {
+        // Fixed staffwidth (not "responsive"), so a long result simply
+        // overflows the card and gets clipped by .tool-card-preview's
+        // overflow:hidden — showing its left part — rather than shrinking
+        // to fit the whole thing.
+        ABCJS.renderAbc(host, abcText, {
+          add_classes: false,
+          staffwidth: 560,
+          scale: 0.85,
+          paddingtop: 4, paddingbottom: 4, paddingleft: 6, paddingright: 6
+        });
+      } catch (e) { host.innerHTML = ''; }
+    });
+  }
+  // --- Tools modal bottom-sheet (mobile only) ---
+  // Desktop keeps the plain centered modal (untouched). On mobile the modal
+  // is a drag-to-resize sheet with three stops: 0 (dismissed),
+  // TOOLS_SHEET_MID (opens here), and 1 (full screen — same look as the old
+  // always-fullscreen modal, handle swapped for the X close button).
+  const TOOLS_SHEET_MID = 0.65;
+  function toolsSheetIsMobile() {
+    return window.matchMedia('(max-width: 600px)').matches;
+  }
+  let toolsSheetFrac = TOOLS_SHEET_MID;   // last settled/authoritative fraction
+  let toolsSheetDragging = false;
+  let toolsSheetDragStartY = 0;
+  let toolsSheetDragStartFrac = TOOLS_SHEET_MID;
+  let toolsSheetDragLastY = 0;
+  let toolsSheetDragLastT = 0;
+  let toolsSheetDragVelocity = 0; // px/ms, positive = finger moving down
+
+  function applyToolsSheetFrac(frac) {
+    const box = document.getElementById('toolsModalBox');
+    const overlay = document.getElementById('toolsOverlay');
+    box.style.height = `${frac * window.innerHeight}px`;
+    overlay.style.background = `rgba(0,0,0,${(0.6 * frac).toFixed(3)})`;
+    box.classList.toggle('tools-sheet-full', frac >= 0.999);
+  }
+
+  function snapToolsSheetTo(target) {
+    toolsSheetFrac = target;
+    const box = document.getElementById('toolsModalBox');
+    const overlay = document.getElementById('toolsOverlay');
+    box.style.transition = '';    // restore the CSS-defined transition for an animated snap
+    overlay.style.transition = '';
+    applyToolsSheetFrac(target);
+    if (target === 0) {
+      const onEnd = () => {
+        box.removeEventListener('transitionend', onEnd);
+        document.getElementById('toolsOverlay').classList.remove('open');
+        modalClosed('toolsOverlay');
+      };
+      box.addEventListener('transitionend', onEnd, { once: true });
+    }
+  }
+
+  document.getElementById('toolsModalHandle').addEventListener('touchstart', e => {
+    if (!toolsSheetIsMobile()) return;
+    toolsSheetDragging = true;
+    const t = e.changedTouches[0];
+    toolsSheetDragStartY = t.clientY;
+    toolsSheetDragStartFrac = toolsSheetFrac;
+    toolsSheetDragLastY = t.clientY;
+    toolsSheetDragLastT = performance.now();
+    toolsSheetDragVelocity = 0;
+    const box = document.getElementById('toolsModalBox');
+    const overlay = document.getElementById('toolsOverlay');
+    box.style.transition = 'none';
+    overlay.style.transition = 'none';
+    e.preventDefault();
+  }, { passive: false });
+
+  document.getElementById('toolsModalHandle').addEventListener('touchmove', e => {
+    if (!toolsSheetDragging) return;
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    const deltaY = t.clientY - toolsSheetDragStartY;
+    const frac = Math.max(0, Math.min(1, toolsSheetDragStartFrac - deltaY / window.innerHeight));
+    toolsSheetFrac = frac;
+    const now = performance.now();
+    const dt = now - toolsSheetDragLastT;
+    if (dt > 0) toolsSheetDragVelocity = (t.clientY - toolsSheetDragLastY) / dt;
+    toolsSheetDragLastY = t.clientY;
+    toolsSheetDragLastT = now;
+    applyToolsSheetFrac(frac);
+  }, { passive: false });
+
+  document.getElementById('toolsModalHandle').addEventListener('touchend', () => {
+    if (!toolsSheetDragging) return;
+    toolsSheetDragging = false;
+    const FLING_VELOCITY = 0.5; // px/ms
+    let target;
+    if (Math.abs(toolsSheetDragVelocity) > FLING_VELOCITY) {
+      // Fast flick — move exactly one stop in that direction from where the
+      // drag started, regardless of how far it actually travelled.
+      if (toolsSheetDragVelocity > 0) target = toolsSheetDragStartFrac >= 1 ? TOOLS_SHEET_MID : 0;
+      else target = toolsSheetDragStartFrac <= 0 ? TOOLS_SHEET_MID : 1;
+    } else {
+      // Slow drag — settle on whichever of the 3 stops is currently nearest.
+      const stops = [0, TOOLS_SHEET_MID, 1];
+      target = stops.reduce((a, b) =>
+        Math.abs(b - toolsSheetFrac) < Math.abs(a - toolsSheetFrac) ? b : a);
+    }
+    snapToolsSheetTo(target);
+  });
+
   function openToolsModal() {
     renderToolsModalList();
-    document.getElementById('toolsOverlay').classList.add('open');
+    const overlay = document.getElementById('toolsOverlay');
+    const box = document.getElementById('toolsModalBox');
+    overlay.classList.add('open');
     modalOpened('toolsOverlay');
+    if (toolsSheetIsMobile()) {
+      box.style.transition = 'none';
+      overlay.style.transition = 'none';
+      toolsSheetFrac = 0;
+      applyToolsSheetFrac(0); // start fully collapsed off-screen…
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        snapToolsSheetTo(TOOLS_SHEET_MID); // …then animate up to the mid resting state
+      }));
+    } else {
+      box.style.height = '';
+      box.style.transition = '';
+      overlay.style.background = '';
+      overlay.style.transition = '';
+      box.classList.remove('tools-sheet-full');
+    }
   }
   function closeToolsModal() {
+    if (toolsSheetIsMobile() && toolsSheetFrac > 0) {
+      snapToolsSheetTo(0);
+      return;
+    }
     document.getElementById('toolsOverlay').classList.remove('open');
     modalClosed('toolsOverlay');
   }
@@ -4916,9 +5205,7 @@
 
     const selText = ta.value.slice(savedStart, savedEnd);
     let html = `<span class="dur-current-note sel-preview">${escPadMin3(truncateSelectionPreview(selText))}</span>`;
-    html += `<button class="action-btn sel-bar-btn" data-action="openToolsModal" data-keepfocus="1">Tools</button>`;
-    html += `<button class="action-btn sel-bar-btn" data-action="copySelection" data-keepfocus="1">Copy</button>`;
-    html += `<button class="action-btn sel-bar-btn" data-action="pasteOverSelection" data-keepfocus="1">Paste</button>`;
+    html += `<button class="action-btn sel-bar-btn" data-action="openToolsModal" data-keepfocus="1">Tools…</button>`;
     actionScrollEl.innerHTML = html;
   }
 
@@ -6525,14 +6812,20 @@
     });
   }
 
+  function toolTransposeUp(sel) {
+    return transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteUp(acc, letter, octs)));
+  }
+  function toolTransposeDown(sel) {
+    return transformSkippingQuotes(sel, ch =>
+      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteDown(acc, letter, octs)));
+  }
   function transposeUp() {
-    transformSelection(sel => transformSkippingQuotes(sel, ch =>
-      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteUp(acc, letter, octs))));
+    transformSelection(toolTransposeUp);
   }
 
   function transposeDown() {
-    transformSelection(sel => transformSkippingQuotes(sel, ch =>
-      ch.replace(NOTE_RE, (_, acc, letter, octs) => transposeNoteDown(acc, letter, octs))));
+    transformSelection(toolTransposeDown);
   }
 
   // Doubles (multiply=true) or halves every note/rest length in the
@@ -6584,32 +6877,42 @@
     });
   }
 
+  function toolDoubleLength(sel) {
+    return transformSkippingQuotes(sel, ch => scaleLengths(ch, true));
+  }
+  function toolHalveLength(sel) {
+    return transformSkippingQuotes(sel, ch => scaleLengths(ch, false));
+  }
   function doubleLength() {
-    transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, true)));
+    transformSelection(toolDoubleLength);
   }
 
   function halveLength() {
-    transformSelection(sel => transformSkippingQuotes(sel, ch => scaleLengths(ch, false)));
+    transformSelection(toolHalveLength);
   }
 
+  function toolRemoveText(sel) {
+    return sel.replace(/"[^"]*"/g, '');
+  }
   function removeText() {
     // Remove quoted strings (chord symbols / annotations): "..."
-    transformSelection(sel => sel.replace(/"[^"]*"/g, ''));
+    transformSelection(toolRemoveText);
   }
 
-  function removeAccidentals() {
+  function toolRemoveAccidentals(sel) {
     // Strip ^ _ = outside of quoted strings
-    transformSelection(sel => {
-      let result = '';
-      let inQuote = false;
-      for (let i = 0; i < sel.length; i++) {
-        const ch = sel[i];
-        if (ch === '"') { inQuote = !inQuote; result += ch; continue; }
-        if (!inQuote && (ch === '^' || ch === '_' || ch === '=')) continue;
-        result += ch;
-      }
-      return result;
-    });
+    let result = '';
+    let inQuote = false;
+    for (let i = 0; i < sel.length; i++) {
+      const ch = sel[i];
+      if (ch === '"') { inQuote = !inQuote; result += ch; continue; }
+      if (!inQuote && (ch === '^' || ch === '_' || ch === '=')) continue;
+      result += ch;
+    }
+    return result;
+  }
+  function removeAccidentals() {
+    transformSelection(toolRemoveAccidentals);
   }
 
   // Enharmonic respelling.
@@ -6668,6 +6971,9 @@
     }
   }
 
+  function toolWrapRepeats(sel) {
+    return '|:' + sel + ':|';
+  }
   function wrapRepeats() {
     const s = savedStart, e = savedEnd;
     if (s === e) return;
@@ -6675,17 +6981,13 @@
     const before = ta.value.slice(0, s);
     const sel    = ta.value.slice(s, e);
     const after  = ta.value.slice(e);
-    const open = '|:', close = ':|';
-    ta.value = before + open + sel + close + after;
-    savedStart = s + open.length;
-    savedEnd   = s + open.length + sel.length;
+    const wrapped = toolWrapRepeats(sel);
+    ta.value = before + wrapped + after;
+    savedStart = s + 2; // length of the opening "|:"
+    savedEnd   = s + 2 + sel.length;
     if (taFocused) { ta.focus(); ta.setSelectionRange(savedStart, savedEnd); }
     schedulePreview();
     syncDisplayIfUnfocused();
-  }
-  function markNotes() {
-    transformSelection(sel => transformSkippingQuotes(sel, ch =>
-      ch.replace(NOTE_RE, (match, acc, letter, octs) => '!mark!' + acc + letter + octs)));
   }
   // --- Add triplets tool ---
   // Parse an ABC duration string into a rational number as {num, den}.
@@ -6731,13 +7033,7 @@
   // Returns an array of {text: string, start: number, end: number} chunks,
   // where text is the group content (or separator content for spaces/barlines).
   // We process in two passes: first tokenise into notes/rests vs separators.
-  function addTriplets() {
-    const s = savedStart, e = savedEnd;
-    if (s === e) return;
-
-    const val = ta.value;
-    const sel = val.slice(s, e);
-
+  function toolAddTriplets(sel) {
     // Regex to tokenise ABC selection into meaningful chunks.
     // We identify: barlines, spaces/newlines (separators), and note/rest tokens.
     // A note/rest token: optional decorations, optional chord, optional accidentals,
@@ -6848,6 +7144,16 @@
       }
     }
 
+    return result;
+  }
+  function addTriplets() {
+    const s = savedStart, e = savedEnd;
+    if (s === e) return;
+
+    const val = ta.value;
+    const sel = val.slice(s, e);
+    const result = toolAddTriplets(sel);
+
     // Apply the result
     pushUndo();
     const before = val.slice(0, s);
@@ -6860,13 +7166,16 @@
     schedulePreview();
   }
 
-  function respellEnharmonic() {
+  function toolRespellEnharmonic(sel) {
     // NOTE_RE captures (accidentals)(letter)(octave markers) — duration is untouched.
-    transformSelection(sel => transformSkippingQuotes(sel, ch =>
+    return transformSkippingQuotes(sel, ch =>
       ch.replace(NOTE_RE, (match, acc, letter, octs) =>
         respellEnharmonicNote(acc, letter, octs)
       )
-    ));
+    );
+  }
+  function respellEnharmonic() {
+    transformSelection(toolRespellEnharmonic);
   }
 
   // --- Remove redundant accidentals ---
@@ -6974,57 +7283,57 @@
     return result;
   }
 
-  function removeRedundantAccidentals() {
+  function toolRemoveRedundantAccidentals(sel, keyMap) {
     const BARLINE_RE = new RegExp(BARLINE_RE_SRC, 'g');
+    // Split selection into bars (preserving barline tokens) and process each bar segment.
+    // We also skip header/field lines (e.g. "T:title\n") by passing them through.
+    const FIELD_LINE_RE = /^[A-Za-z]:[^\n]*\n?/gm;
+
+    // Build a list of segments: {type:'field'|'barline'|'music', text, start, end}
+    // Strategy: find all barlines and field lines, everything else is music content.
+    const splits = []; // {pos, len, type, text}
+
+    // Find field lines
+    let fm;
+    FIELD_LINE_RE.lastIndex = 0;
+    while ((fm = FIELD_LINE_RE.exec(sel)) !== null) {
+      splits.push({ pos: fm.index, len: fm[0].length, type: 'field', text: fm[0] });
+    }
+
+    // Find barlines
+    BARLINE_RE.lastIndex = 0;
+    let bm;
+    while ((bm = BARLINE_RE.exec(sel)) !== null) {
+      // Make sure this barline isn't inside a field line
+      const inField = splits.some(s => s.type === 'field' && bm.index >= s.pos && bm.index < s.pos + s.len);
+      if (!inField) {
+        splits.push({ pos: bm.index, len: bm[0].length, type: 'barline', text: bm[0] });
+      }
+    }
+
+    // Sort by position
+    splits.sort((a, b) => a.pos - b.pos);
+
+    // Walk through `sel`, collecting music segments between the splits
+    let result = '';
+    let cursor = 0;
+    for (const sp of splits) {
+      if (sp.pos > cursor) {
+        // Music content before this split — process it as a bar segment
+        result += processBarForRedundantAccidentals(sel.slice(cursor, sp.pos), keyMap);
+      }
+      result += sp.text;
+      cursor = sp.pos + sp.len;
+    }
+    // Trailing music segment after last split
+    if (cursor < sel.length) {
+      result += processBarForRedundantAccidentals(sel.slice(cursor), keyMap);
+    }
+    return result;
+  }
+  function removeRedundantAccidentals() {
     const keyMap = getKeySigMapAt(savedStart);
-
-    transformSelection(sel => {
-      // Split selection into bars (preserving barline tokens) and process each bar segment.
-      // We also skip header/field lines (e.g. "T:title\n") by passing them through.
-      const FIELD_LINE_RE = /^[A-Za-z]:[^\n]*\n?/gm;
-
-      // Build a list of segments: {type:'field'|'barline'|'music', text, start, end}
-      // Strategy: find all barlines and field lines, everything else is music content.
-      const splits = []; // {pos, len, type, text}
-
-      // Find field lines
-      let fm;
-      FIELD_LINE_RE.lastIndex = 0;
-      while ((fm = FIELD_LINE_RE.exec(sel)) !== null) {
-        splits.push({ pos: fm.index, len: fm[0].length, type: 'field', text: fm[0] });
-      }
-
-      // Find barlines
-      BARLINE_RE.lastIndex = 0;
-      let bm;
-      while ((bm = BARLINE_RE.exec(sel)) !== null) {
-        // Make sure this barline isn't inside a field line
-        const inField = splits.some(s => s.type === 'field' && bm.index >= s.pos && bm.index < s.pos + s.len);
-        if (!inField) {
-          splits.push({ pos: bm.index, len: bm[0].length, type: 'barline', text: bm[0] });
-        }
-      }
-
-      // Sort by position
-      splits.sort((a, b) => a.pos - b.pos);
-
-      // Walk through `sel`, collecting music segments between the splits
-      let result = '';
-      let cursor = 0;
-      for (const sp of splits) {
-        if (sp.pos > cursor) {
-          // Music content before this split — process it as a bar segment
-          result += processBarForRedundantAccidentals(sel.slice(cursor, sp.pos), keyMap);
-        }
-        result += sp.text;
-        cursor = sp.pos + sp.len;
-      }
-      // Trailing music segment after last split
-      if (cursor < sel.length) {
-        result += processBarForRedundantAccidentals(sel.slice(cursor), keyMap);
-      }
-      return result;
-    });
+    transformSelection(sel => toolRemoveRedundantAccidentals(sel, keyMap));
   }
 
   // --- Chord popup ---
@@ -7177,7 +7486,7 @@
   });
 
   // Unified button interaction — works for both touch and mouse
-  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, markNotes, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, toggleOnscreenKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown, closeHdrTray, saveHdrTray };
+  const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, toggleOnscreenKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown, closeHdrTray, saveHdrTray };
 
   function handleButtonPress(btn) {
     // Immediate visual feedback only — every button now fires on release,
@@ -7882,7 +8191,7 @@
       return;
     }
 
-    const inActionScroll = !!btn.closest('.action-scroll');
+    const inActionScroll = !!btn.closest('.action-scroll, .tools-modal-scroll');
     if (!inActionScroll && (btn.classList.contains('key') || btn.dataset.keepfocus)) {
       e.preventDefault();
     }
