@@ -6425,34 +6425,26 @@
 
   // --- Remove redundant accidentals ---
   //
-  // An accidental is redundant if, looking back through the same bar, the most recent
-  // prior occurrence of the same note+octave that ITSELF carried an explicit accidental
-  // had the same accidental as the current one.
+  // An accidental is redundant if it matches the "effective" accidental already in
+  // force for that note+octave at that point in the bar. The effective accidental is:
+  //   - the most recent explicit accidental on that same note+octave earlier in the
+  //     bar, if there is one; otherwise
+  //   - whatever the key signature implies for that note's letter (via keySigMapForField /
+  //     getKeySigMapAt), which may be '', '^', or '_'.
   //
-  // Special case for natural (=): also redundant if there is NO prior accidentalled
-  // occurrence at all in the bar (the natural is not cancelling anything) — UNLESS the
-  // piece has a non-trivial key signature, in which case the natural might be cancelling
-  // a key-sig accidental and we leave it alone.
+  // So: an explicit ^/_ is redundant if it just repeats the effective accidental
+  // (whether that came from an earlier accidental in the bar or from the key signature).
+  // An explicit natural (=) is redundant if the effective accidental was already
+  // natural (no key-sig accidental on that letter, and no overriding accidental earlier
+  // in the bar) — i.e. it isn't cancelling anything.
   //
-  // We detect the key by scanning backwards from the selection for the last K: field.
-  // If the key is C / Am / none (zero sharps/flats), or no K: is found, naturals with
-  // no prior accidentalled note in the bar are considered redundant.
-
-  function keyHasAccidentals() {
-    // Returns true if the current key signature implies any sharps or flats.
-    const rawKey = getCurrentKValue();
-    if (rawKey === null) return false; // no key found → assume C, naturals may be redundant
-    const lastKey = rawKey.toLowerCase();
-
-    // Keys with zero accidentals: C major and its relative/parallel minors declared as such
-    const ZERO_ACC = new Set(['c', 'am', 'cmaj', 'aminor', 'amin', 'none', 'c major', 'a minor', 'a min']);
-    return !ZERO_ACC.has(lastKey);
-  }
+  // The key signature is taken from the last K: field before the selection (see
+  // getKeySigMapAt), so key changes before the selection are respected.
 
   // Barline pattern — same variants as used in addTriplets
   const BARLINE_RE_SRC = '(?:::?\\|::|::\\|:|:\\|\\|:|:\\|\\||\\|\\|:|::\\|\\||::\\|:|:\\||:\\]|\\[\\|\\||\\|\\||\\[\\||\\|\\]|\\||:\\|)';
 
-  function processBarForRedundantAccidentals(bar) {
+  function processBarForRedundantAccidentals(bar, keyMap) {
     // Scan the bar for all note occurrences, tracking positions.
     // We skip content inside quoted strings (chord symbols "...").
     // NOTE_RE: /([_^=]*)([a-gA-G])([',]*)/g
@@ -6502,20 +6494,23 @@
 
     // Determine which hits are redundant (working backwards so we can splice safely)
     const toRemove = []; // indices into `bar` where we should remove the accidental prefix
-    const noKeyAcc = !keyHasAccidentals();
 
     for (const h of annotated) {
       if (h.acc === '') continue; // no accidental, nothing to do
 
+      // Effective accidental already in force for this note+octave at this point:
+      // an earlier explicit accidental in the bar takes precedence; otherwise fall
+      // back to what the key signature implies for this letter ('', '^', or '_').
+      const effective = h.hasPrevAcc ? h.prevAcc : (keyMap[h.letter.toUpperCase()] || '');
+
       let redundant = false;
-      if (h.acc === '=' ) {
-        // Natural: redundant if previous accidentalled occurrence was also '=',
-        // OR (if key has no accidentals) there was no prior accidentalled occurrence at all.
-        if (h.hasPrevAcc && h.prevAcc === '=') redundant = true;
-        else if (!h.hasPrevAcc && noKeyAcc)    redundant = true;
+      if (h.acc === '=') {
+        // Natural: redundant unless it's cancelling an active sharp/flat
+        // (from the key signature or an earlier accidental in the bar).
+        if (effective !== '^' && effective !== '_') redundant = true;
       } else {
-        // Sharp or flat: redundant only if previous accidentalled occurrence was identical.
-        if (h.hasPrevAcc && h.prevAcc === h.acc) redundant = true;
+        // Sharp or flat: redundant only if it just repeats the already-effective accidental.
+        if (effective === h.acc) redundant = true;
       }
 
       if (redundant) toRemove.push({ index: h.index, accLen: h.accLen });
@@ -6532,6 +6527,7 @@
 
   function removeRedundantAccidentals() {
     const BARLINE_RE = new RegExp(BARLINE_RE_SRC, 'g');
+    const keyMap = getKeySigMapAt(savedStart);
 
     transformSelection(sel => {
       // Split selection into bars (preserving barline tokens) and process each bar segment.
@@ -6569,14 +6565,14 @@
       for (const sp of splits) {
         if (sp.pos > cursor) {
           // Music content before this split — process it as a bar segment
-          result += processBarForRedundantAccidentals(sel.slice(cursor, sp.pos));
+          result += processBarForRedundantAccidentals(sel.slice(cursor, sp.pos), keyMap);
         }
         result += sp.text;
         cursor = sp.pos + sp.len;
       }
       // Trailing music segment after last split
       if (cursor < sel.length) {
-        result += processBarForRedundantAccidentals(sel.slice(cursor));
+        result += processBarForRedundantAccidentals(sel.slice(cursor), keyMap);
       }
       return result;
     });
