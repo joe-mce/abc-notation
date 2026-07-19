@@ -40,6 +40,21 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
+  /* No native text-selection or iOS long-press callout anywhere by default —
+     this used to be an incidental side effect of preventDefault-on-touchstart
+     for most buttons; now that ordinary buttons no longer call preventDefault
+     at all (see the click-based dispatch further down), it's stated here
+     explicitly instead. #notation-display (the syntax-highlighted view) has
+     its own fully custom tap/drag-to-select and is already covered by this;
+     the few genuine text-entry fields opt back in below. */
+  * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  #notation, #chordInput, #textInput, #hdrTrayCustomInput,
+  .hdr-key-input, .hdr-value-input, #wrapBefore, #wrapAfter, #shareLinkTextarea {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
   html, body { height: 100%; overflow: hidden; }
   body {
     font-family: 'IBM Plex Sans', sans-serif;
@@ -180,10 +195,6 @@
       padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
     }
     .modal-title { font-size: 1.2rem; }
-    /* iOS Safari auto-zooms the page when focusing a text input with a
-       computed font-size under 16px. Bump it here (mobile only) so
-       focusing these fields doesn't trigger that zoom. */
-    .modal-textarea { font-size: 16px; }
     .modal-close { width: 36px; height: 36px; font-size: 1.05rem; }
   }
   .settings-section { display: flex; flex-direction: column; gap: 10px; }
@@ -265,7 +276,7 @@
     border-radius: 10px;
     color: var(--text);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.75rem;
+    font-size: 16px; /* iOS auto-zooms on focus below 16px — see .insert-input, which uses the same unconditional approach */
     line-height: 1.5;
     padding: 8px 10px;
     resize: vertical;
@@ -1179,6 +1190,7 @@
     border-radius: 30%;
     cursor: pointer;
     user-select: none;
+    touch-action: manipulation;
     transition: background 0.08s, transform 0.08s;
     display: flex;
     align-items: center;
@@ -1284,7 +1296,7 @@
     0%   { transform: scale(1.18); }
     100% { transform: scale(1); }
   }
-  .key.pressed, .keyboard-toggle-btn.pressed, .row-2 .action-btn.pressed, .row-3 .action-btn.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
+  .key:active, .key.pressed, .keyboard-toggle-btn:active, .keyboard-toggle-btn.pressed, .row-2 .action-btn:active, .row-2 .action-btn.pressed, .row-3 .action-btn:active, .row-3 .action-btn.pressed { transform: scale(1.18); z-index: 10; position: relative; transition: none; }
   .key.shrink, .keyboard-toggle-btn.shrink, .row-2 .action-btn.shrink, .row-3 .action-btn.shrink  { animation: keyshrink 0.2s cubic-bezier(0.2, 0, 0.4, 1); }
 
   /* Gesture note badge */
@@ -1476,7 +1488,7 @@
       border: none;
       padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
     }
-    .hdr-value-input, .hdr-key-input, .hdr-cell-key .hdr-code, .hdr-cell-key .hdr-title, .hdr-complex-trigger-value { font-size: 16px !important; }
+    .hdr-cell-key .hdr-code, .hdr-cell-key .hdr-title, .hdr-complex-trigger-value { font-size: 16px !important; }
   }
 
   /* ---- Current Headers: minimalist two-column table ----
@@ -1528,7 +1540,7 @@
     border: none;
     color: var(--text);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.85rem;
+    font-size: 16px; /* iOS auto-zooms on focus below 16px */
     padding: 0;
   }
   .hdr-key-input:focus { outline: none; }
@@ -1544,7 +1556,7 @@
     border: none;
     color: var(--text);
     font-family: -apple-system, 'IBM Plex Sans', sans-serif;
-    font-size: 0.85rem;
+    font-size: 16px; /* iOS auto-zooms on focus below 16px */
     padding: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1776,13 +1788,12 @@
     border-radius: 10px;
     color: var(--text);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.85rem;
+    font-size: 16px; /* iOS auto-zooms on focus below 16px */
     padding: 10px 12px;
   }
   .hdr-tray-custom-input:focus { outline: none; border-color: var(--accent); }
   .hdr-tray-custom-input::placeholder { color: var(--text-dim); }
   @media (max-width: 600px) {
-    .hdr-tray-custom-input { font-size: 16px !important; }
     #hdr-tray-sheet { min-height: 50dvh; }
   }
 </style>
@@ -2051,7 +2062,7 @@
 
 <div id="preview-wrap">
   <div class="preview-pill">
-    <button class="action-btn" id="songInfoBtn" data-action="openSongInfo" data-keepfocus="1" aria-label="Song info">
+    <button class="action-btn" id="songInfoBtn" data-action="openSongInfo" aria-label="Song info">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="12" r="9" stroke="white" stroke-width="2"/>
         <line x1="12" y1="11" x2="12" y2="16.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
@@ -2096,7 +2107,7 @@
     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
   <div class="float-pills-row">
     <div class="float-pills">
-      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" data-keepfocus="1" disabled aria-label="Undo">
+      <button class="action-btn btn-undo" id="undoBtn" data-action="undo" disabled aria-label="Undo">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M4 7h11a5 5 0 0 1 0 10H8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
           <polyline points="8,3 4,7 8,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2114,7 +2125,7 @@
        cursor is touching a note/rest/chord's duration; otherwise left empty. -->
   <div class="editor-toolbar">
     <div class="action-scroll" id="actionScroll"></div>
-    <button class="action-btn keyboard-toggle-btn" data-action="toggleOnscreenKeyboard" data-keepfocus="1" aria-label="Hide keyboard">
+    <button class="action-btn keyboard-toggle-btn" data-action="toggleOnscreenKeyboard" aria-label="Hide keyboard">
       <!-- Hide-keyboard icon (shown while the keyboard is visible — tapping
            hides it): keyboard glyph shifted up 7 units from the show-icon
            below to leave equal room for a down-pointing caret underneath,
@@ -2181,8 +2192,8 @@
 
   <!-- Row 3: T "" [] () {} (3 |: :| ⌫ -->
   <div class="key-row row-3">
-    <button class="action-btn key-modal-trigger" id="textPopupBtn" data-action="openTextPopup" data-keepfocus="1" style="font-family: Georgia, 'Times New Roman', serif;">T</button>
-    <button class="action-btn key-modal-trigger" id="chordPopupBtn" data-action="openChordPopup" data-keepfocus="1">G<sup>7</sup></button>
+    <button class="action-btn key-modal-trigger" id="textPopupBtn" data-action="openTextPopup" style="font-family: Georgia, 'Times New Roman', serif;">T</button>
+    <button class="action-btn key-modal-trigger" id="chordPopupBtn" data-action="openChordPopup">G<sup>7</sup></button>
     <button class="key" id="bracketSquare" data-action="insertBracketPair" data-open="[" data-close="]">[ ]</button>
     <button class="key" id="bracketParen" data-action="insertBracketPair" data-open="(" data-close=")">( )</button>
     <button class="key" id="bracketCurly" data-action="insertBracketPair" data-open="{" data-close="}">{ }</button>
@@ -2193,8 +2204,8 @@
 
   <!-- Row 4: ← → SPACE | ↵  (/ removed) -->
   <div class="key-row row-4">
-    <button class="key" data-action="arrowLeft" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
-    <button class="key" data-action="arrowRight" data-keepfocus="1" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
+    <button class="key" data-action="arrowLeft" style="font-family:'IBM Plex Mono',monospace;">&#x2190;</button>
+    <button class="key" data-action="arrowRight" style="font-family:'IBM Plex Mono',monospace;">&#x2192;</button>
     <button class="key key-space" data-insert=" ">SPACE</button>
     <button class="key" data-insert="|" data-hold-options="|| |: :| |] |1 |2">|</button>
     <button class="key key-nl" data-insert="&#10;">↵</button>
@@ -2256,9 +2267,9 @@
 <div id="hold-overlay"></div>
 
 <div class="paste-tooltip" id="pasteTooltip">
-  <button class="action-btn paste-tooltip-btn" data-action="copySelection" data-keepfocus="1" id="tooltipCopyBtn" style="display:none;">Copy</button>
-  <button class="action-btn paste-tooltip-btn" data-action="pasteOverSelection" data-keepfocus="1" id="tooltipPasteSelBtn" style="display:none;">Paste</button>
-  <button class="action-btn paste-tooltip-btn" data-action="pasteAtCursor" data-keepfocus="1" id="tooltipPasteCursorBtn">Paste</button>
+  <button class="action-btn paste-tooltip-btn" data-action="copySelection" id="tooltipCopyBtn" style="display:none;">Copy</button>
+  <button class="action-btn paste-tooltip-btn" data-action="pasteOverSelection" id="tooltipPasteSelBtn" style="display:none;">Paste</button>
+  <button class="action-btn paste-tooltip-btn" data-action="pasteAtCursor" id="tooltipPasteCursorBtn">Paste</button>
 </div>
 
 <div class="copy-toast" id="toast">Copied ✓</div>
@@ -3231,10 +3242,8 @@
     taFocused = false;
     savedStart = ta.selectionStart;
     savedEnd = ta.selectionEnd;
-    if (!popupOpen) {
-      showStaticDisplay();
-      setTypingRows(false);
-    }
+    showStaticDisplay();
+    setTypingRows(false);
     updateActionBar();
   });
   ta.addEventListener('keyup', () => {
@@ -3322,12 +3331,13 @@
   }
 
   // Suppress previewClickListener when the touch that produced the click was
-  // actually a scroll, not a tap — same cumulative-distance approach (and
-  // same BTN_CANCEL_DIST threshold) as the action bar's own tap-vs-scroll
-  // handling: sum the length of each touchmove segment (not just the net
-  // start-to-end displacement), since a scroll-away-and-back gesture could
-  // otherwise end up right back near its start point and wrongly look like a
-  // tap. Touch-only — mouse dragging isn't a scrolling concern here.
+  // actually a scroll, not a tap: sum the length of each touchmove segment
+  // (not just the net start-to-end displacement), since a scroll-away-and-back
+  // gesture could otherwise end up right back near its start point and
+  // wrongly look like a tap. Touch-only — mouse dragging isn't a scrolling
+  // concern here, and ordinary buttons no longer need this (a plain 'click'
+  // already won't fire if the touch turned into a scroll).
+  const BTN_CANCEL_DIST = 10; // cumulative px of finger movement that cancels a pending tap
   let previewTouchLastX = 0, previewTouchLastY = 0, previewTouchCumDist = 0;
   let previewTapSuppressed = false;
   previewWrap.addEventListener('touchstart', e => {
@@ -4922,7 +4932,7 @@
       const cards = indices.map(i => {
         const t = TOOL_DEFS[i];
         const disabled = results[i].noEffect;
-        return `<button class="action-btn tool-card${disabled ? ' tool-card-disabled' : ''}"${disabled ? ' disabled aria-disabled="true"' : ` data-action="toolExec" data-tool="${esc(t.action)}" data-keepfocus="1"`}>
+        return `<button class="action-btn tool-card${disabled ? ' tool-card-disabled' : ''}"${disabled ? ' disabled aria-disabled="true"' : ` data-action="toolExec" data-tool="${esc(t.action)}"`}>
           <div class="tool-card-preview" id="toolCardPreview${i}" aria-hidden="true"></div>
           <div class="tool-card-name">${esc(t.label)}</div>
         </button>`;
@@ -5205,7 +5215,7 @@
 
     const selText = ta.value.slice(savedStart, savedEnd);
     let html = `<span class="dur-current-note sel-preview">${escPadMin3(truncateSelectionPreview(selText))}</span>`;
-    html += `<button class="action-btn sel-bar-btn" data-action="openToolsModal" data-keepfocus="1">Tools…</button>`;
+    html += `<button class="action-btn sel-bar-btn" data-action="openToolsModal">Tools…</button>`;
     actionScrollEl.innerHTML = html;
   }
 
@@ -5257,7 +5267,7 @@
       const active = fracEq(noteFrac, icon.frac);
       return `<button class="action-btn dur-action-btn${active ? ' active' : ''}" ` +
         `data-action="setNoteDuration" data-dur="${icon.dur}" data-dotted="${icon.dotted}" ` +
-        `data-keepfocus="1" title="${icon.title}">${durationIconSVG(icon.dur, icon.dotted, slot.isRest)}</button>`;
+        `title="${icon.title}">${durationIconSVG(icon.dur, icon.dotted, slot.isRest)}</button>`;
     }).join('');
     if (!sameNote) actionScrollEl.scrollLeft = 0;
   }
@@ -6010,7 +6020,6 @@
   function resetStep1() {
     document.getElementById('hamburgerMenu').classList.remove('open');
     if (!ta.value) return;
-    activeBtn = null;
     const overlay = document.getElementById('clear-overlay');
     overlay.style.display = 'flex';
     modalOpened('clear-overlay');
@@ -6209,10 +6218,6 @@
   let songInfoSnapshot = null;
 
   function openSongInfo() {
-    // Dismiss the native keyboard: this button carries data-keepfocus (see
-    // the global action-dispatch code) so the textarea wouldn't otherwise
-    // lose focus just from tapping "Song info" — force it here instead.
-    ta.blur();
     const parsed = parseHeaderFromText(ta.value);
     songHeaderRows = parsed.rows;
     songInfoSnapshot = JSON.parse(JSON.stringify(songHeaderRows));
@@ -7337,9 +7342,11 @@
   }
 
   // --- Chord popup ---
-  let popupPrevFocused = false;
-  let popupOpen = false;
-
+  // Opening this always leaves ta unfocused (its trigger button lives in
+  // button-area, which is hidden whenever ta is focused — see the CSS
+  // `body.typing .button-area` rule), so there's no "was ta focused before
+  // this opened" state to capture and restore on close, unlike the notation
+  // textarea's other button-driven edits.
   let chordEditRange = null; // {start, end} spanning the whole "..." when editing an existing chord symbol; null = fresh insert
   let chordEditWasSelection = false; // true if edit mode was entered via a selection-matched quote span (vs. a collapsed cursor)
   function openChordPopup() {
@@ -7361,16 +7368,9 @@
     chordInputEl.setSelectionRange(chordInputEl.value.length, chordInputEl.value.length);
   }
   function closeChordPopup() {
-    popupOpen = false;
     document.getElementById('chordOverlay').classList.remove('open');
     modalClosed('chordOverlay');
-    if (popupPrevFocused) {
-      hideStaticDisplay();
-      ta.focus();
-      ta.setSelectionRange(savedStart, savedEnd);
-    } else {
-      showStaticDisplay();
-    }
+    showStaticDisplay();
   }
   function doneChordPopup() {
     const val = document.getElementById('chordInput').value;
@@ -7387,11 +7387,11 @@
       } else {
         savedStart = savedEnd = editRange.start + newText.length;
       }
-      commitEditAndRefresh(popupPrevFocused);
+      commitEditAndRefresh(false);
       return;
     }
     if (!val) return;
-    doInsert('"' + val + '"', popupPrevFocused);
+    doInsert('"' + val + '"', false);
   }
   document.getElementById('chordOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('chordOverlay')) closeChordPopup();
@@ -7429,16 +7429,9 @@
     textInputEl.setSelectionRange(textInputEl.value.length, textInputEl.value.length);
   }
   function closeTextPopup() {
-    popupOpen = false;
     document.getElementById('textOverlay').classList.remove('open');
     modalClosed('textOverlay');
-    if (popupPrevFocused) {
-      hideStaticDisplay();
-      ta.focus();
-      ta.setSelectionRange(savedStart, savedEnd);
-    } else {
-      showStaticDisplay();
-    }
+    showStaticDisplay();
   }
   function doneTextPopup() {
     const val = document.getElementById('textInput').value;
@@ -7458,11 +7451,11 @@
       } else {
         savedStart = savedEnd = editRange.start + newText.length;
       }
-      commitEditAndRefresh(popupPrevFocused);
+      commitEditAndRefresh(false);
       return;
     }
     if (!val) return;
-    doInsert('"' + prefix + val + '"', popupPrevFocused);
+    doInsert('"' + prefix + val + '"', false);
   }
   document.getElementById('textOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('textOverlay')) closeTextPopup();
@@ -7485,18 +7478,21 @@
     radio.addEventListener('focus', () => { document.getElementById('textInput').focus(); });
   });
 
-  // Unified button interaction — works for both touch and mouse
+  // Maps each button's data-action string to its handler — including
+  // buttons that don't exist yet at page load (duration icons, tool cards,
+  // header-row reorder/remove buttons, ...) and get built fresh on every
+  // re-render. That dynamic-content case is why this stays a lookup table
+  // dispatched from a single delegated listener, rather than each button
+  // wiring up its own addEventListener.
   const actions = { undo, openSettings, copyText, exportAbcFile, resetStep1, clearStep2, clearCancel, bksp, arrowLeft, arrowRight, arrowUp, arrowDown, transposeUp, transposeDown, doubleLength, halveLength, removeText, removeAccidentals, respellEnharmonic, wrapRepeats, addTriplets, removeRedundantAccidentals, openChordPopup, closeChordPopup, doneChordPopup, openTextPopup, closeTextPopup, doneTextPopup, openNativeKeyboard, toggleOnscreenKeyboard, setNoteDuration, insertBracketPair, shareLink, closeShareLinkModal, copyShareLinkText, openToolsModal, toolExec, copySelection, pasteOverSelection, pasteAtCursor, selectPart, openExportPdfModal, closeExportPdfModal, setExportOption, setExportTab, exportPreviewPrevPage, exportPreviewNextPage, runPdfExport, openSongInfo, saveSongInfo, cancelSongInfo, addHdrField, removeHdrRow, openHdrComplexTray, selectHdrTrayPreset, toggleHdrEditMode, moveHdrRowUp, moveHdrRowDown, closeHdrTray, saveHdrTray };
 
-  function handleButtonPress(btn) {
-    // Immediate visual feedback only — every button now fires on release,
-    // like a normal button, so the actual action happens in handleButtonRelease.
-    btn.classList.add('pressed');
-    if (btn.closest('.button-area')) actionScrollEl.style.display = 'none';
-  }
-
-  function handleButtonRelease(btn) {
-    btn.classList.remove('pressed');
+  // Fires on click — i.e. on release, same timing ordinary buttons always
+  // had. Press-visual-feedback is plain CSS :active now (see the .key/
+  // .keyboard-toggle-btn/.action-btn :active rules); .pressed itself lives
+  // on only for the note-key and hold-options drag gestures further down,
+  // which add/remove it manually since they aren't ordinary press-release
+  // taps.
+  function handleButtonClick(btn) {
     const inButtonArea = !!btn.closest('.button-area');
 
     if (btn.dataset.action) {
@@ -8139,10 +8135,15 @@
   // Swipe-for-dot gesture removed — durations are now set by tapping a
   // duration icon in the (dynamic) action bar; see setNoteDuration().
 
-  // Touch move — new listener needed for gesture dragging
-  const BTN_CANCEL_DIST = 10; // cumulative px of finger movement that cancels a pending tap
-  let activeBtnInScroll = false;
-  let activeBtnLastX = 0, activeBtnLastY = 0, activeBtnCumDist = 0;
+  // Touch/mouse handling below exists only for the two drag gestures — a
+  // note-letter key (octave/accidental swipe) or a hold-options key
+  // (long-press for alternates). Every ordinary tap, on a .key or an
+  // .action-btn alike, now fires through the plain 'click' listener further
+  // down, exactly like a normal button: no press/release state to track, no
+  // tap-vs-scroll cancellation to hand-roll (a click simply won't fire if
+  // the touch turned into a scroll), and no preventDefault to reason about
+  // for focus-stealing (see the Undo-specific listener below for the one
+  // control that still needs that).
   document.addEventListener('touchmove', e => {
     if (gesture) {
       e.preventDefault();
@@ -8154,58 +8155,23 @@
       updateHoldGesture(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
     }
-    // Cumulative distance since touchdown (not simply end-start) — a
-    // touchdown/scroll/touchup on the same button must never register as
-    // a tap, whether that scroll is the action-bar strip or any other
-    // scrollable area (e.g. the Song Info modal body).
-    if (activeBtn) {
-      const t = e.changedTouches[0];
-      activeBtnCumDist += Math.hypot(t.clientX - activeBtnLastX, t.clientY - activeBtnLastY);
-      activeBtnLastX = t.clientX;
-      activeBtnLastY = t.clientY;
-      if (activeBtnCumDist > BTN_CANCEL_DIST) {
-        activeBtn.classList.remove('pressed');
-        activeBtn = null; // this touch has become a scroll — cancel the pending tap
-        activeBtnInScroll = false;
-      }
-    }
   }, { passive: false });
 
-  // Touch handling — press on touchstart, fire on touchend
-  let activeBtn = null;
   document.addEventListener('touchstart', e => {
     const btn = e.target.closest('.key, .action-btn');
     if (!btn) return;
 
     if (isNoteKey(btn)) {
       e.preventDefault();
-      activeBtn = null; // gesture system takes over
       startGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
     }
 
     if (hasHoldOptions(btn)) {
       e.preventDefault();
-      activeBtn = null; // hold-options gesture takes over
       startHoldGesture(btn, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
       return;
     }
-
-    const inActionScroll = !!btn.closest('.action-scroll, .tools-modal-scroll');
-    if (!inActionScroll && (btn.classList.contains('key') || btn.dataset.keepfocus)) {
-      e.preventDefault();
-    }
-    const action = btn.dataset.action;
-    if (action === 'openChordPopup' || action === 'openTextPopup') {
-      popupPrevFocused = taFocused;
-      popupOpen = true;
-    }
-    activeBtn = btn;
-    activeBtnInScroll = inActionScroll;
-    activeBtnLastX = e.changedTouches[0].clientX;
-    activeBtnLastY = e.changedTouches[0].clientY;
-    activeBtnCumDist = 0;
-    handleButtonPress(btn);
   }, { passive: false });
 
   document.addEventListener('touchend', e => {
@@ -8220,33 +8186,12 @@
       e.preventDefault();
       return;
     }
-    if (!activeBtn) return;
-    const touch = e.changedTouches[0];
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    const isDropdownItem = activeBtn.classList.contains('dropdown-item');
-    activeBtn.classList.remove('pressed');
-    const inButtonArea = activeBtn.closest('.button-area');
-    if (target && activeBtn.contains(target)) {
-      handleButtonRelease(activeBtn); // this also calls updateActionBar() if inButtonArea
-    } else if (inButtonArea) {
-      updateActionBar();
-    }
-    activeBtn = null;
-    if (!isDropdownItem) e.preventDefault();
   }, { passive: false });
 
   document.addEventListener('touchcancel', e => {
     if (gesture) { endGesture(false); return; }
     if (holdGesture) { cancelHoldGesture(); return; }
-    if (activeBtn) {
-      activeBtn.classList.remove('pressed');
-      if (activeBtn.closest('.button-area')) updateActionBar();
-    }
-    activeBtn = null;
   }, { passive: true });
-
-  // Mouse handling
-  let activeMouseBtn = null;
 
   document.addEventListener('mousedown', e => {
     const btn = e.target.closest('.key, .action-btn');
@@ -8254,28 +8199,15 @@
 
     if (isNoteKey(btn)) {
       e.preventDefault();
-      activeMouseBtn = null;
       startGesture(btn, e.clientX, e.clientY);
       return;
     }
 
     if (hasHoldOptions(btn)) {
       e.preventDefault();
-      activeMouseBtn = null;
       startHoldGesture(btn, e.clientX, e.clientY);
       return;
     }
-
-    if (btn.classList.contains('key') || btn.dataset.keepfocus) {
-      e.preventDefault();
-    }
-    const action = btn.dataset.action;
-    if (action === 'openChordPopup' || action === 'openTextPopup') {
-      popupPrevFocused = taFocused;
-      popupOpen = true;
-    }
-    activeMouseBtn = btn;
-    handleButtonPress(btn);
   });
 
   document.addEventListener('mousemove', e => {
@@ -8286,16 +8218,45 @@
   document.addEventListener('mouseup', e => {
     if (gesture) { endGesture(true); return; }
     if (holdGesture) { endHoldGesture(e.clientX, e.clientY); return; }
-    if (!activeMouseBtn) return;
-    const btn = activeMouseBtn;
-    activeMouseBtn = null;
-    btn.classList.remove('pressed');
-    if (btn.contains(e.target)) {
-      handleButtonRelease(btn); // this also calls updateActionBar() if inButtonArea
-    } else if (btn.closest('.button-area')) {
-      updateActionBar();
-    }
   });
+
+  // Ordinary taps/clicks on any .key or .action-btn — dropdown items
+  // (Share/Hamburger menu) included, since they're .action-btn too. Their
+  // own menu-closing click listener (see the Share/Hamburger IIFE further
+  // down) just fires alongside this on the same click; no special-casing
+  // needed since nothing here calls preventDefault.
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.key, .action-btn');
+    if (!btn || isNoteKey(btn) || hasHoldOptions(btn)) return;
+    handleButtonClick(btn);
+  });
+
+  // Undo is the one control that must never steal focus from a focused,
+  // visible textarea: it lives in float-pills-row, which — unlike
+  // button-area/editor-toolbar — stays on screen and tappable while
+  // actively typing.
+  //
+  // Mouse and touch need different handling here, not just one shared
+  // listener: on desktop, preventDefault on 'mousedown' reliably blocks the
+  // browser's default focus-shift without affecting the 'click' that
+  // follows, so the delegated click listener above still runs undo() as
+  // normal. On mobile touch, preventDefault on 'pointerdown' is NOT
+  // consistently honored for suppressing that same focus/blur side effect —
+  // 'touchstart' is the event that actually needs it there — but canceling
+  // touchstart's default also suppresses the browser's own synthetic click
+  // afterward, so the delegated listener would never see it. Dispatching
+  // explicitly from 'touchend' covers that case instead.
+  undoBtn.addEventListener('mousedown', e => e.preventDefault());
+  undoBtn.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+  undoBtn.addEventListener('touchend', e => {
+    e.preventDefault();
+    // A native click wouldn't fire if the finger dragged off the button
+    // before lifting — replicating that check by hand here, since we can't
+    // rely on click firing for this element at all (see above).
+    const t = e.changedTouches[0];
+    const target = document.elementFromPoint(t.clientX, t.clientY);
+    if (target && undoBtn.contains(target)) handleButtonClick(undoBtn);
+  }, { passive: false });
 
   // ---- Draggable divider between preview and editor ----
   // The tallest the preview pane (previewWrap) is currently allowed to be —
